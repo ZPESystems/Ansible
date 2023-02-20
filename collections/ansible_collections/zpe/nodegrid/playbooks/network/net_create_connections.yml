@@ -1,0 +1,39 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Configure Ethernet Connection - BACKPLANE0
+    zpe.nodegrid.network:
+      connection:
+        name: "BACKPLANE0"
+        connect_automatically: 'no'
+        set_as_primary_connection: 'no'
+        enable_lldp: 'no'
+        block_unsolicited_incoming_packets: 'no'
+        ethernet_link_mode: 'auto'
+        enable_ip_passthrough: 'no'
+        ipv4_mode: 'no_ipv4_address'
+        ipv4_default_route_metric: '200'
+        ipv4_ignore_obtained_default_gateway: 'no'
+        ipv4_ignore_obtained_dns_server: 'no'
+        ipv6_mode: 'no_ipv6_address'
+        ipv6_default_route_metric: '100'
+        ipv6_ignore_obtained_default_gateway: 'no'
+        ipv6_ignore_obtained_dns_server: 'no'
+
+  - name: Configure Celluar connection
+    zpe.nodegrid.network:
+      connection:
+        name: "CELLUAR1"
+        type: 'mobile_broadband_gsm'
+        connect_automatically: 'yes'
+        ipv4_mode: 'dhcp'
+        ipv6_mode: 'no_ipv6_address'
+        enable_ip_passthrough: 'yes'
+        ethernet_connection: 'BACKPLANE0'
+        enable_data_usage_monitoring: 'yes'
+        sim-1_apn_configuration: 'automatic'
+        sim-1_mtu: 'auto'
+        enable_second_sim_card: 'no'

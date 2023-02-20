@@ -1,0 +1,16 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+  - name: Authentication 2-Factor
+    zpe.nodegrid.security:
+        authentication:
+          2-factor:
+            - name: "OTP-test"  # (Nodegrid OS 5.8+ compatible)
+              method: "otp"
+              status: "enabled"
+              otp_type: "time_based"
+              enforce_otp_setup: "yes"

@@ -1,0 +1,43 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Add device
+    zpe.nodegrid.managed_devices:
+      auto_discovery:
+        network_scan:
+          - scan_id: "test_scan"
+            ip_range_start: "192.168.0.1"
+            ip_range_end: "192.168.0.1"
+            enable_scanning: "yes"
+            similar_devices: "yes"
+            device: "nsc"
+            port_scan: "yes"
+            port_list: "22-23,623"
+            ping: "yes"
+            scan_interval: "60"
+        vm_managers:
+          - vm_server: "local"
+            username: "admin"
+            password: "admin"
+            type: "VMware"
+            html_console_port: "7331,7343"
+        discovery_rules:
+          - rule_name: "test-rule"
+            status: "enabled"
+            method: "dhcp"
+            action: "clone_mode_enabled"
+            clone_from: "NSC"
+            enforce_device_type: "no"
+        hostname_detection:
+          string_settings:
+            probe.1:
+              string_type: "probe"
+              string: "\\\\r"
+          global_setting:
+            probe_timeout: "5"
+            number_of_retries: "3"
+            update_device_name: "yes"
+            new_discovered_device_receives_the_name_during_conflict: "no"

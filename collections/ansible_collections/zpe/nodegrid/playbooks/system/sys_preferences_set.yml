@@ -1,0 +1,12 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Update System preferences
+    zpe.nodegrid.system:
+      preferences:
+        show_hostname_on_webui_header: "yes"
+        idle_timeout: "1200"
+        enable_banner: "yes"

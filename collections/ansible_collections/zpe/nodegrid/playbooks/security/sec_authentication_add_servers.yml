@@ -1,0 +1,56 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Authentication setup
+    zpe.nodegrid.security:
+        authentication:
+          console:
+            admin_and_root_fallback_to_local_on_console: "yes"
+          default_group: 
+            default_group_for_remote_users: "user"
+          realms:
+            enable_authentication_server_selection_based_on_realms: "yes"
+
+  - name: Authentication add TACACS+ server
+    zpe.nodegrid.security:
+        authentication:
+          servers:
+            1:
+              method: "tacacs+"
+              2-factor_authentication: "none"
+              status: "enabled"
+              fallback_if_denied_access: "yes"
+              remote_server: "192.168.0.100"
+              tacacs+_accounting_server: "192.168.0.100"
+              authorize_ssh_pkey_users: "yes"
+              tacacs_port: "49"
+              tacacs+_service: "raccess"
+              tacacs+_secret: "secret"
+              tacacs+_timeout: "2"
+              tacacs+_retries: "2"
+              tacacs+_version: "v0_v1"
+              # tacacs+_enforce_source_ip: ""
+              tacacs+_enable_user-level: "yes"
+              tacacs+_user_level_6: "admin"
+            2:
+              method: "radius"
+              2-factor_authentication: "none"
+              status: "enabled"
+              fallback_if_denied_access: "yes"
+              remote_server: "192.168.0.100"
+              radius_accounting_server: "192.168.0.100"
+              radius_port: "default"
+              radius_accounting_port: "default"
+              radius_secret: "secret"
+              radius_timeout: "2"
+              radius_retries: "2"
+              radius_enable_servicetype: "no"
+            3:
+              2-factor_authentication: "none"
+              status: "enabled"
+              apply_2-factor_auth_for_admin_and_root_users: "no"
+
+

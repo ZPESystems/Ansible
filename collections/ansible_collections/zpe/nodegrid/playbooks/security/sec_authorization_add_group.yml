@@ -1,0 +1,27 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Add authorization
+    zpe.nodegrid.security:
+      authorization:
+        name: 'manager'
+        profile:
+          # Permissions begin
+          track_system_information: "yes"
+          terminate_sessions: "yes"
+          software_upgrade_and_reboot_system: "yes"
+          configure_system: "yes"
+          configure_user_accounts: "yes"
+          apply_&_save_settings: "yes"
+          shell_access: "yes"
+          manage_devices_permissions: "no"
+          # Permissions end
+          restrict_configure_system_permission_to_read_only: "no"
+          menu-driven_access_to_devices: "no"
+          sudo_permission: "no"
+          custom_session_timeout: "no"
+          startup_application: "cli"
+          email_events_to: "" 

@@ -70,10 +70,6 @@ Run your first playbook
 ```
 ansible-playbook /etc/ansible/playbooks/ng_get_facts.yml
 ```
-Run your first playbook
-```
-ansible-playbook /etc/ansible/playbooks/sys_preferences_set.yml
-```
 
 More examples can be found in the playbook folder
 ```

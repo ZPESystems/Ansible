@@ -2,7 +2,25 @@
 # -*- coding: utf-8 -*-
 
 import pexpect
+import re
 from datetime import datetime
+
+def _get_import_process_timeout(import_text):
+    ret_timeout = 1500 # arbitrary default timeout
+    count = 0
+    try:
+        match = re.findall(r"^(\/settings\/.+) .+$", import_text, re.MULTILINE)
+        if match:
+            path_list = set(match)
+            if (isinstance(path_list, list)):
+                count = len(path_list)
+            if count > 0:
+                # 15 seconds to proccess each unique path
+                ret_timeout = count * 15
+    except:
+        pass
+
+    return ret_timeout
 
 def run_cli_command(cmd):
     cli_cmd = f'cli -c {cmd}'
@@ -116,6 +134,7 @@ def import_settings(settings, use_config_start=True):
     Returns:
         dict: Import settings result
     """
+    import_p_timeout = _get_import_process_timeout(("\n").join(settings))
     cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
@@ -129,7 +148,7 @@ def import_settings(settings, use_config_start=True):
     for item in settings:
         cmd_cli.sendline(item)
     cmd_cli.sendcontrol('d')
-    cmd_cli.expect_exact('/]# ')
+    cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
     output = cmd_cli.before
     if use_config_start:
         cmd_cli.sendline('config_confirm')

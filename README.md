@@ -2,6 +2,8 @@
 
 On this repository you find the Ansible Library for Nodegrid, a set of ansible collections designed to manage and interact with the Nodegrid and its devices.
 
+This library is currently in expansion, read the [LibrarySupport.md](LibrarySupport.md) to see the modules list.
+
 ## Requirements
 **Nodegrid Version:** 5.6 or higher (recommended 5.6.5 or newer)
 

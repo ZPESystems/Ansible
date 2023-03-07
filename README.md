@@ -10,7 +10,7 @@ This library is currently in expansion, read the [LibrarySupport.md](LibrarySupp
 ## Installation
 
 ### Installation on Nodegrid
-The collection can be installed by the default 'admin' user, this will enable the use of the Cluster feature to directly manage Nodegrid appliances which are part of the cluster setup.
+The collection can be installed by the default 'admin' user, this will enable the use of the Cluster feature to directly manage Nodegrid appliances which are part of the cluster setup. Install only on cluster coordinator.
 
 #### Step 1 - Download the library
 You can download this library in a few different ways:

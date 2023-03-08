@@ -1,0 +1,87 @@
+---
+# This playbook, requires a host called coordinator and a host or group called peers
+# purpose:
+# The playbook synchronizes defined systems settings from a coordinator to a peer
+# This can be used to ensure that all Nodegrids in a cluster contain the same system configuration and permissions
+ - name: Nodegrid - Export Settings from Coordinator
+   hosts: coordinator
+   gather_facts: false
+   collections:
+     - zpe.nodegrid
+   tasks:
+    - name: 1.1 Export Settings from Coordinator
+      export_settings:
+          settings:
+             - zpe_cloud
+             - custom_fields
+             - local_accounts
+             - date_and_time
+             - auditing
+             - services
+             - password_rules
+             - devices_session_preferences
+             - power_menu
+             - devices_views_preferences
+             - system_preferences
+             - system_logging
+             - authentication
+             - authorization
+      register: export
+
+    - name: 1.2 Set exported settings as host fact
+      set_fact:
+          import_settings: "{{ export.settings }}"
+          cacheable: yes
+
+ - name: Nodegrid - Import Settings to Peers
+   hosts: peers
+   gather_facts: false
+   collections:
+     - zpe.nodegrid
+   tasks:
+      - name: 2.1 Export Settings from Peer
+        export_settings:
+            settings:
+             - zpe_cloud
+             - custom_fields
+             - local_accounts
+             - date_and_time
+             - auditing
+             - services
+             - password_rules
+             - devices_session_preferences
+             - power_menu
+             - devices_views_preferences
+             - system_preferences
+             - system_logging
+             - authentication
+             - authorization
+        register: export
+
+      - name: 2.2 Identify Configuration differences
+        config_diff:
+          before: "{{ hostvars['coordinator']['import_settings'] }}"
+          after: "{{ export.settings }}"
+        register: diff_result
+
+      - name: Debug
+        debug:
+          var: diff_result
+
+      - name: 2.3 Import Settings
+        block:
+          - name: Remove Settings
+            zpe.nodegrid.delete_settings:
+               fullpath: "{{ diff_result['config_remove'] }}"
+            when: diff_result.config_delete == true
+
+          - name: Import Settings
+            zpe.nodegrid.import_settings:
+                  cmds: "{{ diff_result['config_difference'] }}"
+            register: output
+            when: diff_result.config_update == true
+
+
+
+
+

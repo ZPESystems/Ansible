@@ -35,6 +35,13 @@ def get_cli():
     cmd_cli.expect_exact('/]# ')
     return cmd_cli
 
+
+def get_shell(become=False):
+    cmd_shell = pexpect.spawn('bash', encoding='UTF-8')
+    cmd_shell.setwinsize(500, 250)
+    cmd_shell.expect_exact(['$'])
+    return cmd_shell
+
 def close_cli(cmd_cli):
     cmd_cli.sendline('exit')
     cmd_cli.close()
@@ -42,7 +49,18 @@ def close_cli(cmd_cli):
 def execute_cmd(cmd_cli, cmd):
     if 'cmd' in cmd.keys():
         cmd_cli.sendline(cmd['cmd'])
-        cmd_cli.expect_exact(']# ')
+        if 'confirm' in cmd.keys():
+            index = cmd_cli.expect_exact(['(yes, no)  :', ']# ', pexpect.EOF, pexpect.TIMEOUT])
+            if index == 0:
+                cmd_cli.sendline('yes')
+                cmd_cli.expect_exact(']# ')
+                cmd_cli.sendline('commit')
+                cmd_cli.expect_exact(']# ')
+            elif index == 1:
+                cmd_cli.sendline('commit')
+                cmd_cli.expect_exact(']# ')
+        else:
+            cmd_cli.expect_exact(']# ')
         output = cmd_cli.before
         output = output.replace('\r\r\n', '\r\n')
         output_dict = dict()
@@ -123,7 +141,6 @@ def export_settings(cli_path):
                 all_settings.append(line[1:])
     return "successful", settings, all_settings
 
-
 def import_settings(settings, use_config_start=True):
     """Runs the import settings.
 
@@ -186,7 +203,6 @@ def import_settings(settings, use_config_start=True):
     output_dict["import_status_details"] = import_status_details
     output_dict["error_list"] = error_list
     return output_dict
-
 
 def settings_diff(exported_settings, new_settings, skip_keys):
     """Compares two sets of settings, returns what values were changed or were added

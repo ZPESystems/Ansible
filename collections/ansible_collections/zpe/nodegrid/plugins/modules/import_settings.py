@@ -21,9 +21,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, import_settings
 from ansible.utils.display import Display
 
-import pexpect
 import os
-import re
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -38,7 +36,8 @@ display = Display()
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
-        cmds=dict(type='list', required=True)
+        cmds=dict(type='list', required=True),
+        overwrite=dict(type=bool, default=False)
     )
 
     # seed the result dict in the object
@@ -47,7 +46,7 @@ def run_module():
     # state will include any data that you want your module to pass back
     # for consumption, for example, in a subsequent task
     result = dict(
-        changed=False,
+        changed=True,
         message=''
     )
 
@@ -59,7 +58,9 @@ def run_module():
         argument_spec=module_args,
         supports_check_mode=True
     )
-    
+
+
+
     #
     # Nodegrid OS section starts here
     #

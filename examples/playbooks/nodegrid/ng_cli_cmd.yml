@@ -1,0 +1,19 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Execute any cli command
+      zpe.nodegrid.nodegrid_cmds:
+         cmds:
+           - cmd: 'cd /system/about'
+           - cmd: 'show'
+      register: output
+
+    - name: Display Result
+      debug:
+        msg: "{{ item.stdout_lines }}"
+      with_items: "{{ output.cmds_output }}"
+      loop_control:
+        label: "{{ item.command }}"

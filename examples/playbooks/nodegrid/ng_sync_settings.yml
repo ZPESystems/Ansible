@@ -64,10 +64,6 @@
           after: "{{ export.settings }}"
         register: diff_result
 
-      - name: Debug
-        debug:
-          var: diff_result
-
       - name: 2.3 Import Settings
         block:
           - name: Remove Settings

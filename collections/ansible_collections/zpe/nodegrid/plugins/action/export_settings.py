@@ -33,10 +33,13 @@ class ActionModule(ActionBase):
         return result
 
     def _result_not_changed(self, msg=dict()):
+        if isinstance(msg, list):
+            stroutput = '\n'.join(msg)
         result = dict(
             failed=False,
             changed=False,
-            settings=msg
+            settings=msg,
+            msg=stroutput
         )
         return result
 

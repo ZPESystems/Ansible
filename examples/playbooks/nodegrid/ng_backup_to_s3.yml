@@ -7,11 +7,11 @@
 # which started a wizzard which guides through the setup
 #
 - hosts: all
-  gather_facts: false
+  gather_facts: true
   collections:
     - zpe.nodegrid
   vars:
-    backup_filename: "{{ inventory_hostname }}.tar.gz"
+    backup_file_extension: ".tar.gz"
     rclone_location: "~/rclone-v1.61.1-linux-amd64"
     bucket_name: s3:nodegrid-backup
     cert_check:
@@ -23,13 +23,13 @@
       zpe.nodegrid.nodegrid_cmds:
          cmds:
            - cmd: 'save_settings'
-           - cmd: 'set filename={{ backup_filename }}'
+           - cmd: 'set filename={{ ansible_facts.hostname }}{{backup_file_extension}}'
            - cmd: 'save'
       register: output
 
     - name: Check that Backup was created
       stat:
-        path: "/backup/{{ backup_filename }}"
+        path: "/backup/{{ ansible_facts.hostname }}{{backup_file_extension}}"
       register: backup_file
 
     - name: Assert that file exists
@@ -38,16 +38,16 @@
 
     - name: Adjust File permissions
       file:
-        path: /backup/{{ backup_filename }}
+        path: /backup/{{ ansible_facts.hostname }}{{backup_file_extension}}
         state: file
         mode: '0755'
       become: True
 
     - name: Copy Backup to S3 bucket
-      shell: "{{ rclone_location }}/rclone copy /backup/{{ backup_filename }} {{ bucket_name }} {{ cert_check }}"
+      shell: "{{ rclone_location }}/rclone copy /backup/{{ ansible_facts.hostname }}{{backup_file_extension}} {{ bucket_name }} {{ cert_check }}"
 
     - name: Remove local Backup file
       file:
-        path: /backup/{{ backup_filename }}
+        path: /backup/{{ ansible_facts.hostname }}{{backup_file_extension}}
         state: absent
       become: true

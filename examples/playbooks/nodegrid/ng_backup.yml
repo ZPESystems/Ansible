@@ -1,0 +1,32 @@
+---
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars:
+    backup_filename: "{{ inventory_hostname }}.tar.gz"
+
+  tasks:
+    - name: Execute a local Backup
+      zpe.nodegrid.nodegrid_cmds:
+         cmds:
+           - cmd: 'save_settings'
+           - cmd: 'set filename={{ backup_filename }}'
+           - cmd: 'save'
+      register: output
+
+    - name: Check that Backup was created
+      stat:
+        path: "/backup/{{ backup_filename }}"
+      register: backup_file
+
+    - name: Assert that file exists
+      assert:
+        that: "backup_file.stat.exists == true"
+
+    - name: Copy file to local directory called backup
+      fetch:
+        src: "/backup/{{ backup_filename }}"
+        dest: "./backup/"
+        flat: true
+      become: True

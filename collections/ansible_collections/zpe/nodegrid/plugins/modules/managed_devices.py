@@ -18,10 +18,10 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell
 from ansible.utils.display import Display
 
-import os
+import os, json, pexpect
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -95,14 +95,42 @@ def run_option_auto_discovery(option, run_opt):
     option['settings'] = settings_list
     return run_option(option, run_opt)
 
+def facts(option, run_opt):
+    suboptions = option['suboptions']
+    cli_path = option['cli_path']
+    raw = pexpect.run('llconf ini -si /etc/spm_server.ini json')
 
+    inventory = {
+        "managed_devices": [],
+        "device_disabled": [],
+        "device_enabled": [],
+        "device_ondemand": [],
+        }
+    parsed = json.loads(raw)
+    if len(parsed) == 1:
+        parsed = parsed['(root)']
+        for device in parsed:
+            inventory['managed_devices'].append(device)
+            if parsed[device]['status'] == 'disabled':
+                inventory['device_disabled'].append(device)
+            elif parsed[device]['status'] == 'enabled':
+                inventory['device_enabled'].append(device)
+            elif parsed[device]['status'] == 'ondemand':
+                inventory['device_ondemand'].append(device)
+    result = dict(
+        changed=False,
+        failed=False,
+        devices=inventory
+    )
+    return result
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         device=dict(type='dict', required=False),
         auto_discovery=dict(type='dict', required=False),
-        skip_invalid_keys=dict(type='bool', default=False, required=False)
+        skip_invalid_keys=dict(type='bool', default=False, required=False),
+        facts=dict(type='bool', default=False, required=False)
     )
 
     # seed the result dict in the object
@@ -139,6 +167,12 @@ def run_module():
             'cli_path': '/settings/auto_discovery',
             'func': run_option_auto_discovery
         },
+        {
+            'name': 'facts',
+            'suboptions': module.params['facts'],
+            'cli_path': '',
+            'func': facts
+        },
     ]
 
     #
@@ -168,12 +202,16 @@ def run_module():
         if option['suboptions'] is not None:
             func = option['func']
             res = func(option, run_opt)
-            result['output'][option['name']] = res
+            if option['name'] == 'facts':
+                result['facts'] = res['devices']
+                result['failed'] = False
+            else:
+                result['output'][option['name']] = res
             if res['failed']:
                 result['failed'] = True
                 module.fail_json(msg=res['msg'], **result)
 
-    if len(result['output'].keys()) == 0:
+    if len(result['output'].keys()) == 0 and option['name'] != 'facts':
         module.fail_json(msg='No inputs', **result)
 
     # if the user is working with this module in only check mode we do not

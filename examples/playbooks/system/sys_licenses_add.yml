@@ -1,0 +1,12 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Add licences
+    zpe.nodegrid.system:
+      license:
+        license_keys:
+        - "put-your-license-here"
+        - "put-your-license-here"

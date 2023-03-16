@@ -1,0 +1,12 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Update Date and Time (Auto)
+    zpe.nodegrid.system:
+        date_and_time:
+          date_and_time: "network_time_protocol"
+          server: "pool.ntp.org"
+          zone: "utc-3"

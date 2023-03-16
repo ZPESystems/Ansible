@@ -1,0 +1,17 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Update Date and Time (Manual)
+    zpe.nodegrid.system:
+        date_and_time:
+          date_and_time: "manual"
+          month: "02"
+          day: "20"
+          year: "2023"
+          hour: "10"
+          minute: "00"
+          second: "00"
+          zone: "utc-3"

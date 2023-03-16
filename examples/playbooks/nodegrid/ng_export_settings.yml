@@ -1,0 +1,30 @@
+ - name: Nodegrid - Export Settings from a Nodegrid
+   hosts: all
+   gather_facts: false
+   collections:
+     - zpe.nodegrid
+   tasks:
+    - name: Export Settings
+      export_settings:
+          settings:
+             - zpe_cloud
+             - custom_fields
+             - local_accounts
+             - date_and_time
+             - auditing
+             - services
+             - password_rules
+             - devices_session_preferences
+             - power_menu
+             - devices_views_preferences
+             - system_preferences
+             - system_logging
+             - authentication
+             - authorization
+      register: export
+
+    - name: Write settings to file localy
+      ansible.builtin.copy:
+        content: "{{ export.msg }}"
+        dest: ./{{ inventory_hostname }}.export
+      connection: local

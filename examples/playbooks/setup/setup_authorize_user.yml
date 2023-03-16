@@ -1,0 +1,26 @@
+---
+# Requirements: None
+# purpose:
+# This playbook can be used to change the default password for the admin user and install a ssh key for the
+# preexisting ansible user. This can be useful enable ansible access to a new Nodegrid,
+# which is still on its default settings
+#
+- hosts: all
+  name: Configure ZPE Out Of Box - Factory Default
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars_prompt:
+    - name: ansible_user
+      prompt: Enter Username for the connection
+      default: admin
+    - name: new_password
+      prompt: Provide a new password for admin user
+    - name: ssh_key
+      prompt: Enter a user's ssh public key to access ansible user via ssh
+
+  tasks:
+    - name: Change default admin password and install the ansible user ssh key
+      zpe.nodegrid.setup:
+        password: "{{ new_password }}"
+        ssh_key: "{{ ssh_key }}"

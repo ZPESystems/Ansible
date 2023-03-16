@@ -1,0 +1,164 @@
+---
+# This playbook, requires a host called coordinator and a host or group called peers
+# purpose:
+# The playbook synchronizes all on-demand managed devices a coordinator to a peer
+# This can be used to create a HA setup, where one Nodegrid can go offline,
+# and users can maintain full control through a redundant system
+ - name: Nodegrid - Export Device Settings from Coordinator
+   hosts: coordinator
+   gather_facts: false
+   collections:
+     - zpe.nodegrid
+   tasks:
+    - name: 1.1 Export Device List from Coordinator
+      managed_devices:
+        facts: True
+      register: device_list
+
+    - name: 1.2 Register Device List as facts
+      set_fact:
+        device_list: "{{ device_list.facts }}"
+        cacheable: yes
+
+    - name: 1.3 Export OnDemand Device Settings
+      export_settings:
+        settings:
+          - devices/{{ item }}
+      with_items: "{{ device_list.device_ondemand}}"
+      register: ondemand_devices
+
+    - name: 1.4 Register Export
+      set_fact:
+        ondemand_devices: "{{ ondemand_devices.results }}"
+        cacheable: yes
+
+ - name: Import Device Settings to Peers
+   hosts: peers
+   gather_facts: false
+   collections:
+     - zpe.nodegrid
+   tasks:
+    - name: 2.1 Export Device List from Peer
+      managed_devices:
+        facts: True
+      register: device_list
+
+    - name: 2.2 Register Device List as facts
+      set_fact:
+        device_list: "{{ device_list.facts }}"
+        cacheable: yes
+
+    - name: 2.3 Identify OnDemand Devices which must be removed
+      config_diff:
+        before: "{{ hostvars['coordinator']['device_list']['device_ondemand'] }}"
+        after: "{{ device_list.device_ondemand }}"
+      register: diff_device_ondemand
+
+    - name: 2.4 Remove OnDemand Devices which have been identified
+      zpe.nodegrid.delete_settings:
+        item: "{{ diff_device_ondemand['config_remove'] }}"
+        path: "/settings/devices/"
+      when: diff_device_ondemand.config_delete == true
+
+    - name: 2.5 Update Device List from Peer after devices where deleted
+      managed_devices:
+        facts: True
+      register: device_list_new
+      when: diff_device_ondemand.config_delete == true
+
+    - name: 2.6 Register Device List as facts after devices where deleted
+      set_fact:
+        device_list: "{{ device_list_new.facts }}"
+        cacheable: yes
+      when: diff_device_ondemand.config_delete == true
+
+    - name: 2.7 Export OnDemand Device Settings
+      export_settings:
+        settings:
+          - devices/{{ item }}
+      with_items: "{{ device_list.device_ondemand}}"
+      register: ondemand_devices
+
+    - name: 2.8 Register Export
+      set_fact:
+        ondemand_devices: "{{ ondemand_devices.results }}"
+        cacheable: yes
+
+    - name: 2.9 Identify Configuration differences
+      config_diff:
+          before: "{{ hostvars['coordinator']['ondemand_devices'] }}"
+          after: "{{ ondemand_devices }}"
+          result_format: "dict"
+      register: diff_ondemand_import
+
+    - name: 2.10 Import Settings
+      zpe.nodegrid.import_settings:
+                cmds: "{{ diff_ondemand_import['config_difference'][item] }}"
+      with_items: "{{ diff_ondemand_import['config_difference']  }}"
+      loop_control:
+          label: "{{ item }}"
+      register: output
+      when: diff_ondemand_import.config_update == true
+
+    - name: 2.11 Remove Device Detail Settings, like custom_fields and commands
+      zpe.nodegrid.delete_settings:
+        fullpath: "{{ diff_ondemand_import['config_remove'] }}"
+      when: diff_ondemand_import.config_delete == true
+
+
+ - name: Nodegrid - Export Permissions from Coordinator
+   hosts: coordinator
+   gather_facts: false
+   collections:
+     - zpe.nodegrid
+   tasks:
+    - name: 4.1 Export Settings from Coordinator
+      export_settings:
+          settings:
+             - local_accounts
+             - authentication
+             - authorization
+      register: export
+
+    - name: 4.2 Set exported settings as host fact
+      set_fact:
+          import_settings: "{{ export.settings }}"
+          cacheable: yes
+
+ - name: Nodegrid - Import Permissions to Peers
+   hosts: peers
+   gather_facts: false
+   collections:
+     - zpe.nodegrid
+   tasks:
+      - name: 5.1 Export Settings from Peer
+        export_settings:
+            settings:
+             - local_accounts
+             - authentication
+             - authorization
+        register: export
+
+      - name: 5.2 Identify Configuration differences
+        config_diff:
+          before: "{{ hostvars['coordinator']['import_settings'] }}"
+          after: "{{ export.settings }}"
+        register: diff_result
+
+      - name: 5 Import Settings
+        block:
+          - name: 5.4 Remove Settings
+            zpe.nodegrid.delete_settings:
+                fullpath: "{{ diff_result['config_remove'] }}"
+            when: diff_result.config_delete == true
+
+          - name: 5.3 Import Settings
+            zpe.nodegrid.import_settings:
+                  cmds: "{{ diff_result['config_difference'] }}"
+            register: output
+            when: diff_result.config_update == true
+
+
+
+
+

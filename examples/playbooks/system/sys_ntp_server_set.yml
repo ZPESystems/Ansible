@@ -1,0 +1,11 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: NTP Server
+    zpe.nodegrid.system:
+      ntp_server:
+        enable_ntp_server: "yes"
+        allowed_networks: "0.0.0.0/0"

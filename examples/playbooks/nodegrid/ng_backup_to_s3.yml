@@ -1,0 +1,53 @@
+---
+# This playbook rtequires a rclone to be available oin the Nodegrid
+# Download the Linux rclone from https://rclone.org/
+# Direct download link: https://downloads.rclone.org/rclone-current-linux-amd64.zip
+#
+# The S3 configuration must be created first as ansible user with 'rclone config',
+# which started a wizzard which guides through the setup
+#
+- hosts: all
+  gather_facts: true
+  collections:
+    - zpe.nodegrid
+  vars:
+    backup_file_extension: ".tar.gz"
+    rclone_location: "~/rclone-v1.61.1-linux-amd64"
+    bucket_name: s3:nodegrid-backup
+    cert_check:
+    #cert_check: --no-check-certificate     # this option might be required for local S3 buckets like NetApp StorageGRID
+
+
+  tasks:
+    - name: Execute a local Backup
+      zpe.nodegrid.nodegrid_cmds:
+         cmds:
+           - cmd: 'save_settings'
+           - cmd: 'set filename={{ ansible_facts.hostname }}{{backup_file_extension}}'
+           - cmd: 'save'
+      register: output
+
+    - name: Check that Backup was created
+      stat:
+        path: "/backup/{{ ansible_facts.hostname }}{{backup_file_extension}}"
+      register: backup_file
+
+    - name: Assert that file exists
+      assert:
+        that: "backup_file.stat.exists == true"
+
+    - name: Adjust File permissions
+      file:
+        path: /backup/{{ ansible_facts.hostname }}{{backup_file_extension}}
+        state: file
+        mode: '0755'
+      become: True
+
+    - name: Copy Backup to S3 bucket
+      shell: "{{ rclone_location }}/rclone copy /backup/{{ ansible_facts.hostname }}{{backup_file_extension}} {{ bucket_name }} {{ cert_check }}"
+
+    - name: Remove local Backup file
+      file:
+        path: /backup/{{ ansible_facts.hostname }}{{backup_file_extension}}
+        state: absent
+      become: true

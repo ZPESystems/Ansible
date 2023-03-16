@@ -1,0 +1,12 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: NTP Authentication
+    zpe.nodegrid.system:
+      ntp_authentication:
+        key_number: "100"
+        hash_algorithm: "sha256"
+        password: "1020"

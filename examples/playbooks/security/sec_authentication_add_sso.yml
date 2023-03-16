@@ -1,0 +1,24 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+  - name: Authentication SSO
+    zpe.nodegrid.security:
+        authentication:
+          sso:
+            - name: "idp_test"
+              status: "disabled"
+              entity_id: "nodegrid_automation"
+              sso_url: "https://"
+              issuer: "https://"
+              x.509_certificate: "remote_server"
+              url: "ftp://address/files/saml.crt"
+              username: "user"
+              password: "pass"
+              icon: "sso.png"
+              force_re-authentication: "no"
+              sign_request: "no"
+              enable_single_logout: "no"

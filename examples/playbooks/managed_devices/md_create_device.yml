@@ -1,0 +1,39 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Add device
+    zpe.nodegrid.managed_devices:
+      device:
+        access:
+          name: "NSC"
+          type: "ilo"
+          ip_address: "192.168.42.223"
+          credential: "set_now"
+          username: "admin"
+          password: "admin"
+        management:
+          ssh_and_telnet: "yes"
+          monitoring_ipmi: "no"
+          monitoring_nominal: "no"
+        logging:
+          data_logging: "yes"
+          event_logging: "no"
+        custom_fields:
+          - field_name: "dummy1"
+            field_value: "1234"
+          - field_name: "dummy2"
+            field_value: "444"
+        commands:
+          - command: "certificate"
+            enabled: "yes"
+          - command: "console"
+            enabled: "yes"
+            launch_local_application: "no"
+          - command: "data_logging"
+            enabled: "yes"
+          - command: "power"
+            enabled: "yes"
+          

@@ -1,0 +1,18 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Update zpecloud.com details on Nodegrid using import_settings
+      zpe.nodegrid.import_settings:
+        cmds:
+          - "/settings/zpe_cloud enable_zpe_cloud=yes"
+          - "/settings/zpe_cloud enable_remote_access=yes"
+          - "/settings/zpe_cloud enable_file_protection=no"
+          - "/settings/zpe_cloud enable_file_encryption=no"
+      register: output
+
+    - name: output
+      debug:
+        var: output

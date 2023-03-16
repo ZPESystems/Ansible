@@ -1,0 +1,13 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Get Facts from Nodegrid
+      zpe.nodegrid.facts:
+      register: output
+
+    - name: output
+      debug:
+        var: output

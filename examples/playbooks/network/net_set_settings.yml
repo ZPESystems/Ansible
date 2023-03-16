@@ -1,0 +1,11 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Configure Ethernet Connection - BACKPLANE0
+    zpe.nodegrid.network:
+      settings:
+        hostname: "leo4"
+        ipv4_loopback: "192.168.20.11"

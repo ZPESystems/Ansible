@@ -102,7 +102,7 @@ def get_nodegrid_os_details():
                 details['version'] = version_details.replace('v', '').strip()
                 details['version_dates'] = version_date.replace(')', '').strip()
                 try:
-                    details['version_date'] = datetime.strptime(details["version_dates"], '%b %d %Y - %H:%M:%S')
+                    details['version_date'] = str(datetime.strptime(details["version_dates"], '%b %d %Y - %H:%M:%S'))
                 except Exception:
                     details["error"] = "Error parsing Nodegrid version date."
                 majorversion, minorversion, subversion = version_details.split('.')

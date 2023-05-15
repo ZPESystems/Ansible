@@ -4,12 +4,13 @@ On this repository you find the Ansible Library for Nodegrid, a set of ansible c
 
 This library is currently in expansion, read the [LibrarySupport.md](LibrarySupport.md) to see the modules list.
 
-## Requirements
-**Nodegrid Version:** 5.6 or higher (recommended 5.6.5 or newer)
-
 ## Installation
 
 ### Installation on Nodegrid
+
+#### Requirements
+- **Nodegrid Version:** 5.6 or higher (recommended 5.6.5 or newer)
+
 The collection can be installed by the default 'admin' user, this will enable the use of the Cluster feature to directly manage Nodegrid appliances which are part of the cluster setup. Install only on cluster coordinator.
 
 #### Step 1 - Download the library
@@ -76,6 +77,46 @@ ansible-playbook /etc/ansible/playbooks/ng_get_facts.yml
 More examples can be found in the playbook folder
 ```
 cd /etc/ansible/playbooks/
+```
+
+### Installation on other systems
+
+#### Requirements
+- Python 3.8+ (required library: [ttp](https://pypi.org/project/ttp))
+- Ansible 2.9+
+
+**Step 1** - Download this repository with `git clone` or as `.zip` (needs to be extracted). 
+```shell
+git clone https://github.com/ZPESystems/Ansible.git
+```
+
+**Step 2** - Enter into the directory. 
+```shell script
+cd Ansible
+```
+**Step 3** - Build the library running the script `build.py`
+```shell script
+python3 build
+```
+**Step 4** - Install the collection with `ansible-galaxy`
+```shell script
+ansible-galaxy collection install -r build/collections/requirements.yml --force
+```
+
+#### ansible.cfg
+
+The configuration file `/etc/ansible/ansible.cfg` must have defined the key `interpreter_python` with the location of the Python interpreter.
+
+This is the minimal ansible.cfg recommended file content:
+
+```yaml
+[defaults]
+interpreter_python = /usr/bin/python3
+gathering = explicit
+host_key_checking = False
+
+[ssh_connection]
+ssh_args = -o ControlMaster=no -o ControlPersist=3600s -o PreferredAuthentications=publickey
 ```
 
 # Usage

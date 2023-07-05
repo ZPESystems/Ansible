@@ -109,7 +109,34 @@ class ActionModule(ActionBase):
                 return True
             else:
                 return False
-        raise ResultFailedException("End of loop changing password")
+        raise ResultFailedException("End of loop installing ssh_key")
+
+    def _grant_sudoers_permissions(self, conn_obj, password, sudo_user):
+        login_tries = 0
+        for cnt in range(20):
+            ret = conn_obj.expect_exact(['BAD PASSWORD:','Password: ', '/]# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            if ret == 0:
+                raise ResultFailedException("BAD PASSWORD")
+            elif ret == 1:
+                if login_tries == 0:
+                    conn_obj.sendline('admin')
+                elif login_tries == 1:
+                    conn_obj.sendline(password)
+                else:
+                    raise ResultFailedException(f"Could not login to host. Invalid password!")
+                login_tries += 1
+            elif ret == 2:
+                if sudo_user is not None:
+                    conn_obj.sendline(f'shell sudo su -')
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                return True
+            else:
+                return False
+        raise ResultFailedException("End of loop installing granting sudoers permissions")
 
     def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
         login_tries = 0

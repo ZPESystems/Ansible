@@ -40,7 +40,8 @@ display = Display()
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
-        cmds=dict(type='list', required=True)
+        cmds=dict(type='list', required=True),
+        timeout=dict(type=int, default=30)
     )
 
     # seed the result dict in the object
@@ -82,8 +83,13 @@ def run_module():
     # run commands and gather output
     cmd_results = list()
     cmd_result = dict()
+    if "timeout" in module.params.keys():
+        try:
+            timeout = int(module.params['timeout'])
+        except:
+            timeout = 30
     try:
-        cmd_cli = get_cli()
+        cmd_cli = get_cli(timeout=timeout)
         for cmd in module.params['cmds']:
             cmd_result = execute_cmd(cmd_cli, cmd)
             if 'template' in cmd.keys():

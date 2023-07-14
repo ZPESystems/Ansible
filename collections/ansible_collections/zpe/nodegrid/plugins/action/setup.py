@@ -212,7 +212,7 @@ class ActionModule(ActionBase):
             else:
                 return self._result_failed('No ssh_key_type was provided')
 
-        if len(ssh_key) > 0 and len(ssh_key) > 0 and len(ssh_key_type) > 0:
+        if ssh_key is not None > 0 and len(ssh_key) > 0 and len(ssh_key_type) > 0:
             if ssh_key_type in ['ssh-rsa']:
                 action_ssh_key = True
             else:
@@ -221,6 +221,8 @@ class ActionModule(ActionBase):
         # Check if sudoers permissions should be granted
         if OPTION_GRANT_SUDOERS in action_module_args.keys():
             sudoers_permission = action_module_args[OPTION_GRANT_SUDOERS]
+        else:
+            sudoers_permission = False
 
         if sudoers_permission:
             action_sudoers = True

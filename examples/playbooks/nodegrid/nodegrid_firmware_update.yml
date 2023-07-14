@@ -92,7 +92,7 @@
              - cmd: 'software_upgrade'
              - cmd: 'set image_location=local_system'
              - cmd: 'set filename=nodegrid.iso'
-             - cmd: 'confirm'
+             - cmd: 'commit'
 
        - name: Wait a max of 15 mins for target connection to become reachable/usable after upgrade
          wait_for_connection:

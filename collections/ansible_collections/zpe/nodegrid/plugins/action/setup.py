@@ -3,6 +3,7 @@
 from ansible.plugins.action import ActionBase
 from ansible.utils.display import Display
 from time import sleep
+import base64, struct
 
 import pexpect
 
@@ -109,7 +110,7 @@ class ActionModule(ActionBase):
                 return False
         raise ResultFailedException("End of loop changing password")
 
-    def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type):
+    def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
         login_tries = 0
         for cnt in range(20):
             ret = conn_obj.expect_exact(['BAD PASSWORD:','Password: ', '/]# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
@@ -131,7 +132,7 @@ class ActionModule(ActionBase):
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
                     conn_obj.expect_exact([':~$ ', ':~#'])
-                    conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
                     conn_obj.expect_exact([':~$ ', ':~#'])
@@ -212,11 +213,45 @@ class ActionModule(ActionBase):
             else:
                 return self._result_failed('No ssh_key_type was provided')
 
-        if ssh_key is not None > 0 and len(ssh_key) > 0 and len(ssh_key_type) > 0:
+        if ssh_key is not None and len(ssh_key) > 0 and len(ssh_key_type) > 0:
+            split_key = ssh_key.split()
+            display.vvv("Key length")
+            display.vvv(str(len(split_key)))
+            # If one value was provided, it should be the ssh key
+            if len(split_key) == 1:
+                ssh_key_type = ssh_key_type
+                ssh_key_value = split_key[0]
+                comment = ""
+            #If two where provided, it should be the type first, then the ssh key
+            elif len(split_key) == 2:
+                ssh_key_type = split_key[0]
+                ssh_key_value = split_key[1]
+                comment = ""
+            #If three where provided, it should be type, ssh_key and comment
+            elif len(split_key) == 3:
+                ssh_key_type = split_key[0]
+                ssh_key_value = split_key[1]
+                comment = split_key[2]
+            #If more are provided return an error
+            else:
+                return self._result_failed('No valid ssh_key was provided:' + str(ssh_key_type))
+
+            #Valdidate that the ssh key is valid
             if ssh_key_type in ['ssh-rsa']:
                 action_ssh_key = True
+                try:
+                    data = base64.decodebytes(bytes(ssh_key_value, 'utf-8'))
+                    int_len = 4
+                    str_len = struct.unpack('>I', data[:int_len])[0]  # this should return 7
+                    data[int_len:int_len + str_len] == type
+                except Exception as e:
+                    return self._result_failed('No valid ssh_key_type was provided:' + str(e))
             else:
                 return self._result_failed('No valid ssh_key_type was provided:' + str(ssh_key_type))
+
+            display.vvv(f"ssh_key_type: {type}")
+            display.vvv(f"ssh_key_value: {ssh_key_value}")
+            display.vvv(f"comment: {comment}")
 
         # Check if sudoers permissions should be granted
         if OPTION_GRANT_SUDOERS in action_module_args.keys():
@@ -243,7 +278,7 @@ class ActionModule(ActionBase):
                 if action_password_change:
                     status_password_change = self._change_password(conn_obj, password, new_password)
                 if action_ssh_key:
-                    status_ssh_key = self._install_ssh_key(conn_obj, password, ssh_key_user, ssh_key, ssh_key_type)
+                    status_ssh_key = self._install_ssh_key(conn_obj, password, ssh_key_user, ssh_key_value, ssh_key_type, comment)
                 if sudoers_permission:
                     status_sudoers = self._grant_sudoers_permissions(conn_obj, password, sudo_user="ansible")
 

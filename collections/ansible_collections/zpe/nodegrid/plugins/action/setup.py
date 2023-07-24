@@ -344,6 +344,10 @@ class ActionModule(ActionBase):
             display.vvv(f"comment: {comment}")
             display.vvv(f"ssh options: {options}")
 
+            display.vvv(f"ssh_key_type: {type}")
+            display.vvv(f"ssh_key_value: {ssh_key_value}")
+            display.vvv(f"comment: {comment}")
+
         # Check if sudoers permissions should be granted
         if OPTION_GRANT_SUDOERS in action_module_args.keys():
             sudoers_permission = action_module_args[OPTION_GRANT_SUDOERS]

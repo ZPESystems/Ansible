@@ -1,0 +1,7 @@
+    NODEGRID_URI: 'https://localhost'
+    NODEGRID_USER: 'zpeapi'
+    LOCAL_PROJECT_HOME: "./spoke"
+    PROJECT_HOME: "/opt"
+    PROJECT_NAME: "spoke"
+    PROJECT_VENV: "venv"
+    LOG_LEVEL: 'INFO'

@@ -59,7 +59,8 @@ class ActionModule(ActionBase):
         )
         cmds.append(
             dict(cmd='show /system/hw_monitor/io_ports/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.io_ports'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.io_ports',
+                 ignore_error=True
                  ),
         )
         cmds.append(
@@ -75,6 +76,11 @@ class ActionModule(ActionBase):
         cmds.append(
             dict(cmd='show /system/hw_monitor/usb_sensors/',
                  template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.usb_sensors'
+                 ),
+        )
+        cmds.append(
+            dict(cmd='show /system/usb_devices/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.usb_devices'
                  ),
         )
         return cmds

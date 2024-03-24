@@ -133,8 +133,8 @@ def export_settings(cli_path):
         if "=" in line:
             keypath, value = line.split('=', 1)
             if line[0] != '#':
-                settings.append(line)
-                all_settings.append(line)
+                settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
+                all_settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
             else:
                 if value == '':
                     settings.append(line[1:])   # add empty value

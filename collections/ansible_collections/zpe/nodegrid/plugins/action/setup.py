@@ -113,20 +113,50 @@ class ActionModule(ActionBase):
     def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact(['BAD PASSWORD:','Password: ', '/]# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-            if ret == 0:
-                raise ResultFailedException("BAD PASSWORD")
-            elif ret == 1:
-                if login_tries == 0:
-                    conn_obj.sendline('admin')
-                elif login_tries == 1:
+            ret = conn_obj.expect_exact(['Permission denied (publickey,keyboard-interactive).','Password: ', '/]# ', ':~$ ', ':~# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            if ret == 0: # 'BAD PASSWORD'
+                raise ResultFailedException(f"Permission denied (publickey,keyboard-interactive). Check user password: {password}")
+            elif ret == 1: # 'Password: '
+                if login_tries < 3:
                     conn_obj.sendline(password)
                 else:
-                    raise ResultFailedException(f"Could not login to host. Invalid password!")
+                    raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
                 login_tries += 1
-            elif ret == 2:
+            elif ret == 2: # '/]# '
                 if ssh_key is not None:
                     conn_obj.sendline(f'shell sudo su - {ssh_key_user}')
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"mkdir /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                return True
+            elif ret == 3: # ':~$ '
+                if ssh_key is not None:
+                    conn_obj.sendline(f'sudo su - {ssh_key_user}')
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"mkdir /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                return True
+            elif ret == 4: # ':~# '
+                if ssh_key is not None:
+                    conn_obj.sendline(f'su - {ssh_key_user}')
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"mkdir /home/{ssh_key_user}/.ssh")
                     conn_obj.expect_exact([':~$ ', ':~#'])
@@ -137,35 +167,62 @@ class ActionModule(ActionBase):
                     conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
                     conn_obj.expect_exact([':~$ ', ':~#'])
                 return True
+            elif ret == 5: # pexpect.TIMEOUT
+                raise ResultFailedException("ssh command pexpect.TIMEOUT")
             else:
-                return False
+                raise ResultFailedException(f"ssh command pexpect error | return {ret}")
         raise ResultFailedException("End of loop installing ssh_key")
 
     def _grant_sudoers_permissions(self, conn_obj, password, sudo_user):
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact(['BAD PASSWORD:','Password: ', '/]# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-            if ret == 0:
-                raise ResultFailedException("BAD PASSWORD")
-            elif ret == 1:
-                if login_tries == 0:
-                    conn_obj.sendline('admin')
-                elif login_tries == 1:
+            ret = conn_obj.expect_exact(['Permission denied (publickey,keyboard-interactive).','Password: ', '/]# ', ':~$ ', ':~# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            if ret == 0: # 'BAD PASSWORD'
+                raise ResultFailedException(f"Permission denied (publickey,keyboard-interactive). Check user password: {password}")
+            elif ret == 1: # 'Password: '
+                if login_tries < 3:
                     conn_obj.sendline(password)
                 else:
-                    raise ResultFailedException(f"Could not login to host. Invalid password!")
+                    raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
                 login_tries += 1
             elif ret == 2:
                 if sudo_user is not None:
                     conn_obj.sendline(f'shell sudo su -')
-                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
                     conn_obj.expect_exact([':~$ ', ':~#'])
+                    display.vvv(f"User {sudo_user} granted sudo permissions")
                 return True
+            elif ret == 3:
+                if sudo_user is not None:
+                    conn_obj.sendline(f'sudo su -')
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    display.vvv(f"User {sudo_user} granted sudo permissions")
+                return True
+            elif ret == 4:
+                if sudo_user is not None:
+                    conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    display.vvv(f"User {sudo_user} granted sudo permissions")
+                return True
+            elif ret == 5: # pexpect.TIMEOUT
+                raise ResultFailedException("ssh command pexpect.TIMEOUT")
             else:
-                return False
+                raise ResultFailedException(f"Failed adding user {sudo_user} to sudoers | Return value {ret} | {conn_obj.before}")
         raise ResultFailedException("End of loop installing granting sudoers permissions")
 
     def run(self, task_vars=None):
@@ -175,7 +232,7 @@ class ActionModule(ActionBase):
         display.vvv(str(action_module_args))
 
         host = task_vars.get("ansible_host")
-        options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+        options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
 
         username = None
         password = None
@@ -237,7 +294,8 @@ class ActionModule(ActionBase):
                 return self._result_failed('No valid ssh_key was provided:' + str(ssh_key_type))
 
             #Valdidate that the ssh key is valid
-            if ssh_key_type in ['ssh-rsa']:
+            valid_key_types = ['ssh-rsa', 'ssh-dsa', 'ssh-ecdsa', 'ssh-ecdsa-sk', 'ssh-ed25519', 'ssh-ed25519-sk']
+            if ssh_key_type in valid_key_types:
                 action_ssh_key = True
                 try:
                     data = base64.decodebytes(bytes(ssh_key_value, 'utf-8'))
@@ -245,9 +303,9 @@ class ActionModule(ActionBase):
                     str_len = struct.unpack('>I', data[:int_len])[0]  # this should return 7
                     data[int_len:int_len + str_len] == type
                 except Exception as e:
-                    return self._result_failed('No valid ssh_key_type was provided:' + str(e))
+                    return self._result_failed(f"No valid ssh_key_type was provided: {ssh_key_type} | {str(e)} | Valid Options: {valid_key_types}")
             else:
-                return self._result_failed('No valid ssh_key_type was provided:' + str(ssh_key_type))
+                return self._result_failed(f"No valid ssh_key_type was provided: {ssh_key_type} | Valid Options: {valid_key_types}")
 
             display.vvv(f"ssh_key_type: {type}")
             display.vvv(f"ssh_key_value: {ssh_key_value}")
@@ -268,19 +326,28 @@ class ActionModule(ActionBase):
 
         if action_ssh_key or action_password_change or sudoers_permission:
             cmd = f"ssh {options} {username}@{host}"
+            display.vvv(f"{cmd}")
         else:
             return self._result_not_changed("No action was defined")
 
         # try connect
         for cnt in range(60):
-            conn_obj = pexpect.spawn(cmd, encoding="utf-8")
             try:
                 if action_password_change:
+                    conn_obj = pexpect.spawn(cmd, encoding="utf-8")
                     status_password_change = self._change_password(conn_obj, password, new_password)
+                    if conn_obj and conn_obj.isalive():
+                        conn_obj.close()
                 if action_ssh_key:
+                    conn_obj = pexpect.spawn(cmd, encoding="utf-8")
                     status_ssh_key = self._install_ssh_key(conn_obj, password, ssh_key_user, ssh_key_value, ssh_key_type, comment)
+                    if conn_obj and conn_obj.isalive():
+                        conn_obj.close()
                 if sudoers_permission:
-                    status_sudoers = self._grant_sudoers_permissions(conn_obj, password, sudo_user="ansible")
+                    conn_obj = pexpect.spawn(cmd, encoding="utf-8")
+                    status_sudoers = self._grant_sudoers_permissions(conn_obj, password, sudo_user=ssh_key_user)
+                    if conn_obj and conn_obj.isalive():
+                        conn_obj.close()
 
                 return self._result_changed()
             except Exception as e:   # pylint: disable=broad-except

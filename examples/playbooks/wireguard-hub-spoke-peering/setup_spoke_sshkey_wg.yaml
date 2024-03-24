@@ -1,0 +1,81 @@
+---
+# Requirements: None
+# purpose:
+# This playbook can be used to:
+# - install a defined user's ssh key into a specific target node 
+# - configure the target node as a Wireguard Spoke
+#
+- hosts: all
+  name: Configure ZPE Out Of Box - Wireguard Spoke profile
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  vars_prompt:
+    - name: nodegrid_user
+      prompt: Enter Username for the connection
+      default: admin
+      private: false
+    - name: current_password
+      prompt: Provide a current password for the user
+      private: true
+    - name: ssh_key_user
+      prompt: Provide username to which the ssh_key should be installed
+      default: ansible
+      private: false
+    - name: ssh_key_type
+      prompt: Provide ssh key type that is used (dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa)?
+      default: rsa
+      private: false
+    - name: ssh_key
+      prompt: Enter a user's ssh public key to access ansible user via ssh
+      private: false
+    - name: ansible_sudoers
+      prompt: Add user to sudoers (True | False)?
+      default: false
+      private: false
+
+  tasks:
+    - name: Configure Spoke
+      vars:
+        HUB_URI: "http://1.1.2.2:8080" # Hus URI for peering requests
+        # Nodegrid Variables
+        NODEGRID_URI: "https://localhost"
+        NODEGRID_API_PREFIX: "/api/v1"
+        NODEGRID_CREATE_API_USER: true # Create the api NODEGRID_USER and retrieves the NODEGRID_KEY
+        NODEGRID_DELETE_API_USER: true # Deletes the api NODEGRID_USER
+        NODEGRID_USER: "zpeapi" # Nodegrid api user
+        NODEGRID_KEY: "" # Nodegrid api user key must be defined if NODEGRID_CREATE_API_USER is fale
+      
+        # Wireguard Peering Variables
+        WIREGUARD_IFACE_NAME: "wg-spoke1" # Spokes's UNIQUE Network :: Wireguard interface name
+        WIREGUARD_PEER_ID: "spoke1" # Hub's UNIQUE PEER ID. It mus be unique per each Spoke
+      
+        # Port Knocking Variables
+        PORT_KNOCKING: false # true for enabling port knocking. If true, the following vars are taken in consideration
+        PORT_KNOCKING_IP: "1.1.2.2" # remote IP for port knocking
+        PORT1: 1110 # first port to knock
+        PORT2: 2220 # second port to knock
+        PORT3: 3330 # third port to knock
+      
+        # failover
+        WIREGUARD_ENDPOINT_MAIN: 1.1.2.2 # Wireguard main IP address
+        WIREGUARD_ENDPOINT_BACKUP: 2.2.1.1 # Wireguard backup IP address
+
+      block:
+        - name: Install a ssh_key for a user
+          zpe.nodegrid.setup:
+            username: "{{ nodegrid_user }}"
+            password: "{{ current_password }}"
+            ssh_key_user: "{{ ssh_key_user }}"
+            ssh_key_type: "{{ ssh_key_type }}"
+            ssh_key: "{{ ssh_key }}"
+            ansible_sudoers: "{{ ansible_sudoers }}"
+        - name: setting up wg spoke role
+          include_role:
+            name: zpe.nodegrid.site_wg_spoke
+     
+        - name: setting up wireguard fail-over
+          include_role:
+            name: zpe.nodegrid.site_coordinator
+            tasks_from: wireguard_failover

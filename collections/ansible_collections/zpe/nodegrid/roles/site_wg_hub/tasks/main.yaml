@@ -1,0 +1,256 @@
+- name: Configure Nodegrid user locally
+  block:
+    - name: "Delete user {{ NODEGRID_USER }} if exists"
+      ansible.builtin.shell: 'unset SID DLITF_SID; cli -C -y delete /settings/local_accounts/ {{ NODEGRID_USER }}'
+      register: output
+      ignore_errors: true
+    
+    - name: create user
+      zpe.nodegrid.nodegrid_cmds:
+         cmds:
+           - cmd: 'cd /settings/local_accounts/'
+           - cmd: 'add'
+           - cmd: 'set username={{ NODEGRID_USER }}'
+           - cmd: 'set account_type=api_account'
+           - cmd: 'set user_group=admin'
+           - cmd: 'show api_key'
+           - cmd: 'commit'
+      register: output
+    
+    - name: Show user API results
+      debug:
+        var: output.cmds_output[5]['stdout']
+    
+    - name: Export user API key to hub-variables
+      set_fact:
+        NODEGRID_KEY: "{{ output.cmds_output[5]['stdout'].split('\n')[1].split(': ')[1] | trim }}"
+  when: NODEGRID_CREATE_API_USER
+
+- name: Export user API key to variables
+  set_fact:
+    NODEGRID_KEY: "{{ NODEGRID_KEY }}"
+  when: not NODEGRID_CREATE_API_USER
+
+- name: Validate Nodegrid API access
+  block:
+    - name: Validate Nodegrid credentials and access
+      ansible.builtin.uri:
+        url: "{{ NODEGRID_URI }}{{ NODEGRID_API_PREFIX }}/Session"
+        method: POST
+        body: "{ \"username\": \"{{ NODEGRID_USER }}\", \"api_key\": \"{{ hostvars[inventory_hostname][\"NODEGRID_KEY\"] }}\" }"
+        body_format: json
+        return_content: yes
+        validate_certs: false
+        status_code: 200
+        headers:
+          Content-Type: application/json
+          accept: application/json
+      register: login_result
+      until: login_result.json.status == "success"
+      retries: 10 
+      delay: 10
+
+    - name: Logout from Nodegrid
+      ansible.builtin.uri:
+        url: "{{ NODEGRID_URI }}{{ NODEGRID_API_PREFIX }}/Session"
+        method: DELETE
+        validate_certs: false
+        status_code: 200
+        headers:
+          Content-Type: application/json
+          accept: application/json
+          ticket: "{{ login_result.json.session }}"
+      ignore_errors: true
+
+- name: Install the Flask-Gunicorn App 
+  block:
+    - name: Copy project code to Hub server
+      copy: 
+        src: "{{ LOCAL_PROJECT_HOME }}"
+        dest: "{{ PROJECT_HOME }}"
+      #      remote_src: yes
+
+    - name: Install reqs into the specified virtualenv using Python3
+      ansible.builtin.pip:
+        requirements: "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/requirements.txt"
+        virtualenv: "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/{{ PROJECT_VENV }}"
+        virtualenv_command: "python3 -m venv"
+    
+    - name: hub-config.yaml config file
+      template:
+        src: "hub-config.yaml.j2"
+        dest: "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/config.yaml"
+    
+    - name: Create wgpeering service
+      template:
+        src: "wgpeer.service.j2"
+        dest: "/etc/init.d/wgpeer"
+    
+    - name: Changing perm of "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/app.py", adding "+x"
+      file: dest="{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/app.py" mode=a+x
+    
+    - name: Changing perm of "/etc/inig.d/wgpeer", adding "+x"
+      file: dest=/etc/init.d/wgpeer mode=a+x
+    
+    - name: make sure wgpeering service is started
+      ansible.builtin.shell: 
+        cmd: sudo su -c "/etc/init.d/wgpeer restart"
+
+- name: clean iptables previous states 
+  block:
+    - name: Flush the iptable Chains
+      ansible.builtin.iptables:
+        chain: "{{ item }}"
+        flush: yes
+      ignore_errors: true
+      loop:
+        - KNOCKING
+        - GATE1
+        - GATE2
+        - GATE3
+        - PASSED
+  
+    - name: Remove allowed related and established connections
+      ansible.builtin.iptables:
+        chain: INPUT
+        ctstate: ESTABLISHED,RELATED
+        jump: ACCEPT
+        state: absent
+  
+    - name: Remove Allow input rules on interfaces
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        in_interface: "{{ item }}"
+        jump: ACCEPT
+        state: absent
+      loop:
+        - lo
+        - "{{ WIREGUARD_IFACE_NAME }}"
+   
+    - name: Remove Allow TCP input rules 
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        protocol: TCP
+        destination_port: "{{ item }}" 
+        jump: ACCEPT
+        state: absent
+      loop: "{{ TCP_PORTS }}"
+    
+    - name: Remove Allow UDP input rules 
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        protocol: UDP
+        destination_port: "{{ item }}" 
+        jump: ACCEPT
+        state: absent
+      loop: "{{ UDP_PORTS }}"
+   
+    - name: Remove Append KNOCKING rule 
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        jump: KNOCKING
+        state: absent
+  
+    - name: Delete the new iptable Chains
+      ansible.builtin.shell: "/usr/sbin/iptables -X {{ item }}"
+      ignore_errors: true
+      loop:
+        - KNOCKING
+        - GATE1
+        - GATE2
+        - GATE3
+        - PASSED
+  become: yes
+
+- name: Configure Port Knocking
+  block:
+    - name: Add the new iptable Chains
+      ansible.builtin.shell: "/usr/sbin/iptables -N {{ item }}"
+      loop:
+        - KNOCKING
+        - GATE1
+        - GATE2
+        - GATE3
+        - PASSED
+
+    - name: Allow related and established connections
+      ansible.builtin.iptables:
+        chain: INPUT
+        ctstate: ESTABLISHED,RELATED
+        jump: ACCEPT
+    
+    - name: Allow input rules on interfaces
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        in_interface: "{{ item }}"
+        jump: ACCEPT
+      loop:
+        - lo
+        - "{{ WIREGUARD_IFACE_NAME }}"
+    
+    - name: Allow TCP input rules 
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        protocol: TCP
+        destination_port: "{{ item }}" 
+        jump: ACCEPT
+      loop: "{{ TCP_PORTS }}"
+    
+    - name: Allow UDP input rules 
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        protocol: UDP
+        destination_port: "{{ item }}" 
+        jump: ACCEPT
+      loop: "{{ UDP_PORTS }}"
+
+    - name: Append KNOCKING rule 
+      ansible.builtin.iptables:
+        chain: INPUT
+        action: append
+        jump: KNOCKING
+
+    - name: GATE1 chain config
+      ansible.builtin.shell: |
+        /usr/sbin/iptables -t filter -F GATE1 &&
+        /usr/sbin/iptables -A GATE1 -p tcp --dport "{{ PORT1 }}" -m recent --name AUTH1 --set -j DROP &&
+        /usr/sbin/iptables -A GATE1 -j DROP
+    
+    - name: GATE2 chain config
+      ansible.builtin.shell: |
+        /usr/sbin/iptables -t filter -F GATE2 &&
+        /usr/sbin/iptables -A GATE2 -m recent --name AUTH1 --remove &&
+        /usr/sbin/iptables -A GATE2 -p tcp --dport "{{ PORT2 }}" -m recent --name AUTH2 --set -j DROP &&
+        /usr/sbin/iptables -A GATE2 -j GATE1
+
+    - name: GATE3 chain config
+      ansible.builtin.shell: |
+        /usr/sbin/iptables -t filter -F GATE3 &&
+        /usr/sbin/iptables -A GATE3 -m recent --name AUTH2 --remove &&
+        /usr/sbin/iptables -A GATE3 -p tcp --dport "{{ PORT3 }}" -m recent --name AUTH3 --set -j DROP &&
+        /usr/sbin/iptables -A GATE3 -j GATE1
+
+    - name: PASSED chain config
+      ansible.builtin.shell: |
+        /usr/sbin/iptables -t filter -F PASSED &&
+        /usr/sbin/iptables -A PASSED -m recent --name AUTH3 --remove &&
+        /usr/sbin/iptables -A PASSED -p tcp --dport "{{ WIREGUARD_SERVICE_PORT }}" -j ACCEPT &&
+        /usr/sbin/iptables -A PASSED -j GATE1
+
+    - name: KNOCKING chain config
+      ansible.builtin.shell: |
+        /usr/sbin/iptables -t filter -F KNOCKING &&
+        /usr/sbin/iptables -A KNOCKING -m recent --rcheck --seconds 30 --name AUTH3 -j PASSED &&
+        /usr/sbin/iptables -A KNOCKING -m recent --rcheck --seconds 10 --name AUTH2 -j GATE3 &&
+        /usr/sbin/iptables -A KNOCKING -m recent --rcheck --seconds 10 --name AUTH1 -j GATE2 &&
+        /usr/sbin/iptables -A KNOCKING -j GATE1
+
+  become: yes
+  when: PORT_KNOCKING

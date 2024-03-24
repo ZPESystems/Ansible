@@ -83,6 +83,25 @@ class ActionModule(ActionBase):
                  template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.usb_devices'
                  ),
         )
+        cmds.append(
+            dict(cmd='show /system/serial_statistics/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.serial_statistics_nsr',
+                 ignore_error=True
+                 ),
+        )
+        cmds.append(
+            dict(cmd='show /system/serial_statistics/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.serial_statistics',
+                 ignore_error=True
+                 ),
+        )
+        cmds.append(
+            dict(cmd='show /settings/cluster/cluster_clusters/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.cluster_clusters'
+                 ),
+        )
+
+
         return cmds
 
     def run(self, task_vars=None):

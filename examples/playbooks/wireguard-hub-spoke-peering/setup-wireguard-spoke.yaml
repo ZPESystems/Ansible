@@ -1,0 +1,29 @@
+- hosts: localhost
+  gather_facts: false
+  connection: local
+  become: true
+
+  tasks:
+    - name: setting up wg spoke role
+      include_role:
+        name: zpe.nodegrid.site_wg_spoke
+      vars:
+        HUB_URI: 'http://1.1.2.2:8080' # Hus URI for peering requests
+        # Nodegrid Variables
+        NODEGRID_URI: "https://localhost"
+        NODEGRID_API_PREFIX: "/api/v1"
+        NODEGRID_CREATE_API_USER: true # Ansible playbook create the NODEGRID_USER and retrieves the NODEGRID_KEY
+        NODEGRID_DELETE_API_USER: true # Ansible playbook deletes the NODEGRID_USER
+        NODEGRID_USER: "zpeapi" # Nodegrid API User
+        NODEGRID_KEY: "" # Nodegrid API User key must be defined if NODEGRID_CREATE_API_USER is fale
+
+        # Wireguard Peering Variables
+        WIREGUARD_IFACE_NAME: 'wg-spoke1' # Spokes's UNIQUE Network :: Wireguard interface name
+        WIREGUARD_PEER_ID: 'spoke1' # Hub's UNIQUE PEER ID. It mus be unique per each Spoke
+
+        # Port Knocking Variables
+        PORT_KNOCKING: false # true for enabling port knocking. If true, the following vars are taken in consideration
+        PORT_KNOCKING_IP: "1.1.2.2" # remote IP for port knocking
+        PORT1: 1110 # first port to knock
+        PORT2: 2220 # second port to knock
+        PORT3: 3330 # third port to knock

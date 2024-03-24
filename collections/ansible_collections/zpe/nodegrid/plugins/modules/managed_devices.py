@@ -39,10 +39,19 @@ def run_option_device(option, run_opt):
 
     if not ('access' in suboptions and field_exist(suboptions['access'], 'name')):
         return result_failed("Field 'access/name' is required")
-    cli_path += f"/{suboptions['access']['name']}"
+
+    if ('port_name' in suboptions['access']):
+        port_name = suboptions['access']['port_name']
+        suboptions['access'].pop('port_name')
+        cli_path += f"/{port_name}"
+    else:
+        cli_path += f"/{suboptions['access']['name']}"
 
     for key, value in suboptions.items():
-    
+
+        if key == 'name':
+            print("Rename Port")
+
         # commands, custom_fields
         if key in ['commands','custom_fields']:
             

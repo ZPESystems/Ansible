@@ -1,0 +1,19 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Update System preferences
+    zpe.nodegrid.system:
+      preferences:
+        show_hostname_on_webui_header: "yes"
+        idle_timeout: "36000"
+        enable_banner: "yes"
+        banner: '''WARNING: This private system is provided for authorized use only and it may be
+monitored for all lawful purposes to ensure its use. All information
+including personal information, placed on or sent over this system may be
+monitored and recorded. Use of this system, authorized or unauthorized,
+constitutes consent to monitoring your session. Unauthorized use may
+subject you to criminal prosecution. Evidence of any such unauthorized
+use may be used for administrative, criminal and/or legal actions. Limited to Diego.'''

@@ -1,0 +1,7 @@
+- name: Configure Nodegrid Network Settings
+  zpe.nodegrid.network:
+      settings:
+        hostname: "{{nodegrid_hostname}}"
+        domain_name: "{{nodegrid_domain_name}}"
+        enable_dynamic_dns: "{{nodegrid_enable_dynamic_dns}}"
+        enable_bluetooth_network: "{{nodegrid_enable_bluetooth_network}}"

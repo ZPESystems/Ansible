@@ -1,0 +1,36 @@
+- hosts: localhost
+  gather_facts: false
+  connection: local
+  become: true
+
+  tasks:
+    - name: setting up wg hub role
+      include_role:
+        name: zpe.nodegrid.site_wg_hub
+      vars:
+        # Nodegrid Variables
+        NODEGRID_URI: "https://localhost"
+        NODEGRID_API_PREFIX: "/api/v1"
+        NODEGRID_CREATE_API_USER: true 
+        NODEGRID_USER: "zpeapi" # Nodegrid API User
+        NODEGRID_KEY: "" # Nodegrid API User key must be defined if NODEGRID_CREATE_API_USER is fale
+
+        # Wireguard Peering Service Variables
+        WIREGUARD_IFACE_PUBLIC_IP: '1.1.2.2' # Hub public IP
+        WIREGUARD_SERVICE_PORT: 8080 # Hub TCP port for incoming peering requests
+        WIREGUARD_IFACE_PUBLIC_PORT: 51821 # Hub UDP port for wireguard encrypted trafic
+        WIREGUARD_IFACE_NAME: 'wg-hub' # Hub's Network :: Wireguard interface name 
+        WIREGUARD_LAN: '10.20.0.0/16' # Hub-Spokes LAN. Each node will have an /32 IP address
+        WIREGUARD_IFACE_IP: '10.20.0.1/32' # Hub's Network :: Wireguard interface LAN IP Address /32
+
+        # Port Knocking Variables
+        PORT_KNOCKING: false # true for enabling port knocking. If true, the following vars are taken in consideration
+        PORT1: 1110 # first port to knock
+        PORT2: 2220 # second port to knock
+        PORT3: 3330 # third port to knock
+        TCP_PORTS: # TCP ports to open on the firewall
+          - 80
+          - 443
+          - 22
+        UDP_PORTS: # UDP ports to open on the firewall
+          - 51821

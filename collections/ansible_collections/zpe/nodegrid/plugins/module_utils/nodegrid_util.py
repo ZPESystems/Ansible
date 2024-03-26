@@ -27,8 +27,8 @@ def run_cli_command(cmd):
     output = pexpect.run(cli_cmd)
     return output.decode('UTF-8').strip()
 
-def get_cli():
-    cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
+def get_cli(timeout=30):
+    cmd_cli = pexpect.spawn('cli', encoding='UTF-8', timeout=timeout)
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
     cmd_cli.sendline('.sessionpageout undefined=no')

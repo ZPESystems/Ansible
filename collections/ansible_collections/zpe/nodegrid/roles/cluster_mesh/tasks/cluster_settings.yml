@@ -1,0 +1,14 @@
+- name: configure cluster
+  zpe.nodegrid.cluster:
+        settings:
+          enable_cluster: "{{cluster_settings_enable_cluster}}"
+          cluster_name: "{{cluster_settings_cluster_name}}"
+          type: "{{cluster_settings_type}}"
+          allow_enrollment: "{{cluster_settings_allow_enrollment}}"
+          cluster_mode: "{{cluster_settings_cluster_mode}}"
+          polling_rate: "{{cluster_settings_polling_rate}}"
+          psk: "{{cluster_settings_psk}}"
+          enable_clustering_access: "{{cluster_settings_enable_clustering_access}}"
+          auto_enroll: "{{cluster_settings_auto_enroll}}"
+          enable_peer_management: "{{cluster_settings_enable_peer_management}}"
+          enable_license_pool: "{{cluster_settings_enable_license_pool}}"

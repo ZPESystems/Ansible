@@ -40,7 +40,7 @@ dictConfig({
             "level": LOG_LEVEL,
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "default",
-            "filename": f"{config.LOG_FILE.split('.')[0]}-debug.{config.LOG_FILE.split('.')[1]}",
+            "filename": config.LOG_FILE,
             "maxBytes": 10000,
             "backupCount": 1,
             "delay": "True",

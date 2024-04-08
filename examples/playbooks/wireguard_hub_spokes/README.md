@@ -36,7 +36,7 @@ The *Ansible Control node* must be able to SSH access each target node with an *
 cd Ansible/examples/playbooks/setup
 # inventory: comma separated IP list
 # For example:
-# - hub: 10.0.0.
+# - hub: 10.0.0.1
 ansible-playbook setup_install_ssh_key.yml --inventory 10.0.0.1,
 # - spoke1: 10.10.0.11
 ansible-playbook setup_install_ssh_key.yml --inventory 10.10.0.11,
@@ -111,7 +111,7 @@ The `inventory.yaml` file defines all the devices SSH configurations as well as 
 ```yaml
 hub:                                        # only 1 host must be configured in this group
   hosts:
-    hub1: 
+    hub: 
       ansible_port: 22
       ansible_host: "10.0.0.1"
       ansible_user: "ansible"

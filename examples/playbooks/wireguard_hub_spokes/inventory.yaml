@@ -1,6 +1,6 @@
 hub:                                        # only 1 host must be configured in this group
   hosts:
-    hub:
+    hub1:
       ansible_port: 22
       ansible_host: "10.0.0.1"
       ansible_user: "ansible"
@@ -11,6 +11,17 @@ hub:                                        # only 1 host must be configured in 
       WG_LISTENING_PORT: 51820              # Wireguard UDP port
       WIREGUARD_ENDPOINT_MAIN: 10.0.0.1     # Main Wireguard IP
       WIREGUARD_ENDPOINT_BACKUP: 2.2.4.5    # Backup Wireguard IP
+    hub2:
+      ansible_port: 22
+      ansible_host: "10.1.0.1"
+      ansible_user: "ansible"
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+      WG_INTERFACE_NAME: 'wg1-hub'          # Wireguard interface and VPN name
+      WG_INTERFACE_ADDRESS: '10.22.0.1/32'  # Wireguard interface internal IP address
+      WG_EXTERNAL_IP: 10.1.0.1              # Wireguard External IP address (used on the spoke side)
+      WG_LISTENING_PORT: 51820              # Wireguard UDP port
+      WIREGUARD_ENDPOINT_MAIN: 10.1.0.1     # Main Wireguard IP
+      WIREGUARD_ENDPOINT_BACKUP: 2.4.4.5    # Backup Wireguard IP
 spokes:
   hosts:
     spoke1:
@@ -18,13 +29,23 @@ spokes:
       ansible_host: "10.10.0.11"
       ansible_user: "ansible"
       ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
-      WG_INTERFACE_NAME: 'wg1-spoke1'        # Wireguard interface and VPN name
-      WG_INTERFACE_ADDRESS: '10.21.0.2/32'  # Wireguard interface internal IP address
+      WG_INTERFACES:
+        - WG_HUB: hub1
+          WG_INTERFACE_NAME: 'hub1'        # Wireguard interface and VPN name
+          WG_INTERFACE_ADDRESS: '10.21.10.2/32'  # Wireguard interface internal IP address
+        - WG_HUB: hub2
+          WG_INTERFACE_NAME: 'hub2'        # Wireguard interface and VPN name
+          WG_INTERFACE_ADDRESS: '10.22.10.2/32'  # Wireguard interface internal IP address
     spoke2:
       ansible_port: 22
       ansible_host: "10.10.0.12"
       ansible_user: "ansible"
       ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
-      WG_INTERFACE_NAME: 'wg1-spoke2'        # Wireguard interface and VPN name
-      WG_INTERFACE_ADDRESS: '10.21.0.3/32'  # Wireguard interface internal IP address
+      WG_INTERFACES:
+        - WG_HUB: hub1
+          WG_INTERFACE_NAME: 'hub1'        # Wireguard interface and VPN name
+          WG_INTERFACE_ADDRESS: '10.21.10.3/32'  # Wireguard interface internal IP address
+        - WG_HUB: hub2
+          WG_INTERFACE_NAME: 'hub2'        # Wireguard interface and VPN name
+          WG_INTERFACE_ADDRESS: '10.22.10.3/32'  # Wireguard interface internal IP address
 

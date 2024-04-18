@@ -1,0 +1,11 @@
+- name: Configure Nodegrid Network Settings
+  zpe.nodegrid.network:
+      settings:
+        hostname: "{{nodegrid_hostname}}"
+        domain_name: "{{nodegrid_domain_name}}"
+        enable_ipv4_ip_forward: "{{nodegrid_enable_ipv4_ip_forward}}"
+        enable_ipv6_ip_forward: "{{nodegrid_enable_ipv6_ip_forward}}"
+        reverse_path_filtering: "{{nodegrid_reverse_path_filtering}}"
+        enable_multiple_routing_tables: "{{nodegrid_enable_multiple_routing_tables}}"
+        enable_dynamic_dns: "{{nodegrid_enable_dynamic_dns}}"
+        enable_bluetooth_network: "{{nodegrid_enable_bluetooth_network}}"

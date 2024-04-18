@@ -1,0 +1,2 @@
+- name: Update IPv4 Firewall
+  import_tasks: sec_ipv4_firewall.yml

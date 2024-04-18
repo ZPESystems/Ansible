@@ -1,0 +1,14 @@
+- name: Update System Preferences
+  import_tasks: sys_preferences.yml
+
+- name: Update System Banner
+  import_tasks: sys_preferences_banner.yml
+
+- name: Update System Date and Time
+  import_tasks: sys_preferences_date_and_time.yml
+
+- name: Update License Keys
+  import_tasks: sys_licenses.yml
+
+- name: Update System Session Logging
+  import_tasks: sys_session_logging.yml

@@ -1,0 +1,17 @@
+- name: Configure Ethernet IPv4 Connections
+  zpe.nodegrid.network:
+      connection:
+        name: "{{item.nodegrid_connection_name}}"
+        description: "{{item.nodegrid_connect_description|default('')}}"
+#        ethernet_interface: "{{item.nodegrid_interface|default('')}}"
+        connect_automatically: "{{item.nodegrid_connect_automatically|default('yes')}}"
+        set_as_primary_connection: "{{item.nodegrid_set_as_primary_connection|default('no')}}"
+        enable_lldp: "{{item.nodegrid_enable_lldp|default('yes')}}"
+        block_unsolicited_incoming_packets: "{{item.nodegrid_block_unsolicited_incoming_packets|default('no')}}"
+        ethernet_link_mode: "{{item.nodegrid_ethernet_link_mode|default('auto')}}"
+        enable_ip_passthrough: "{{item.nodegrid_enable_ip_passthrough|default('no')}}"
+        ipv4_mode: "{{item.nodegrid_ipv4_mode|default('dhcp')}}"
+        ipv4_address: "{{item.nodegrid_ipv4_address|default('')}}"
+        ipv4_bitmask: "{{item.nodegrid_ipv4_bitmask|default('')}}"
+        ipv4_gateway: "{{item.nodegrid_ipv4_gateway|default('')}}"
+  with_items: "{{network_connections}}"

@@ -1,0 +1,25 @@
+# System Services
+services_enable_snmp_service: "no"
+services_enable_https_file_repository: "no"
+services_enable_telnet_service_to_nodegrid: "no"
+services_enable_telnet_service_to_managed_devices: "no"
+services_enable_icmp_echo_reply: "yes"
+services_enable_icmp_secure_redirects: "yes"
+services_enable_usb_over_ip: "no"
+services_enable_elasticsearch: "yes"
+services_enable_telegraf: "no"
+services_enable_vmware_manager: "no"
+services_enable_vm_serial_access: "no"
+services_enable_zero_touch_provisioning: "no"
+services_enable_bluetooth: "no"
+services_enable_pxe: "no"
+services_enable_autodiscovery: "no"
+services_block_host_with_multiple_authentication_fails: "no"
+services_period_host_will_stay_blocked: 120
+services_timeframe_to_monitor_authentication_fails: 60
+services_number_of_authentication_fails_to_block_host: 3
+services_allow_root_console_access: "no"
+services_rescue_mode_require_authentication: "no"
+services_password_protected_boot: "no"
+services_enable_docker: "no"
+services_enable_qemu: "no"

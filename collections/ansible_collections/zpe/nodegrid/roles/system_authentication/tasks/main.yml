@@ -1,0 +1,11 @@
+- name: Update Authentication Preferences
+  import_tasks: sec_authentication_preferences.yml
+
+- name: Update Local User Accounts
+  import_tasks: sec_local_accounts.yml
+
+- name: Update Authentication Server
+  import_tasks: sec_authentication_servers.yml
+
+- name: Update User Groups
+  import_tasks: sec_authorization.yml

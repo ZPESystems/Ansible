@@ -2,3 +2,4 @@
   import_tasks: devices_serial_ports.yml
   vars:
     serial_ports: "nodegrid_devices_console_ports"
+  tags: always

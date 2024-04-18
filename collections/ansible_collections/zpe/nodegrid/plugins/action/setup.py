@@ -16,7 +16,6 @@ OPTION_CHANGE_NEW_PASSWORD = 'new_password'
 OPTION_INSTALL_SSH_KEY = 'ssh_key'
 OPTION_INSTALL_SSH_KEY_USER = 'ssh_key_user'
 OPTION_INSTALL_SSH_KEY_TYPE = 'ssh_key_type'
-OPTION_INSTALL_SSH_PORT = 'ssh_port'
 OPTION_GRANT_SUDOERS = 'ansible_sudoers'
 
 class ResultFailedException(Exception):
@@ -244,7 +243,6 @@ class ActionModule(ActionBase):
         ssh_key = None
         ssh_key_user = None
         ssh_key_type = None
-        ssh_port = None
 
         if OPTION_USERNAME in action_module_args.keys():
             username = action_module_args[OPTION_USERNAME]
@@ -271,10 +269,6 @@ class ActionModule(ActionBase):
                 ssh_key_type = action_module_args[OPTION_INSTALL_SSH_KEY_TYPE]
             else:
                 return self._result_failed('No ssh_key_type was provided')
-        
-        if OPTION_INSTALL_SSH_PORT in action_module_args.keys():
-            ssh_port = action_module_args[OPTION_INSTALL_SSH_PORT]
-            options += f" -p {ssh_port} "
 
         if ssh_key is not None and len(ssh_key) > 0 and len(ssh_key_type) > 0:
             split_key = ssh_key.split()

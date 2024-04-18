@@ -9,10 +9,8 @@ LOG_FILE=/var/log/messages
 ###### Tunnel 1 #######
 case ${EVENT_NUMBER} in
    144)
-      {% for wg_tunnel in wg_tunnels %}
-      su ansible -c "unset SID DLITF_SID; cli -C -y set /settings/wireguard/{{ wg_tunnel.WIREGUARD_IFACE_NAME }}/peers/{{ wg_tunnel.WIREGUARD_PEER_ID }}/ external_address={{ .wg_tunnelWIREGUARD_ENDPOINT_BACKUP }}"
-      echo "Changed Wireguard Tunnel {{ wg_tunnel.WIREGUARD_IFACE_NAME }} peer {{ wg_tunnel.WIREGUARD_PEER_ID }} to endpoint {{ wg_tunnel.WIREGUARD_ENDPOINT_BACKUP }}" >> ${LOG_FILE}
-      {% endfor %}
+      su ansible -c "unset SID DLITF_SID; cli -C -y set /settings/wireguard/{{ WIREGUARD_IFACE_NAME }}/peers/{{ WIREGUARD_PEER_ID }}/ external_address={{ WIREGUARD_ENDPOINT_BACKUP }}"
+      echo "Changed Wireguard Tunnel {{ WIREGUARD_IFACE_NAME }} peer {{ WIREGUARD_PEER_ID }} to endpoint {{ WIREGUARD_ENDPOINT_BACKUP }}" >> ${LOG_FILE}
       ;;
    145)
       su ansible -c "unset SID DLITF_SID; cli -C -y set /settings/wireguard/{{ WIREGUARD_IFACE_NAME }}/peers/{{ WIREGUARD_PEER_ID }}/ external_address={{ WIREGUARD_ENDPOINT_MAIN }}"

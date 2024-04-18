@@ -54,14 +54,11 @@ auditing_destination_syslog_event_facility: "log_local_0"
 auditing_destination_syslog_datalog_facility: "log_local_0"
 
 auditing_destination_email_email_port: 25
-auditing_destination_email_start_tls: "yes"
+auditing_destination_email_start_tls: "no"
 
 auditing_destination_snmptrap_snmptrap_transport_protocol: "udp-ipv4"
 auditing_destination_snmptrap_snmptrap_port: 162
 auditing_destination_snmptrap_snmptrap_version: "version_2c"
-
-
-
 
 # System Settings
 sys_show_hostname_on_webui_header: "yes"

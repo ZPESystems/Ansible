@@ -112,6 +112,7 @@ class ActionModule(ActionBase):
         cmd_args = dict(
             cmds=cmds
         )
+
         cmds_results = self._run_command(cmd_args)
         if cmds_results.get('error') or cmds_results.get("failed"):
             return cmds_results

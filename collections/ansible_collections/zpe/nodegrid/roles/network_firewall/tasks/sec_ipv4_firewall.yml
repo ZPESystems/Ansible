@@ -1,4 +1,4 @@
-- name: 620_settings_devices.yml
+- name: IPv4 irewall
   zpe.nodegrid.import_settings:
         cmds:
           - "/settings/ipv4_firewall/chains/INPUT/0 target=ACCEPT"
@@ -108,32 +108,3 @@
           - "/settings/ipv4_firewall/chains/INPUT/3 log_tcp_sequence_numbers=no"
           - "/settings/ipv4_firewall/chains/INPUT/3 log_options_from_the_tcp_packet_header=no"
           - "/settings/ipv4_firewall/chains/INPUT/3 log_options_from_the_ip_packet_header=no"
-
-          - "/settings/ipv4_firewall/chains/INPUT/4 target=ACCEPT"
-          - "/settings/ipv4_firewall/chains/INPUT/4 description=HTTPS"
-          - "/settings/ipv4_firewall/chains/INPUT/4 protocol=tcp"
-          - "/settings/ipv4_firewall/chains/INPUT/4 destination_port=443"
-          - "/settings/ipv4_firewall/chains/INPUT/4 tcp_flag_syn=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 tcp_flag_ack=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 tcp_flag_fin=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 tcp_flag_rst=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 tcp_flag_urg=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 tcp_flag_psh=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 input_interface=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 output_interface=any"
-          - "/settings/ipv4_firewall/chains/INPUT/4 fragments=all_packets_and_fragments"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_source_ip|mask=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_destination_ip|mask=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_source_port=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_destination_port=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_protocol=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_tcp_flags=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_icmp_type=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_input_interface=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 enable_state_match=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reverse_match_for_output_interface=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 reject_with=port_unreacheable"
-          - "/settings/ipv4_firewall/chains/INPUT/4 log_level=debug"
-          - "/settings/ipv4_firewall/chains/INPUT/4 log_tcp_sequence_numbers=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 log_options_from_the_tcp_packet_header=no"
-          - "/settings/ipv4_firewall/chains/INPUT/4 log_options_from_the_ip_packet_header=no"

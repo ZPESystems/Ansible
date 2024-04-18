@@ -1,3 +1,0 @@
-- name: Setup Network Setting
-  import_tasks: network_settings.yml
-  tags: always

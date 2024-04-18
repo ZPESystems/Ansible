@@ -33,3 +33,5 @@
               tacacs_plus_user_level_14: "{{item.tacacs_plus_user_level_14| default('')}}"
               tacacs_plus_user_level_15: "{{item.tacacs_plus_user_level_15| default('')}}"
   with_items: "{{nodegrid_authentication_servers}}"
+  loop_control:
+    label: "{{ item.number }}"

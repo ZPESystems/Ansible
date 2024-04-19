@@ -308,7 +308,6 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
-# import logging
 
 def run_option_network_connections(option, run_opt):
     suboptions = option['suboptions']

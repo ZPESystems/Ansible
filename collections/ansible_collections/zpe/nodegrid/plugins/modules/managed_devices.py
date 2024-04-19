@@ -19,7 +19,6 @@ RETURN = r'''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell
-from ansible.utils.display import Display
 
 import os, json, pexpect
 
@@ -29,8 +28,6 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
-# import logging
-display = Display()
 
 def run_option_device(option, run_opt):
     suboptions = option['suboptions']

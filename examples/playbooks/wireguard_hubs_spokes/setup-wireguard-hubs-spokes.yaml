@@ -1,0 +1,402 @@
+# #########################################################
+# Hub - Create Wireguard VPN and get its Public Key
+# - hub: host that acts as the Hub, i.e., listens for VPN wireguard connections
+# - spoke: host that acts as the Spoke, i.e., initiates the VPN wireguard handshake connection
+
+- name: Get the Hubs and Spokes from inventory 
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - test
+    - checkvpn
+  tasks:
+    - name: Create hubs and spokes groups
+      block:
+      - name: Create hubs group
+        add_host:
+          name: "{{ item }}"
+          groups: hubs
+        loop: "{{ groups['all'] }}"
+        when: "'nodegrid_roles' in hostvars[item] and 'wireguard_hub' in hostvars[item].nodegrid_roles"
+      - name: Show hubs group
+        debug:
+          msg: "{{ groups['hubs'] }}"
+      - name: Check hubs group is not empty
+        assert:
+          that:
+            - groups['hubs'] | length > 0
+          msg: "No Hubs devices defined"
+      - name: Validate required Hubs hostvars variables
+        vars:
+          - _hub_vars:
+            - wireguard_interface_name
+            - wireguard_interface_address
+            - wireguard_external_address_main
+            - wireguard_external_address_backup
+            - wireguard_udp_port
+          - _host_keys: "{{ hostvars[item].keys() }}"
+          - _differ: "{{ _hub_vars | difference(_host_keys) }}"
+        assert:
+          that: _differ | length == 0
+          msg: "Variable {{ _differ }} not defined in inventory_hostname {{ inventory_hostname }}"
+        loop: "{{ groups['hubs'] }}"
+      - name: Create spokes group
+        add_host:
+          name: "{{ item }}"
+          groups: spokes
+        loop: "{{ groups['all'] }}"
+        when: "'nodegrid_roles' in hostvars[item] and 'wireguard_spoke' in hostvars[item].nodegrid_roles"
+      - name: Show spokes group
+        debug:
+          msg: "{{ groups['spokes'] }}"
+      - name: Check spokes group is not empty
+        assert:
+          that:
+            - groups['spokes'] | length > 0
+          msg: "No Spokes devices defined"
+      - name: Validate required Spokes hostvars variables
+        vars:
+          - _hub_vars:
+            - wireguard_interfaces
+          - _host_keys: "{{ hostvars[item].keys() }}"
+          - _differ: "{{ _hub_vars | difference(_host_keys) }}"
+        assert:
+          that: _differ | length == 0
+          msg: "Variable {{ _differ }} not defined in inventory_hostname {{ inventory_hostname }}"
+        loop: "{{ groups['spokes'] }}"
+      - name: Validate required Spokes wireguard_interfaces hostvars variables
+        vars:
+          - _var: "{{ groups['spokes'] | map('extract', hostvars, 'wireguard_interfaces') | flatten }}"
+          - _var2: "{{ dict(groups['spokes'] | zip(groups['spokes'] | map('extract', hostvars, 'wireguard_interfaces'))) }}"
+          - _hub_vars:
+            - wireguard_hub
+            - wireguard_interface_name
+            - wireguard_interface_address
+          - _host_keys: "{{ item.keys() }}"
+          - _differ: "{{ _hub_vars | difference(_host_keys) }}"
+        assert:
+          that: _differ | length == 0
+          msg: "Variable {{ _differ }} not defined in interfaces {{ _var2 }}"
+        loop: "{{ _var }}"
+      - name: validate spokes' hubs exist
+        vars:
+          _var: "{{ groups['spokes'] | map('extract', hostvars, 'wireguard_interfaces') | json_query('[].wireguard_hub') | unique }}"
+        assert:
+          that:
+            - item is in groups['hubs']
+          msg: "Hub '{{ item }}' device is not defined as 'nodegrid_roles: wireguard_hub'"
+        loop: "{{ _var }}"
+
+            #    - name: Create Peering List 
+            #      vars:
+            #        _var: "{{ dict(groups['spokes'] | zip(groups['spokes'] | map('extract', hostvars, 'wireguard_interfaces') )) }}"
+            #        _peering: "{{ item | json_query('value[].wireguard_hub') | product([item.key]) }}"
+            #      set_fact:
+            #        peeringlist: "{{ peeringlist | default([]) + _peering }}"
+            #      loop: "{{ _var | dict2items  }}"
+            #    - name: Example to show all the peerings for hub1
+            #      debug:
+            #        msg: "{{ item[0] +' '+ item[1] }}"
+            #      when: item | intersect(['hub1']) | length > 0
+            #      loop: "{{ peeringlist }}"
+
+- name: Hubs - Create Wireguard VPN and get its Public Key 
+  hosts: "{{ groups['hubs'] }}"
+  gather_facts: false
+  become: true
+  tasks:
+    # ##################################
+    # Hub - Create Hub Wireguard VPN
+    - name: Create Hub Wireguard VPN 
+      block:
+        - name: check if wireguard interface exists
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/wireguard/'
+          register: ng_wireguard_tunnels_output
+        - name: show ng_wireguard_tunnels
+          debug:
+            msg: "{{ (ng_wireguard_tunnels_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Set variable to create or modify Wireguard VPN
+          set_fact:
+            ng_wireguard_tunnels: "{{ (ng_wireguard_tunnels_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+              #        - name: "Delete Wireguard VPN {{ hostvars[inventory_hostname].wireguard_interface_name }} if exists"
+              #          zpe.nodegrid.nodegrid_cmds: 
+              #            cmds:
+              #              - cmd: 'delete /settings/wireguard/ {{ hostvars[inventory_hostname].wireguard_interface_name }}'
+              #              - cmd: 'commit'
+              #          ignore_errors: true
+        - name: Add Hub Wireguard VPN if not exists
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/'
+              - cmd: 'add'
+              - cmd: 'set interface_name={{ hostvars[inventory_hostname].wireguard_interface_name }}'
+              - cmd: 'set interface_type=server'
+              - cmd: 'set internal_address={{ hostvars[inventory_hostname].wireguard_interface_address }}'
+              - cmd: 'set listening_port={{ hostvars[inventory_hostname].wireguard_udp_port }}'
+              - cmd: 'commit'
+          when: hostvars[inventory_hostname].wireguard_interface_name not in ng_wireguard_tunnels
+        
+        - name: Update Hub Wireguard VPN if exists
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/{{ hostvars[inventory_hostname].wireguard_interface_name }}/interfaces'
+              - cmd: 'set internal_address={{ hostvars[inventory_hostname].wireguard_interface_address }}'
+              - cmd: 'set listening_port={{ hostvars[inventory_hostname].wireguard_udp_port }}'
+              - cmd: 'commit'
+          when: hostvars[inventory_hostname].wireguard_interface_name in ng_wireguard_tunnels
+
+    # ##################################
+    # Hub - Get Wireguard Public Key
+    - name: Hub Get Wireguard Public Key interface 
+      block:
+        - name: Get Hub Wireguard Public Key
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+            - cmd: 'show /settings/wireguard/{{ hostvars[inventory_hostname].wireguard_interface_name }}/interfaces/ public_key'
+          register: wg_public_key
+        - name: Export Hub Wireguard Public Key
+          set_fact:
+            wireguard_public_key: "{{ wg_public_key.cmds_output[0]['stdout_lines'][1].split('= ')[1] }}"
+
+# #######################################################
+# Spoke - Create Wireguard VPN and get its Public Key
+- name: Spoke - Create Wireguard VPN and get its Public Key
+  #hosts: "{{ hostvars['localhost'].WG_SPOKES }}"
+  hosts: "{{ groups['spokes'] }}"
+  gather_facts: false
+  become: true
+  tasks:
+    # #####################################
+    # Spoke - Create Spoke Wireguard VPN
+    - name: Create Spoke Wireguard VPN 
+      block:
+        - name: check if wireguard interface exists
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/wireguard/'
+          register: ng_wireguard_tunnels_output
+        - name: show ng_wireguard_tunnels
+          debug:
+            msg: "{{ (ng_wireguard_tunnels_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Set variable to create or modify Wireguard VPN
+          set_fact:
+            ng_wireguard_tunnels: "{{ (ng_wireguard_tunnels_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+              #        - name: "Delete Spoke Wireguard VPN if exists"
+              #          zpe.nodegrid.nodegrid_cmds: 
+              #            cmds:
+              #              - cmd: 'delete /settings/wireguard/ {{ item.wireguard_interface_name }}'
+              #              - cmd: 'commit'
+              #          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+              #          ignore_errors: true
+        - name: Add Spoke Wireguard VPN if it does not exist
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/'
+              - cmd: 'add'
+              - cmd: 'set interface_name={{ item.wireguard_interface_name }}'
+              - cmd: 'set interface_type=client'
+              - cmd: 'set internal_address={{ item.wireguard_interface_address }}'
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+          when: item.wireguard_interface_name not in ng_wireguard_tunnels
+        - name: Update Spoke Wireguard VPN if it exists already
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/{{ item.wireguard_interface_name }}/interfaces'
+              - cmd: 'set internal_address={{ item.wireguard_interface_address }}'
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+          when: item.wireguard_interface_name in ng_wireguard_tunnels
+
+    # ###################################
+    # Spoke - Get Wireguard Public Key
+    - name: Spoke Get Wireguard Public Key interface 
+      block:
+        - name: Get Spoke Wireguard Public Key
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+            - cmd: 'show /settings/wireguard/{{ item.wireguard_interface_name }}/interfaces/ public_key'
+          register: wg_public_key
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+
+        - name: Export Spoke Wireguard Public Key
+          set_fact:
+            wireguard_public_key: "{{ wireguard_public_key | default({}) | combine ({item.item.wireguard_interface_name: item.cmds_output[0]['stdout_lines'][1].split('= ')[1]}) }}"
+          with_items: "{{ hostvars[inventory_hostname].wg_public_key.results }}"
+        - name: show wireguard_public_key
+          debug:
+            msg: "{{ hostvars[inventory_hostname].wireguard_public_key }}"
+
+    # ################################
+    # Spoke - Add spoke-hub peering
+    - name: Spoke Add spoke-hub peering 
+      block:
+        - name: check if wireguard interface exists
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/wireguard/{{ item.wireguard_interface_name }}/peers'
+          register: ng_wireguard_peers_output
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+        - name: show ng_wireguard_peers_output
+          debug:
+            msg: "{{ ng_wireguard_peers_output.results | json_query('[].cmds_output[].stdout') | map('split','\n')  }}"
+            #msg: "{{ (ng_wireguard_tunnels_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Set variable to create or modify Wireguard peer
+          vars:
+            _var: "{{ ng_wireguard_peers_output.results | json_query('[].cmds_output[].stdout') | map('split','\n')  }}"
+            _host: "{{ item[0] | split('wireguard/') | last | split('/peers') | first }}"
+            _peers: "{{ item[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+          set_fact:
+            ng_wireguard_peers: "{{ ng_wireguard_peers | default({}) | combine({_host: _peers }) }}"
+          loop: "{{ _var }}"
+        - name: show peers
+          debug:
+            msg: "{{ ng_wireguard_peers }}"
+        - name: Spoke add spoke-hub peering
+          vars:
+            peer_name: "{{ item.wireguard_interface_name }}-peer-{{ item.wireguard_hub }}"
+          debug:
+            msg: "{{peer_name}} - {{ ng_wireguard_peers[item.wireguard_interface_name] }}"
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+          when: ng_wireguard_peers[item.wireguard_interface_name] | length > 0
+
+        - name: Spoke add spoke-hub peering if it does not exist
+          vars:
+            _peer_name: "{{ item.wireguard_interface_name }}-peer-{{ item.wireguard_hub }}"
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/{{ item.wireguard_interface_name }}/peers'
+              - cmd: 'add'
+              - cmd: 'set peer_name={{ _peer_name }}'
+              - cmd: 'set allowed_ips={{ hostvars[item.wireguard_hub].wireguard_interface_address}}'
+              - cmd: 'set public_key={{ hostvars[item.wireguard_hub].wireguard_public_key }}'
+              - cmd: 'set external_address={{ hostvars[item.wireguard_hub].wireguard_external_address_main }}:{{ hostvars[item.wireguard_hub].wireguard_udp_port }}'
+              - cmd: 'set keepalive=21'
+              - cmd: "set description='{{ item.wireguard_interface_name }} peering with {{ hostvars[item.wireguard_hub].wireguard_interface_name }}'"
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+          when: _peer_name not in ng_wireguard_peers[item.wireguard_interface_name]
+        
+        - name: Spoke Update spoke-hub peering if it exists already
+          vars:
+            _peer_name: "{{ item.wireguard_interface_name }}-peer-{{ item.wireguard_hub }}"
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/{{ item.wireguard_interface_name }}/peers/{{ _peer_name }} '
+              - cmd: 'set allowed_ips={{ hostvars[item.wireguard_hub].wireguard_interface_address}}'
+              - cmd: 'set public_key={{ hostvars[item.wireguard_hub].wireguard_public_key }}'
+              - cmd: 'set external_address={{ hostvars[item.wireguard_hub].wireguard_external_address_main }}' 
+              - cmd: 'set listening_port={{ hostvars[item.wireguard_hub].wireguard_udp_port }}'
+              - cmd: 'set keepalive=21'
+              - cmd: "set description='{{ item.wireguard_interface_name }} peering with {{ hostvars[item.wireguard_hub].wireguard_interface_name }}'"
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+          when: _peer_name in ng_wireguard_peers[item.wireguard_interface_name]
+            
+    # ################################
+    # Spoke - Setup Wireguard fail-over
+    - name: Spoke Setup Wireguard fail-over
+      block:
+        - name: Export hubs wireguard_failover info
+          set_fact:
+            wireguard_failover: "{{ wireguard_failover | default([]) + [{'wireguard_endpoint_main': hostvars[item.wireguard_hub].wireguard_external_address_main, 'wireguard_endpoint_backup': hostvars[item.wireguard_hub].wireguard_external_address_backup, 'wireguard_interface_name': item.wireguard_interface_name, 'wireguard_peer_id': item.wireguard_interface_name+'-peer-'+item.wireguard_hub }] }}"
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+            #        - name: show wireguard_failover
+            #          debug:
+            #            msg: "{{ wireguard_failover }}"
+        - name: Spoke - Setup Wireguard fail-over
+          vars:
+            wireguard_tunnels: "{{ wireguard_failover }}"
+          include_role:
+            name: zpe.nodegrid.site_coordinator
+            tasks_from: wireguard_failover
+
+# ##############################
+# Hub - Add hub-spoke peering
+- name: Hub - Add hub-spoke peering
+  hosts: "{{ groups['hubs'] }}"
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Hub add hub-spokes peerings 
+      block:
+        - name: Export Spokes wireguard_interfaces info
+          set_fact:
+            wireguard_interfaces_peers: "{{ wireguard_interfaces_peers | default([]) + [item] | product(hostvars[item].wireguard_interfaces | map(attribute='wireguard_interface_name'))  }}"
+          loop: "{{ groups['spokes'] }}" 
+        - name: show wireguard_interfaces_peers
+          debug:
+            msg: "{{ wireguard_interfaces_peers }}"
+        - name: check if wireguard peers exist
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/wireguard/{{ hostvars[inventory_hostname].wireguard_interface_name }}/peers'
+          register: ng_wireguard_peers_output
+        - name: show ng_wireguard_peers
+          debug:
+            msg: "{{ (ng_wireguard_peers_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Set variable to create or modify Wireguard peers
+          set_fact:
+            ng_wireguard_peers: "{{ (ng_wireguard_peers_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Hub Add hub-spoke peering if it does not exists
+          vars:
+            _peer_name: "{{ hostvars[inventory_hostname].wireguard_interface_name }}-peer-{{ item[0] }}"
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/{{ hostvars[inventory_hostname].wireguard_interface_name }}/peers'
+              - cmd: 'add'
+              - cmd: 'set peer_name={{ _peer_name }}'
+              - cmd: "set allowed_ips={{ (hostvars[item[0]]['wireguard_interfaces'] | selectattr('wireguard_interface_name','equalto',item[1]) | first).wireguard_interface_address}}"
+              - cmd: 'set public_key={{ hostvars[item[0]].wireguard_public_key[item[1]] }}'
+              - cmd: 'set keepalive=21'
+              - cmd: "set description='{{ hostvars[inventory_hostname].wireguard_interface_name }} peering with {{ item[0] }} iface {{ item[1] }}'"
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces_peers }}"
+          when: 
+            - (hostvars[item[0]]['wireguard_interfaces'] | selectattr('wireguard_interface_name','equalto',item[1]) | first).wireguard_hub == hostvars[inventory_hostname].inventory_hostname
+            - _peer_name not in ng_wireguard_peers
+        - name: Hub Update hub-spoke peering if it exists
+          vars:
+            _peer_name: "{{ hostvars[inventory_hostname].wireguard_interface_name }}-peer-{{ item[0] }}"
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'cd /settings/wireguard/{{ hostvars[inventory_hostname].wireguard_interface_name }}/peers/{{ _peer_name }}'
+              - cmd: "set allowed_ips={{ (hostvars[item[0]]['wireguard_interfaces'] | selectattr('wireguard_interface_name','equalto',item[1]) | first).wireguard_interface_address}}"
+              - cmd: 'set public_key={{ hostvars[item[0]].wireguard_public_key[item[1]] }}'
+              - cmd: 'set keepalive=21'
+              - cmd: "set description='{{ hostvars[inventory_hostname].wireguard_interface_name }} peering with {{ item[0] }} iface {{ item[1] }}'"
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces_peers }}"
+          when: 
+            - (hostvars[item[0]]['wireguard_interfaces'] | selectattr('wireguard_interface_name','equalto',item[1]) | first).wireguard_hub == hostvars[inventory_hostname].inventory_hostname
+            - _peer_name in ng_wireguard_peers 
+
+# ##############################################################
+# Spoke - Validate Wireguard VPN: ping the Hub from the Spoke
+- name: Validate Wireguard VPN - ping the Hub from the Spoke
+  hosts: "{{ groups['spokes'] }}"
+  gather_facts: false
+  become: true
+  tags:
+    - checkvpn
+  tasks:
+    - name: Spoke Validate Wireguard VPN 
+      block:
+        - name: Execute Ping from Spoke to the Hub
+          ansible.builtin.shell: "echo -e 'Ping from {{ hostvars[inventory_hostname].inventory_hostname }} to Hub: {{ item.wireguard_hub }}'; ping -c 5 $(/sbin/ip --json route show  dev {{ item.wireguard_interface_name }} | jq -r .[0].dst)"
+          register: vpn_results
+          retries: 5
+          delay: 5
+          until: "vpn_results is not failed"
+          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+            #        - name: Show ping results
+            #          debug:
+            #            var: item
+            #          loop: "{{ hostvars[inventory_hostname].vpn_results.results | map(attribute='stdout') }}"
+        - name: show ping results
+          debug:
+            msg: "{{ vpn_results.results | json_query('[].stdout') | map('split','\n') }}"
+
+            #msg: "{{ vpn_results.results | json_query('[].cmds_output[].stdout') | map('split','\n')  }}"

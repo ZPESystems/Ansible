@@ -1,0 +1,371 @@
+all:
+  children:
+    AMER:
+      # System Date and Time
+      sys_date_and_time_date_and_time: "network_time_protocol"
+      sys_date_and_time_zone: "utc"
+      children:
+        NY11:
+          # Cluster Settings
+          cluster_settings_cluster_name: NY11
+          cluster_settings_psk: NY11NGCluster
+          cluster_coordinator_address: 172.16.11.1
+          cluster_settings_type: peer
+          # Generic Nodegrid Roles
+          nodegrid_roles:
+            - local_peer
+          hosts:
+            ny11-sc1:
+              # Generic Ansible Settings
+              ansible_host: 10.0.2.127
+              # Generic Nodegrid Roles
+              nodegrid_roles:
+                - super_coordinator
+                - wireguard_hub
+
+              # Nodegrid Network Settings
+              nodegrid_hostname: ny11-sc1
+              nodegrid_domain_name: us.zpesystems.lab
+              nodegrid_enable_ipv4_ip_forward: "yes"
+              nodegrid_reverse_path_filtering: "loose_mode"
+
+              # Nodegrid Network Connections
+              network_connections:
+                - nodegrid_connection_name: ETH0
+                  nodegrid_interface: eth0
+                  nodegrid_connect_description: "MGMT"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.0.2.127
+                  nodegrid_ipv4_bitmask: 24
+                - nodegrid_connection_name: ETH1
+                  nodegrid_interface: eth1
+                  nodegrid_connect_description: "LAB-NAT"
+                  nodegrid_ipv4_mode: dhcp
+                - nodegrid_connection_name: ETH2
+                  nodegrid_interface: eth2
+                  nodegrid_set_as_primary_connection: "yes"
+                  nodegrid_connect_description: "FIBER"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.1.1.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.1.1.1
+                - nodegrid_connection_name: ETH3
+                  nodegrid_interface: eth3
+                  nodegrid_connect_description: "LTE"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.100.1.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.100.1.1
+
+              # Network Failover
+              failover_enable_network_failover: "yes"
+              failover_primary_connection: "ETH2"
+              failover_secondary_connection: "ETH3"
+              failover_trigger_ip_address: 10.1.1.1
+
+              # Wireguard Settings
+              wireguard_interface_name: ny11-hub                            # Wireguard interface and VPN name
+              wireguard_interface_address: 10.21.1.1/32                     # Wireguard interface internal IP address
+              wireguard_external_address_main: 10.1.1.2                     # Wireguard main external IP address (used on the spoke side)
+              wireguard_external_address_backup: 10.100.1.2                    # Wireguard backup external IP address (used on the spoke side)
+              wireguard_udp_port: 51820                                     # Wireguard UDP port
+
+              # Cluster Settings
+              cluster_settings_cluster_name: NY11-SC
+              cluster_settings_psk: NY11-SCNGCluster
+              cluster_settings_cluster_mode: star
+              cluster_settings_polling_rate: 120
+            ny11-lc1:
+              # Generic Ansible Settings
+              ansible_host: 10.0.2.129
+
+              # Generic Nodegrid Roles
+              nodegrid_roles:
+                - local_coordinator
+                - wireguard_spoke
+
+              # Nodegrid Network Settings
+              nodegrid_hostname: ny11-lc1
+              nodegrid_domain_name: us.zpesystems.lab
+              nodegrid_enable_ipv4_ip_forward: "yes"
+              nodegrid_reverse_path_filtering: "loose_mode"
+
+              # Nodegrid Network Connections
+              network_connections:
+                - nodegrid_connection_name: ETH0
+                  nodegrid_interface: eth0
+                  nodegrid_connect_description: "MGMT"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.0.2.129
+                  nodegrid_ipv4_bitmask: 24
+                - nodegrid_connection_name: ETH1
+                  nodegrid_interface: eth1
+                  nodegrid_set_as_primary_connection: "yes"
+                  nodegrid_connect_description: "FIBER"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.1.11.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.1.11.1
+                - nodegrid_connection_name: ETH2
+                  nodegrid_interface: eth2
+                  nodegrid_connect_description: "LTE"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.100.11.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.100.11.1
+                - nodegrid_connection_name: ETH3
+                  nodegrid_interface: eth3
+                  nodegrid_connect_description: "OOBM"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 172.16.11.1
+                  nodegrid_ipv4_bitmask: 24
+
+              # Network Failover
+              failover_enable_network_failover: "yes"
+              failover_primary_connection: "ETH3"
+              failover_secondary_connection: "ETH1"
+              failover_trigger_ip_address: 10.1.11.1
+
+              # Wireguard Settings
+              wireguard_interfaces:
+                - wireguard_hub: ny11-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                  wireguard_interface_name: ny11-sc1                # Wireguard interface and VPN name
+                  wireguard_interface_address: 10.21.1.11/32    # Wireguard interface internal IP address
+                - wireguard_hub: sg01-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                  wireguard_interface_name: sg01-sc1                # Wireguard interface and VPN name
+                  wireguard_interface_address: 10.21.2.11/32    # Wireguard interface internal IP address
+
+              # Cluster Settings
+              cluster_settings_cluster_mode: mesh
+              cluster_settings_polling_rate: 120
+            ny11-lp1:
+              # Generic Ansible Settings
+              ansible_host: 10.0.2.130
+              # Nodegrid Network Settings
+              nodegrid_hostname: ny11-lp1
+              nodegrid_domain_name: us.zpesystems.lab
+              # Nodegrid Network Connections
+              network_connections:
+                - nodegrid_connection_name: ETH0
+                  nodegrid_interface: eth0
+                  nodegrid_connect_description: "MGMT"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.0.2.130
+                  nodegrid_ipv4_bitmask: 24
+                - nodegrid_connection_name: ETH1
+                  nodegrid_interface: eth1
+                  nodegrid_set_as_primary_connection: "yes"
+                  nodegrid_connect_description: "LAN"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 172.16.11.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 172.16.11.1
+                - nodegrid_connection_name: ETH2
+                  nodegrid_interface: eth2
+                  nodegrid_connect_description: "OOBM"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 172.16.110.1
+                  nodegrid_ipv4_bitmask: 24
+        NY12:
+          hosts:
+            ny12-lc1:
+              # Generic Ansible Settings
+              ansible_host: 10.0.2.132
+
+              # Generic Nodegrid Roles
+              nodegrid_roles:
+                - local_coordinator
+                - wireguard_spoke
+
+              # Nodegrid Network Settings
+              nodegrid_hostname: ny12-lc1
+              nodegrid_domain_name: us.zpesystems.lab
+              nodegrid_enable_ipv4_ip_forward: "yes"
+              nodegrid_reverse_path_filtering: "loose_mode"
+
+              # Nodegrid Network Connections
+              network_connections:
+                - nodegrid_connection_name: ETH0
+                  nodegrid_interface: eth0
+                  nodegrid_connect_description: "MGMT"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.0.2.132
+                  nodegrid_ipv4_bitmask: 24
+                - nodegrid_connection_name: ETH1
+                  nodegrid_interface: eth1
+                  nodegrid_set_as_primary_connection: "yes"
+                  nodegrid_connect_description: "FIBER"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.1.12.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.1.12.1
+                - nodegrid_connection_name: ETH2
+                  nodegrid_interface: eth2
+                  nodegrid_connect_description: "LTE"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.100.12.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.100.12.1
+                - nodegrid_connection_name: ETH3
+                  nodegrid_interface: eth3
+                  nodegrid_connect_description: "OOBM"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 172.16.12.1
+                  nodegrid_ipv4_bitmask: 24
+
+              # Network Failover
+              failover_enable_network_failover: "yes"
+              failover_primary_connection: "ETH3"
+              failover_secondary_connection: "ETH1"
+              failover_trigger_ip_address: 10.1.12.1
+
+              # Wireguard Settings
+              wireguard_interfaces:
+                - wireguard_hub: ny11-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                  wireguard_interface_name: ny11-sc1                # Wireguard interface and VPN name
+                  wireguard_interface_address: 10.21.1.12/32    # Wireguard interface internal IP address
+                - wireguard_hub: sg01-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                  wireguard_interface_name: sg01-sc1                # Wireguard interface and VPN name
+                  wireguard_interface_address: 10.21.2.12/32    # Wireguard interface internal IP address
+
+              # Cluster Settings
+              cluster_settings_cluster_name: NY12
+              cluster_settings_psk: NY12NGCluster
+              cluster_settings_cluster_mode: mesh
+              cluster_settings_polling_rate: 120
+
+        NY10:
+          hosts:
+    EMEA:
+    APAC:
+      # System Date and Time
+      sys_date_and_time_date_and_time: "network_time_protocol"
+      sys_date_and_time_zone: "utc+9"
+      children:
+        SG01:
+          hosts:
+            sg01-sc1:
+              # Generic Ansible Settings
+              ansible_host: 10.0.2.123
+              # Generic Nodegrid Roles
+              nodegrid_roles:
+                - super_coordinator
+                - wireguard_hub
+
+              # Nodegrid Network Settings
+              nodegrid_hostname: sg01-sc1
+              nodegrid_domain_name: asia.zpesystems.lab
+              nodegrid_enable_ipv4_ip_forward: "yes"
+              nodegrid_reverse_path_filtering: "loose_mode"
+
+              # Nodegrid Network Connections
+              network_connections:
+                - nodegrid_connection_name: ETH0
+                  nodegrid_interface: eth0
+                  nodegrid_connect_description: "MGMT"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.0.2.123
+                  nodegrid_ipv4_bitmask: 24
+                - nodegrid_connection_name: ETH1
+                  nodegrid_interface: eth1
+                  nodegrid_connect_description: "LAB-NAT"
+                  nodegrid_ipv4_mode: dhcp
+                - nodegrid_connection_name: ETH2
+                  nodegrid_interface: eth2
+                  nodegrid_set_as_primary_connection: "yes"
+                  nodegrid_connect_description: "FIBER"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.1.2.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.1.2.1
+                - nodegrid_connection_name: ETH3
+                  nodegrid_interface: eth3
+                  nodegrid_connect_description: "LTE"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.100.2.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.100.2.1
+
+              # Network Failover
+              failover_enable_network_failover: "yes"
+              failover_primary_connection: "ETH2"
+              failover_secondary_connection: "ETH3"
+              failover_trigger_ip_address: 10.1.2.1
+
+              # Wireguard Settings
+              wireguard_interface_name: sg01-hub                            # Wireguard interface and VPN name
+              wireguard_interface_address: 10.21.2.1/32                     # Wireguard interface internal IP address
+              wireguard_external_address_main: 10.1.2.2                     # Wireguard main external IP address (used on the spoke side)
+              wireguard_external_address_backup: 10.100.2.2                    # Wireguard backup external IP address (used on the spoke side)
+              wireguard_udp_port: 51820                                     # Wireguard UDP port
+
+              # Cluster Settings
+              cluster_settings_cluster_name: SG01-SC
+              cluster_settings_psk: SG01-SCNGCluster
+              cluster_settings_cluster_mode: star
+              cluster_settings_polling_rate: 120
+
+            sg01-lc1:
+              # Generic Ansible Settings
+              ansible_host: 10.0.2.131
+              # Generic Nodegrid Roles
+              nodegrid_roles:
+                - local_coordinator
+                - wireguard_spoke
+
+              # Nodegrid Network Settings
+              nodegrid_hostname: sg01-lc1
+              nodegrid_domain_name: asia.zpesystems.lab
+              nodegrid_enable_ipv4_ip_forward: "yes"
+              nodegrid_reverse_path_filtering: "loose_mode"
+
+              # Nodegrid Network Connections
+              network_connections:
+                - nodegrid_connection_name: ETH0
+                  nodegrid_interface: eth0
+                  nodegrid_connect_description: "MGMT"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.0.2.131
+                  nodegrid_ipv4_bitmask: 24
+                - nodegrid_connection_name: ETH1
+                  nodegrid_interface: eth1
+                  nodegrid_set_as_primary_connection: "yes"
+                  nodegrid_connect_description: "FIBER"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.1.13.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.1.13.1
+                - nodegrid_connection_name: ETH2
+                  nodegrid_interface: eth2
+                  nodegrid_connect_description: "LTE"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 10.100.13.2
+                  nodegrid_ipv4_bitmask: 24
+                  nodegrid_ipv4_gateway: 10.100.13.1
+                - nodegrid_connection_name: ETH3
+                  nodegrid_interface: eth3
+                  nodegrid_connect_description: "OOBM"
+                  nodegrid_ipv4_mode: static
+                  nodegrid_ipv4_address: 172.16.13.1
+                  nodegrid_ipv4_bitmask: 24
+
+              # Network Failover
+              failover_enable_network_failover: "yes"
+              failover_primary_connection: "ETH3"
+              failover_secondary_connection: "ETH1"
+              failover_trigger_ip_address: 10.1.13.1
+
+              # Wireguard Settings
+              wireguard_interfaces:
+                - wireguard_hub: ny11-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                  wireguard_interface_name: ny11-sc1                # Wireguard interface and VPN name
+                  wireguard_interface_address: 10.21.1.13/32    # Wireguard interface internal IP address
+                - wireguard_hub: sg01-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                  wireguard_interface_name: sg01-sc1                # Wireguard interface and VPN name
+                  wireguard_interface_address: 10.21.2.13/32    # Wireguard interface internal IP address
+
+              # Cluster Settings
+              cluster_settings_cluster_name: SG01
+              cluster_settings_psk: SG01NGCluster
+              cluster_settings_cluster_mode: mesh
+              cluster_settings_polling_rate: 120

@@ -1,0 +1,17 @@
+---
+# Requirements: None
+# purpose:
+# This playbook is designed setup a wireguard overlay network between Super Coordinators and Local Coordinators
+#
+- hosts: all
+  name: Configure a Wireguard Overlay Network
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+      - name: Setup Audit Settings
+        include_role:
+          name: network_wg_site_to_site
+        tags:
+         - wireguard

@@ -14,6 +14,7 @@ OPTION_USERNAME = 'username'
 OPTION_CHANGE_DEFAULT_PASSWORD = 'password'
 OPTION_CHANGE_NEW_PASSWORD = 'new_password'
 OPTION_INSTALL_SSH_KEY = 'ssh_key'
+OPTION_INSTALL_SSH_PORT = 'ssh_port'
 OPTION_INSTALL_SSH_KEY_USER = 'ssh_key_user'
 OPTION_INSTALL_SSH_KEY_TYPE = 'ssh_key_type'
 OPTION_GRANT_SUDOERS = 'ansible_sudoers'
@@ -241,6 +242,7 @@ class ActionModule(ActionBase):
         action_sudoers = False
         new_password = None
         ssh_key = None
+        ssh_port = None
         ssh_key_user = None
         ssh_key_type = None
 
@@ -269,7 +271,10 @@ class ActionModule(ActionBase):
                 ssh_key_type = action_module_args[OPTION_INSTALL_SSH_KEY_TYPE]
             else:
                 return self._result_failed('No ssh_key_type was provided')
-
+            if OPTION_INSTALL_SSH_PORT in action_module_args.keys():
+                ssh_port = action_module_args[OPTION_INSTALL_SSH_PORT]
+                options = options + f" -p {ssh_port}"
+                
         if ssh_key is not None and len(ssh_key) > 0 and len(ssh_key_type) > 0:
             split_key = ssh_key.split()
             display.vvv("Key length")
@@ -310,6 +315,7 @@ class ActionModule(ActionBase):
             display.vvv(f"ssh_key_type: {type}")
             display.vvv(f"ssh_key_value: {ssh_key_value}")
             display.vvv(f"comment: {comment}")
+            display.vvv(f"ssh options: {options}")
 
         # Check if sudoers permissions should be granted
         if OPTION_GRANT_SUDOERS in action_module_args.keys():

@@ -49,7 +49,7 @@ def close_cli(cmd_cli):
 def execute_cmd(cmd_cli, cmd):
     if 'cmd' in cmd.keys():
         cmd_cli.sendline(cmd['cmd'])
-        if 'confirm' in cmd.keys():
+        if 'confirm' in cmd.keys() or 'restore' in cmd.keys():
             index = cmd_cli.expect_exact(['(yes, no)  :', ']# ', pexpect.EOF, pexpect.TIMEOUT])
             if index == 0:
                 cmd_cli.sendline('yes')

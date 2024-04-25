@@ -3,7 +3,7 @@
       connection:
         name: "{{item.nodegrid_connection_name}}"
         description: "{{item.nodegrid_connect_description|default('')}}"
-#        ethernet_interface: "{{item.nodegrid_interface|default('')}}"
+        ethernet_interface: "{{item.nodegrid_interface|default('')}}"
         connect_automatically: "{{item.nodegrid_connect_automatically|default('yes')}}"
         set_as_primary_connection: "{{item.nodegrid_set_as_primary_connection|default('no')}}"
         enable_lldp: "{{item.nodegrid_enable_lldp|default('yes')}}"

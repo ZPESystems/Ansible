@@ -1,0 +1,12 @@
+        - name: Set Cluster Value
+          set_fact:
+            cluster_peer_tmp:
+              - remote_cluster_name: "{{cluster_settings_cluster_name}}"
+                remote_coordinator_address: "{{wg_lc.wireguard_interface_address}}"
+                remote_psk: "{{cluster_settings_psk}}"
+
+        - name: Export Spoke Wireguard Public Key and assign to Hub
+          set_fact:
+            cluster_peers: "{{ hostvars[wg_lc.wireguard_hub].cluster_peers + cluster_peer_tmp }}"
+          delegate_to: "{{ wg_lc.wireguard_hub }}"
+          delegate_facts: true

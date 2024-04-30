@@ -1,7 +1,0 @@
-setuptools
-requests
-pyyaml
-flask
-flask-restful
-gunicorn
-marshmallow

@@ -1,0 +1,118 @@
+- name: Configure Nodegrid user locally
+  block:
+    - name: Delete api user if exists
+      ansible.builtin.shell: 'unset SID DLITF_SID; cli -C -y delete /settings/local_accounts/ {{ NODEGRID_USER }}'
+      register: output
+      ignore_errors: true
+    
+    - name: create user
+      zpe.nodegrid.nodegrid_cmds:
+         cmds:
+           - cmd: 'cd /settings/local_accounts/'
+           - cmd: 'add'
+           - cmd: 'set username={{ NODEGRID_USER }}'
+           - cmd: 'set account_type=api_account'
+           - cmd: 'set user_group=admin'
+           - cmd: 'show api_key'
+           - cmd: 'commit'
+      register: output
+    
+    - name: Show user API results
+      debug:
+        var: output.cmds_output[5]['stdout']
+    
+    - name: Export user API key to variables
+      set_fact:
+        NODEGRID_KEY: "{{ output.cmds_output[5]['stdout'].split('\n')[1].split(': ')[1] | trim }}"
+  when: NODEGRID_CREATE_API_USER
+  
+- name: Export user API key to variables
+  set_fact:
+    NODEGRID_KEY: "{{ NODEGRID_KEY }}"
+  when: not NODEGRID_CREATE_API_USER
+
+- name: Validate Nodegrid API access
+  block:
+    - name: Validate Nodegrid credentials and access
+      ansible.builtin.uri:
+        url: "{{ NODEGRID_URI }}{{ NODEGRID_API_PREFIX }}/Session"
+        method: POST
+        body: "{ \"username\": \"{{ NODEGRID_USER }}\", \"api_key\": \"{{ hostvars[inventory_hostname][\"NODEGRID_KEY\"] }}\" }"
+        body_format: json
+        return_content: yes
+        validate_certs: false
+        status_code: 200
+        headers:
+          Content-Type: application/json
+          accept: application/json
+      register: login_result
+      until: login_result.json.status == "success"
+      retries: 10 
+      delay: 10
+
+    - name: Logout from Nodegrid
+      ansible.builtin.uri:
+        url: "{{ NODEGRID_URI }}{{ NODEGRID_API_PREFIX }}/Session"
+        method: DELETE
+        validate_certs: false
+        status_code: 200
+        headers:
+          Content-Type: application/json
+          accept: application/json
+          ticket: "{{ login_result.json.session }}"
+      ignore_errors: true
+
+- name: Configure the Spoke VPN
+  block:
+    - name: Copy project code to Spoke
+      copy:
+        src: "{{ LOCAL_PROJECT_HOME }}"
+        dest: "{{ PROJECT_HOME }}"
+          #      remote_src: yes
+    
+    - name: spoke-config.ini config file
+      template:
+        src: "spoke-config.ini.j2"
+        dest: "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/config.ini"
+    
+    - name: Changing perm of "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/wgpeer.py", adding "+x"
+      file: dest="{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/wgpeer.py" mode=a+x
+    
+    - name: Execute Port Knocking
+      ansible.builtin.shell: "nc -t -w 1 {{ PORT_KNOCKING_IP }} {{ item }}"
+      when: PORT_KNOCKING
+      ignore_errors: true
+      loop:
+        - "{{ PORT1 }}"
+        - "{{ PORT2 }}"
+        - "{{ PORT3 }}"
+    
+    - name: Execute the Spoke Configuration
+      ansible.builtin.shell: |
+        cd "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}" &&
+        "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}/wgpeer.py"
+      register: results
+    
+    - name: Show Peering Results
+      debug:
+        var: results.stdout_lines
+    
+    - name: Delete files
+      ansible.builtin.file:
+        path: "{{ PROJECT_HOME }}/{{ PROJECT_NAME }}"
+        state: absent
+    
+    - name: Delete api user if exists
+      ansible.builtin.shell: 'unset SID DLITF_SID; cli -C -y delete /settings/local_accounts/ {{ NODEGRID_USER }}'
+      register: output
+      ignore_errors: true
+      when: NODEGRID_DELETE_API_USER
+
+- name: Validate Wireguard VPN 
+  block:
+    - name: Execute Ping
+      ansible.builtin.shell: "ping -c 5 $(/sbin/ip --json route show  dev {{ WIREGUARD_IFACE_NAME }} | jq -r .[0].dst)"
+      register: vpn_results
+    - name: Show ping results
+      debug:
+        var: vpn_results.stdout_lines

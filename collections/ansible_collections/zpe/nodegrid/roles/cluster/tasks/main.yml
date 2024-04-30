@@ -1,0 +1,3 @@
+- name: Setup Cluster
+  import_tasks: cluster_settings.yml
+  tags: always

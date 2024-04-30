@@ -1,0 +1,31 @@
+# Network Failover Default Settings
+failover_enable_network_failover: "no"
+
+# Primary Failover
+failover_primary_connection: "ETH0"
+failover_secondary_connection: "CELLULAR-A"
+failover_primary_connection_sim_card: 1
+failover_secondary_connection_sim_card: 1
+failover_trigger_failed_retries: 2
+failover_trigger_successful_retries_to_recover: 1
+failover_interval_between_retries: 5
+failover_enable_primary_failover_by_ip_address: "yes"
+failover_trigger: "ip_address"
+failover_trigger_ip_address: "api.zpecloud.com"
+
+failover_enable_primary_failover_by_signal_strength: "no"
+failover_enable_primary_failover_by_data_usage: "no"
+failover_enable_primary_failover_by_schedule: "no"
+failover_enable_primary_sim_failback_by_schedule: "no"
+failover_enable_third_level_network_failover: "no"
+
+
+failover_enable_secondary_failover_by_ip_address: "yes"
+failover_secondary_trigger: "secondary_ipv4_default_gateway"
+failover_enable_secondary_failover_by_signal_strength: "no"
+failover_enable_secondary_failover_by_data_usage: "no"
+failover_enable_secondary_failover_by_schedule: "no"
+failover_enable_secondary_sim_failback_by_schedule: "no"
+
+# Wireguard Failover
+wireguard_failover_status: "no"

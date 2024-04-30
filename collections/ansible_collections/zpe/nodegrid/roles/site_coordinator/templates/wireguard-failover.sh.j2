@@ -1,0 +1,27 @@
+#!/bin/bash
+# This script is meant to dynamically change a wireguard endpoint
+# Whenever an event ocurrs, it will execute this script passing the Event
+# number as the first argument plus all the arguments that this events
+# pass to SNMP TRAP. See Nodegrid‐TRAP‐MIB.mib to see all args for each event.
+EVENT_NUMBER="$1" #argument 1 is always the event number
+LOG_FILE=/var/log/messages
+
+###### Tunnel 1 #######
+case ${EVENT_NUMBER} in
+   144)
+      {% for wg_tunnel in wireguard_tunnels %}
+      su ansible -c "unset SID DLITF_SID; cli -C -y set /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ wg_tunnel.wireguard_peer_id }}/ external_address={{ wg_tunnel.wireguard_endpoint_backup }}"
+      echo "Changed Wireguard Tunnel {{ wg_tunnel.wireguard_interface_name }} peer {{ wg_tunnel.wireguard_peer_id }} to endpoint {{ wg_tunnel.wireguard_endpoint_backup }}" >> ${LOG_FILE}
+      {% endfor %}
+      ;;
+   145)
+      {% for wg_tunnel in wireguard_tunnels %}
+      su ansible -c "unset SID DLITF_SID; cli -C -y set /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ wg_tunnel.wireguard_peer_id }}/ external_address={{ wg_tunnel.wireguard_endpoint_main }}"
+      echo "Changed Wireguard Tunnel {{ wg_tunnel.wireguard_interface_name }} peer {{ wg_tunnel.wireguard_peer_id }} to endpoint {{ wg_tunnel.wireguard_endpoint_main }}" >> ${LOG_FILE}
+      {% endfor %}
+      ;;
+   *)
+      echo "Event number: ${EVENT_NUMBER} not handled by $0" >> ${LOG_FILE}
+      ;;
+esac
+### END Tunnel 1 ####

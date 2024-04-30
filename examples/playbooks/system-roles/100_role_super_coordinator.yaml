@@ -1,0 +1,75 @@
+---
+# Requirements: inventory file with the required variables defined
+# Purpose:
+#  - Configure a nodegrid as Super Coordinator role
+#
+- hosts: all
+  name: Configure a nodegrid as Super Coordinator
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Configure a nodegrid as Super Coordinator
+      block:
+      - name: Setup Audit Settings
+        include_role:
+          name: auditing
+        tags:
+         - auditing
+
+      - name: Setup System Services
+        include_role:
+          name: system_services
+        tags:
+         - services
+
+      - name: Setup Network Settings
+        include_role:
+          name: network_settings
+        tags:
+         - network_settings
+
+      - name: Setup Network Connections
+        include_role:
+          name: network_connections
+        tags:
+          - network_connections
+
+      - name: Setup Network Failover
+        include_role:
+          name: network_failover
+        tags:
+          - network_failover
+
+      - name: Setup IPv4 Firewall Settings
+        include_role:
+          name: network_firewall
+        tags:
+          - firewall
+
+      - name: Setup System Preferences
+        include_role:
+          name: system_preferences
+        tags:
+          - system_preferences
+
+      - name: Setup Super Coordinator Cluster
+        include_role:
+          name: cluster
+        tags:
+          - cluster
+
+      - name: Setup System Authentication
+        include_role:
+          name: system_authentication
+        tags:
+          - authentication
+
+      - name: Setup System SNMP Settings
+        include_role:
+          name: system_snmp_settings
+        tags:
+          - snmp_settings
+
+      when: nodegrid_roles is defined and "super_coordinator" is in nodegrid_roles

@@ -1,0 +1,21 @@
+sys_date_and_time_server: pool.ntp.org
+system_logging_enable_session_logging: yes
+
+# System Settings
+sys_show_hostname_on_webui_header: "yes"
+sys_idle_timeout: 1200
+sys_banner: '''
+WARNING: This private system is provided for authorized use only and it may be 
+monitored for all lawful purposes to ensure its use. All information
+including personal information, placed on or sent over this system may be
+monitored and recorded. Use of this system, authorized or unauthorized,
+constitutes consent to monitoring your session. Unauthorized use may 
+subject you to criminal prosecution. Evidence of any such unauthorized
+use may be used for administrative, criminal and/or legal actions. 
+'''
+# System Date and Time
+sys_date_and_time_date_and_time: "network_time_protocol"
+sys_date_and_time_zone: "utc"
+
+# System Session Logging
+system_logging_enable_session_logging_alerts: "no"

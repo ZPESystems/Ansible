@@ -59,7 +59,6 @@ RETURN = r'''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list
-from ansible.utils.display import Display
 
 import os
 
@@ -69,8 +68,6 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
-# import logging
-display = Display()
 
 def run_option_local_account(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'username')

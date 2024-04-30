@@ -1,0 +1,14 @@
+- name: Setup Wireguard fail-over script
+  template:
+    src: wireguard-failover.sh.j2
+    dest: "/etc/scripts/auditing/wireguard_failover.sh"
+    mode: 0700
+  become: true
+
+- name: Update Event Triggers
+  zpe.nodegrid.import_settings:
+        cmds:
+          - "/settings/auditing/event_list/144 enable=yes"
+          - "/settings/auditing/event_list/144 action_script=wireguard_failover.sh"
+          - "/settings/auditing/event_list/145 enable=yes"
+          - "/settings/auditing/event_list/145 action_script=wireguard_failover.sh"

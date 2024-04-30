@@ -1,22 +1,17 @@
 ---
-# Requirements: None
-# purpose:
-# This playbook is designed to configure an example super coordinator
+# Requirements: inventory file with the required variables defined
+# Purpose:
+#  - Configure a nodegrid as Super Coordinator role
 #
 - hosts: all
-  name: Configure a Nodegrid Super Coordinator
+  name: Configure a nodegrid as Super Coordinator
   gather_facts: false
   collections:
     - zpe.nodegrid
 
   tasks:
-    - name: Configure a Nodegrid Super Cluster
+    - name: Configure a nodegrid as Super Coordinator
       block:
-#      - name: Get Nodegrid Facts
-#        zpe.nodegrid.facts:
-#        tags:
-#          - facts
-
       - name: Setup Audit Settings
         include_role:
           name: auditing

@@ -1,9 +1,7 @@
 ---
 # Requirements: None
-# purpose:
-# This playbook can be used to:
-# - install a defined user's ssh key into a specific target node 
-# - configure the target node as a Wireguard Spoke
+# Purpose:
+# - Install a defined user's ssh public key into a specific target node ssh authorized keys
 #
 - hosts: all
   name: Configure ZPE Out Of Box - Wireguard Spoke profile
@@ -30,9 +28,13 @@
     - name: ssh_key
       prompt: Enter a user's ssh public key to access ansible user via ssh
       private: false
+    - name: ssh_port
+      prompt: Enter ssh port
+      default: 22
+      private: false      
     - name: ansible_sudoers
       prompt: Add user to sudoers (True | False)?
-      default: false
+      default: true
       private: false
 
   tasks:
@@ -44,6 +46,7 @@
             ssh_key_user: "{{ ssh_key_user }}"
             ssh_key_type: "{{ ssh_key_type }}"
             ssh_key: "{{ ssh_key }}"
+            ssh_port: "{{ ssh_port }}"
             ansible_sudoers: "{{ ansible_sudoers }}"
 
       - name: Validate Connection

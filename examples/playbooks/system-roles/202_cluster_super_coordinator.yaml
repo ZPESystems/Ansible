@@ -1,10 +1,10 @@
 ---
-# Requirements: None
-# purpose:
-# This playbook is designed to join a super coordinator to local clusters via a wireguard overlay network
+# Requirements: inventory file with the required variables defined
+# Purpose:
+#  - Join a super coordinator to local clusters via a wireguard overlay network
 #
 - hosts: all
-  name: Define temporary fact on Super Coordnator for Local Clusters
+  name: Define temporary fact on Super Coordinator for Local Clusters
   gather_facts: false
   collections:
     - zpe.nodegrid

@@ -1,0 +1,52 @@
+# Local User Groups
+nodegrid_local_user_groups:
+  - name: 'admin'
+    track_system_information: "yes"
+    terminate_sessions: "yes"
+    software_upgrade_and_reboot_system: "yes"
+    configure_system: "yes"
+    configure_user_accounts: "yes"
+    apply_and_save_settings: "yes"
+    shell_access: "yes"
+    manage_devices_permissions: "no"
+  - name: 'user'
+    track_system_information: "no"
+    terminate_sessions: "no"
+    software_upgrade_and_reboot_system: "no"
+    configure_system: "yes"
+    configure_user_accounts: "no"
+    apply_and_save_settings: "no"
+    shell_access: "no"
+    manage_devices_permissions: "no"
+
+# Authentication Servers
+nodegrid_authentication_servers:
+            - number: 1
+              method: "tacacs+"
+              two_factor_authentication: "none"
+              status: "enabled"
+              fallback_if_denied_access: "yes"
+              remote_server: "10.1.1.5"
+              tacacs_plus_accounting_server: "10.1.1.5"
+              authorize_ssh_pkey_users: "yes"
+              tacacs_plus_port: "49"
+              tacacs_plus_service: "raccess"
+              tacacs_plus_secret: "tacacs"
+              tacacs_plus_timeout: "2"
+              tacacs_plus_retries: "2"
+              tacacs_plus_version: "v1"
+              tacacs_plus_enable_user_level: "yes"
+              tacacs_plus_user_level_12: "zpeuser"
+              tacacs_plus_user_level_15: "zpeadmin"
+
+# Local User Accounts
+local_user_accounts:
+  - username: admin
+    hash_format_password: "no"
+    password: "Password"
+    user_group: "admin"
+
+# Nodegrid Authentication settings
+authentication_admin_and_root_fallback_to_local_on_console: "yes"
+authentication_default_group_for_remote_users: ""
+authentication_enable_authentication_server_selection_based_on_realms: "yes"

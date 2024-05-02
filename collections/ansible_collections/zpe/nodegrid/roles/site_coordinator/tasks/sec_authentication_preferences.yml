@@ -1,0 +1,9 @@
+- name: Update Authentication Preferences
+  zpe.nodegrid.security:
+        authentication:
+          console:
+            admin_and_root_fallback_to_local_on_console: "{{authentication_admin_and_root_fallback_to_local_on_console}}"
+          default_group:
+            default_group_for_remote_users: "{{authentication_default_group_for_remote_users}}"
+          realms:
+            enable_authentication_server_selection_based_on_realms: "{{authentication_enable_authentication_server_selection_based_on_realms}}"

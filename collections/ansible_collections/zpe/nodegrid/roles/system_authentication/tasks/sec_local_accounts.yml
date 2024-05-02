@@ -1,0 +1,10 @@
+- name: Setup local user accounts
+  zpe.nodegrid.security:
+        local_account:
+          username: "{{item.username}}"
+          hash_format_password: "{{item.hash_format_password}}"
+          password: "{{item.password}}"
+          user_group: "{{item.user_group}}"
+  with_items: "{{local_user_accounts}}"
+  loop_control:
+    label: "{{ item.username }}"

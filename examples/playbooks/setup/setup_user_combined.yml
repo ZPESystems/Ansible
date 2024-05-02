@@ -1,0 +1,49 @@
+---
+# Requirements: None
+# purpose:
+# This playbook can be used to change the password for a user including default password for the admin user,
+# install a ssh key for a defined user and grant the ansible user sudoers permissions
+# The module uses it's own ssh connection which is not dependent on a current ansible connection.
+# The use case is to easly configure a default Nodegrid appliance, so that it can be used with ansible
+#
+# Example: 192.168.10.1 represents the IP address of the Nodegrid target device
+#    ansible-playbook setup_user_combined.yml --inventory 192.168.10.1,
+#
+- hosts: all
+  name: Configure ZPE Out Of Box - Factory Default
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars_prompt:
+    - name: nodegrid_user
+      prompt: Enter Username for the SSH connection
+      default: admin
+      private: false
+    - name: current_password
+      prompt: Provide the current password for the user
+      private: true
+    - name: new_password
+      prompt: Provide a new password for the user
+      private: true
+    - name: ssh_key_user
+      prompt: Provide username to which the ssh_key should be installed
+      default: ansible
+      private: false
+    - name: ssh_key_type
+      prompt: Provide ssh key type that is used (dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa)?
+      default: rsa
+      private: false
+    - name: ssh_key
+      prompt: Enter a user's ssh public key to access ansible user via ssh
+      private: false
+
+  tasks:
+    - name: Change default admin password and install the ansible user ssh key
+      zpe.nodegrid.setup:
+        username: "{{ nodegrid_user }}"
+        password: "{{ current_password }}"
+        new_password: "{{ new_password }}"
+        ssh_key_user: "{{ ssh_key_user }}"
+        ssh_key_type: "{{ ssh_key_type }}"
+        ssh_key: "{{ ssh_key }}"
+        ansible_sudoers: True

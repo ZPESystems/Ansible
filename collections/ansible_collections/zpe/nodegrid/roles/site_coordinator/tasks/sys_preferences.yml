@@ -1,0 +1,5 @@
+- name: Update System Preferences
+  zpe.nodegrid.system:
+      preferences:
+        show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"
+        idle_timeout: "{{ sys_idle_timeout }}"

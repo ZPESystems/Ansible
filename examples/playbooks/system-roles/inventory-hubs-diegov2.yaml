@@ -1,0 +1,77 @@
+AME:
+  hosts:
+    hub1:
+      ansible_port: 2222
+      ansible_host: 35.212.186.167
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+      nodegrid_hostname: vsrgcp-1
+      wireguard_interface_name: wg-hub1                             # Wireguard interface and VPN name
+      wireguard_interface_address: 10.21.0.1/32                     # Wireguard interface internal IP address
+      wireguard_external_address_main: 35.212.186.167               # Wireguard External IP address (used on the spoke side)
+      wireguard_external_address_backup: 2.1.1.1                    # Wireguard External IP address (used on the spoke side)
+      wireguard_udp_port: 51822                                     # Wireguard UDP port
+      nodegrid_roles:                                               # Nodegrid Roles List
+        - wireguard_hub                                             # - Role for Nodegrid as a Wireguard Hub
+    hub2:
+      ansible_port: 2222
+      ansible_host: 10.11.1.1
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+      wireguard_interface_name: wg-hub2
+      wireguard_interface_address: 10.22.0.1/32
+      wireguard_external_address_main: 50.175.132.59
+      wireguard_external_address_backup: 2.4.4.5
+      wireguard_udp_port: 51822
+      nodegrid_hostname: pm-gatesr
+      nodegrid_roles: 
+        - wireguard_hub
+    spoke1:
+      ansible_port: 22
+      ansible_host: 192.168.123.184
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+      nodegrid_hostname: vsrec-1
+      nodegrid_roles: 
+        - wireguard_spoke
+      wireguard_interfaces:
+        - wireguard_hub: hub1
+          wireguard_interface_name: hub1
+          wireguard_interface_address: 10.21.10.2/32
+        - wireguard_hub: hub2
+          wireguard_interface_name: hub2
+          wireguard_interface_address: 10.22.10.2/32
+    spoke2:
+      ansible_port: 22
+      ansible_host: 192.168.123.232
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+      nodegrid_hostname: vsrec-2
+      nodegrid_roles: 
+        - wireguard_spoke
+      wireguard_interfaces:
+        - wireguard_hub: hub1
+          wireguard_interface_name: hub1
+          wireguard_interface_address: 10.21.10.3/32
+        - wireguard_hub: hub2
+          wireguard_interface_name: hub2
+          wireguard_interface_address: 10.22.10.3/32
+    minisr_ec:
+      ansible_port: 22
+      ansible_host: 192.168.99.79
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+        #      nodegrid_roles: 
+        #        - wireguard_spoke
+      wireguard_interfaces:
+        - wireguard_hub: hub1
+          wireguard_interface_name: hub1
+          wireguard_interface_address: 10.21.10.4/32
+        - wireguard_hub: hub2
+          wireguard_interface_name: hub2
+          wireguard_interface_address: 10.22.10.4/32
+    peer1:
+      ansible_port: 22
+      ansible_host: 10.10.0.13
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"

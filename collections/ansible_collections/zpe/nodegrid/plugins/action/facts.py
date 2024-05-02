@@ -59,7 +59,8 @@ class ActionModule(ActionBase):
         )
         cmds.append(
             dict(cmd='show /system/hw_monitor/io_ports/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.io_ports'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.io_ports',
+                 ignore_error=True
                  ),
         )
         cmds.append(
@@ -77,6 +78,30 @@ class ActionModule(ActionBase):
                  template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.usb_sensors'
                  ),
         )
+        cmds.append(
+            dict(cmd='show /system/usb_devices/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.usb_devices'
+                 ),
+        )
+        cmds.append(
+            dict(cmd='show /system/serial_statistics/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.serial_statistics_nsr',
+                 ignore_error=True
+                 ),
+        )
+        cmds.append(
+            dict(cmd='show /system/serial_statistics/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.serial_statistics',
+                 ignore_error=True
+                 ),
+        )
+        cmds.append(
+            dict(cmd='show /settings/cluster/cluster_clusters/',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.cluster_clusters'
+                 ),
+        )
+
+
         return cmds
 
     def run(self, task_vars=None):
@@ -87,6 +112,7 @@ class ActionModule(ActionBase):
         cmd_args = dict(
             cmds=cmds
         )
+
         cmds_results = self._run_command(cmd_args)
         if cmds_results.get('error') or cmds_results.get("failed"):
             return cmds_results

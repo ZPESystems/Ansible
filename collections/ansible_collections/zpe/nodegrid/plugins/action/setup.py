@@ -109,33 +109,121 @@ class ActionModule(ActionBase):
                 return True
             else:
                 return False
+        raise ResultFailedException("End of loop installing granting sudoers permissions")
+
+    def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
+        login_tries = 0
+        for cnt in range(20):
+            ret = conn_obj.expect_exact(['Permission denied (publickey,keyboard-interactive).','Password: ', '/]# ', ':~$ ', ':~# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            if ret == 0: # 'BAD PASSWORD'
+                raise ResultFailedException(f"Permission denied (publickey,keyboard-interactive). Check user password: {password}")
+            elif ret == 1: # 'Password: '
+                if login_tries < 3:
+                    conn_obj.sendline(password)
+                else:
+                    raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
+                login_tries += 1
+            elif ret == 2: # '/]# '
+                if ssh_key is not None:
+                    conn_obj.sendline(f'shell sudo su - {ssh_key_user}')
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"mkdir /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                return True
+            elif ret == 3: # ':~$ '
+                if ssh_key is not None:
+                    conn_obj.sendline(f'sudo su - {ssh_key_user}')
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"mkdir /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                return True
+            elif ret == 4: # ':~# '
+                if ssh_key is not None:
+                    conn_obj.sendline(f'su - {ssh_key_user}')
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"mkdir /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                return True
+            elif ret == 5: # pexpect.TIMEOUT
+                raise ResultFailedException("ssh command pexpect.TIMEOUT")
+            else:
+                raise ResultFailedException(f"ssh command pexpect error | return {ret}")
         raise ResultFailedException("End of loop installing ssh_key")
 
     def _grant_sudoers_permissions(self, conn_obj, password, sudo_user):
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact(['BAD PASSWORD:','Password: ', '/]# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-            if ret == 0:
-                raise ResultFailedException("BAD PASSWORD")
-            elif ret == 1:
-                if login_tries == 0:
-                    conn_obj.sendline('admin')
-                elif login_tries == 1:
+            ret = conn_obj.expect_exact(['Permission denied (publickey,keyboard-interactive).','Password: ', '/]# ', ':~$ ', ':~# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            if ret == 0: # 'BAD PASSWORD'
+                raise ResultFailedException(f"Permission denied (publickey,keyboard-interactive). Check user password: {password}")
+            elif ret == 1: # 'Password: '
+                if login_tries < 3:
                     conn_obj.sendline(password)
                 else:
-                    raise ResultFailedException(f"Could not login to host. Invalid password!")
+                    raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
                 login_tries += 1
             elif ret == 2:
                 if sudo_user is not None:
                     conn_obj.sendline(f'shell sudo su -')
-                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
                     conn_obj.expect_exact([':~$ ', ':~#'])
+                    display.vvv(f"User {sudo_user} granted sudo permissions")
                 return True
+            elif ret == 3:
+                if sudo_user is not None:
+                    conn_obj.sendline(f'sudo su -')
+                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
+                    if ret2 == 2:
+                        conn_obj.sendline(password)
+                        conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    display.vvv(f"User {sudo_user} granted sudo permissions")
+                return True
+            elif ret == 4:
+                if sudo_user is not None:
+                    conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
+                    conn_obj.expect_exact([':~$ ', ':~#'])
+                    display.vvv(f"User {sudo_user} granted sudo permissions")
+                return True
+            elif ret == 5: # pexpect.TIMEOUT
+                raise ResultFailedException("ssh command pexpect.TIMEOUT")
             else:
-                return False
+                raise ResultFailedException(f"Failed adding user {sudo_user} to sudoers | Return value {ret} | {conn_obj.before}")
         raise ResultFailedException("End of loop installing granting sudoers permissions")
 
     def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
@@ -343,10 +431,6 @@ class ActionModule(ActionBase):
             display.vvv(f"ssh_key_value: {ssh_key_value}")
             display.vvv(f"comment: {comment}")
             display.vvv(f"ssh options: {options}")
-
-            display.vvv(f"ssh_key_type: {type}")
-            display.vvv(f"ssh_key_value: {ssh_key_value}")
-            display.vvv(f"comment: {comment}")
 
         # Check if sudoers permissions should be granted
         if OPTION_GRANT_SUDOERS in action_module_args.keys():

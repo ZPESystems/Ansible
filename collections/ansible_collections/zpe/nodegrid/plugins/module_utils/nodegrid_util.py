@@ -27,8 +27,8 @@ def run_cli_command(cmd):
     output = pexpect.run(cli_cmd)
     return output.decode('UTF-8').strip()
 
-def get_cli():
-    cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
+def get_cli(timeout=30):
+    cmd_cli = pexpect.spawn('cli', encoding='UTF-8', timeout=timeout)
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
     cmd_cli.sendline('.sessionpageout undefined=no')
@@ -49,7 +49,7 @@ def close_cli(cmd_cli):
 def execute_cmd(cmd_cli, cmd):
     if 'cmd' in cmd.keys():
         cmd_cli.sendline(cmd['cmd'])
-        if 'confirm' in cmd.keys():
+        if 'confirm' in cmd.keys() or 'restore' in cmd.keys():
             index = cmd_cli.expect_exact(['(yes, no)  :', ']# ', pexpect.EOF, pexpect.TIMEOUT])
             if index == 0:
                 cmd_cli.sendline('yes')
@@ -133,8 +133,8 @@ def export_settings(cli_path):
         if "=" in line:
             keypath, value = line.split('=', 1)
             if line[0] != '#':
-                settings.append(line)
-                all_settings.append(line)
+                settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
+                all_settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
             else:
                 if value == '':
                     settings.append(line[1:])   # add empty value

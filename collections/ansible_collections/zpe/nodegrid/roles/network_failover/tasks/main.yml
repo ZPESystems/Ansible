@@ -1,0 +1,8 @@
+- name: Setup Wireguard failover
+  import_tasks: wireguard_failover.yml
+  tags: always
+  when: wireguard_failover_status == "yes"
+
+- name: Setup Network Failover
+  import_tasks: network_failover.yml
+  tags: always

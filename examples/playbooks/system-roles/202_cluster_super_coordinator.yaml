@@ -1,0 +1,54 @@
+---
+# Requirements: inventory file with the required variables defined
+# Purpose:
+#  - Join a super coordinator to local clusters via a wireguard overlay network
+#
+- hosts: all
+  name: Define temporary fact on Super Coordinator for Local Clusters
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Create empty fact for Local Clusters
+    include_role:
+        name: cluster_clusters
+        tasks_from: 0_build_inventory
+    when: nodegrid_roles is defined and "super_coordinator" is in nodegrid_roles
+
+- hosts: all
+  name: Loop through Local Coordinators and create list for Super Coordinators
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Loop through Local Coordinators and create list for Super Coordinators
+    include_role:
+      name: cluster_clusters
+      tasks_from: 1_define_local_cluster_details
+    loop: "{{ wireguard_interfaces }}"
+    loop_control:
+      loop_var: wg_lc
+    when: nodegrid_roles is defined and "local_coordinator" is in nodegrid_roles
+
+- hosts: all
+  name: Configure a Local Cluster on Nodegrid Super Coordinator
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+  - name: Display Cluster peer
+    debug:
+      var: cluster_peers
+    when: nodegrid_roles is defined and "super_coordinator" is in nodegrid_roles
+
+  - name: Join Local Coordinators
+    include_role:
+      name: cluster_clusters
+      tasks_from: 2_join_local_coordinators
+    loop: "{{ cluster_peers }}"
+    loop_control:
+      loop_var: cluster
+    when: nodegrid_roles is defined and "super_coordinator" is in nodegrid_roles

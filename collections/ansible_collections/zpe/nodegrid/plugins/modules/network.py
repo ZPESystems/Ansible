@@ -298,8 +298,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path
-from ansible.utils.display import Display
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, field_exist, export_settings
 
 import os
 
@@ -309,11 +308,22 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
-# import logging
-display = Display()
 
 def run_option_network_connections(option, run_opt):
-    return run_option_adding_field_in_the_path(option, run_opt, 'name')
+    suboptions = option['suboptions']
+    check_mode = run_opt['check_mode']
+    field_name = 'name'
+    if field_exist(suboptions, field_name):
+        cli_path =  f"{option['cli_path']}/{suboptions[field_name]}"
+        # Lets export the settings to the cli path
+        state, exported_settings, exported_all_settings = export_settings(cli_path)
+        if not "error" in state:
+            if "ethernet_interface" in option['suboptions']:
+                del option['suboptions']['ethernet_interface']
+        return run_option_adding_field_in_the_path(option, run_opt, field_name)
+    else:
+        return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
+
 
 def run_module():
     # define available arguments/parameters a user can pass to the module

@@ -1,0 +1,144 @@
+# Auditing Settings
+auditing_destination_syslog_ipv4_remote_server: "no"
+auditing_destination_syslog_ipv4_address: ""
+auditing_destination_snmptrap_snmptrap_server: 127.0.0.1
+auditing_destination_snmptrap_snmptrap_community: "private"
+
+# Auditing Settings
+auditing_event_timestamp_format: utc
+auditing_datalog_add_timestamp: "no"
+auditing_datalog_timestamp_format: local_time
+auditing_event_datalog_destination: file
+auditing_event_enable_persistent_logs: "no"
+
+auditing_event_zpe_cloud_system_events: "no"
+auditing_event_zpe_cloud_aaa_events: "no"
+auditing_event_zpe_cloud_device_events: "no"
+auditing_event_zpe_cloud_logging_events: "no"
+auditing_event_zpe_cloud_zpe_cloud_events: "no"
+
+auditing_event_email_system_events: "no"
+auditing_event_email_aaa_events: "no"
+auditing_event_email_device_events: "no"
+auditing_event_email_logging_events: "no"
+auditing_event_email_zpe_cloud_events: "no"
+
+auditing_event_file_system_events: "yes"
+auditing_event_file_aaa_events: "yes"
+auditing_event_file_device_events: "yes"
+auditing_event_file_logging_events: "yes"
+auditing_event_file_zpe_cloud_events: "no"
+
+auditing_event_syslog_system_events: "yes"
+auditing_event_syslog_aaa_events: "yes"
+auditing_event_syslog_device_events: "yes"
+auditing_event_syslog_logging_events: "yes"
+auditing_event_syslog_zpe_cloud_events: "no"
+
+auditing_event_snmp_trap_system_events: "yes"
+auditing_event_snmp_trap_aaa_events: "yes"
+auditing_event_snmp_trap_device_events: "yes"
+auditing_event_snmp_trap_logging_events: "yes"
+auditing_event_snmp_trap_zpe_cloud_events: "no"
+
+auditing_destination_file_destination: "local"
+auditing_destination_file_file_size: 256
+auditing_destination_file_number_of_archives: 1
+auditing_destination_file_nfs_file_size: 1024
+auditing_destination_file_number_of_archives_in_nfs: 10
+
+auditing_destination_syslog_system_console: "no"
+auditing_destination_syslog_admin_session: "no"
+auditing_destination_syslog_ipv6_remote_server: "no"
+auditing_destination_syslog_event_facility: "log_local_0"
+auditing_destination_syslog_datalog_facility: "log_local_0"
+
+auditing_destination_email_email_port: 25
+auditing_destination_email_start_tls: "no"
+
+auditing_destination_snmptrap_snmptrap_transport_protocol: "udp-ipv4"
+auditing_destination_snmptrap_snmptrap_port: 162
+auditing_destination_snmptrap_snmptrap_version: "version_2c"
+
+# System Settings
+sys_show_hostname_on_webui_header: "yes"
+sys_idle_timeout: 1200
+sys_banner: '''
+WARNING: This private system is provided for authorized use only and it may be 
+monitored for all lawful purposes to ensure its use. All information
+including personal information, placed on or sent over this system may be
+monitored and recorded. Use of this system, authorized or unauthorized,
+constitutes consent to monitoring your session. Unauthorized use may 
+subject you to criminal prosecution. Evidence of any such unauthorized
+use may be used for administrative, criminal and/or legal actions. 
+'''
+# System Date and Time
+sys_date_and_time_date_and_time: "network_time_protocol"
+sys_date_and_time_zone: "utc"
+
+
+# Nodegrid Network Settings
+nodegrid_enable_dynamic_dns: "no"
+nodegrid_enable_bluetooth_network: "no"
+
+# Nodegrid Authentication settings
+authentication_admin_and_root_fallback_to_local_on_console: "yes"
+authentication_default_group_for_remote_users: ""
+authentication_enable_authentication_server_selection_based_on_realms: "yes"
+
+# Nodegrid Cluster Settings
+cluster_settings_allow_enrollment: "yes"
+cluster_settings_cluster_mode: "mesh"
+cluster_settings_polling_rate: 30
+cluster_settings_enable_clustering_access: "yes"
+cluster_settings_auto_enroll: "no"
+cluster_settings_enable_peer_management: "yes"
+cluster_settings_enable_license_pool: "no"
+
+# Network Failover Default Settings
+failover_primary_connection_sim_card: 1
+failover_secondary_connection_sim_card: 1
+failover_trigger_failed_retries: 2
+failover_trigger_successful_retries_to_recover: 1
+failover_interval_between_retries: 5
+failover_enable_primary_failover_by_ip_address: "yes"
+failover_trigger: "ip_address"
+
+failover_enable_primary_failover_by_signal_strength: "no"
+failover_enable_primary_failover_by_data_usage: "no"
+failover_enable_primary_failover_by_schedule: "no"
+failover_enable_primary_sim_failback_by_schedule: "no"
+failover_enable_third_level_network_failover: "no"
+failover_enable_secondary_failover_by_ip_address: "yes"
+failover_secondary_trigger: "secondary_ipv4_default_gateway"
+failover_enable_secondary_failover_by_signal_strength: "no"
+failover_enable_secondary_failover_by_data_usage: "no"
+failover_enable_secondary_failover_by_schedule: "no"
+failover_enable_secondary_sim_failback_by_schedule: "no"
+
+# System Session Logging
+system_logging_enable_session_logging_alerts: "no"
+
+# System Services
+services_enable_snmp_service: "yes"
+services_enable_https_file_repository: "no"
+services_enable_telnet_service_to_nodegrid: "no"
+services_enable_telnet_service_to_managed_devices: "no"
+services_enable_icmp_echo_reply: "yes"
+services_enable_icmp_secure_redirects: "yes"
+services_enable_usb_over_ip: "no"
+services_enable_elasticsearch: "yes"
+services_enable_telegraf: "no"
+services_enable_vmware_manager: "no"
+services_enable_vm_serial_access: "no"
+services_enable_zero_touch_provisioning: "no"
+services_enable_bluetooth: "no"
+services_enable_pxe: "no"
+services_enable_autodiscovery: "no"
+services_block_host_with_multiple_authentication_fails: "no"
+services_period_host_will_stay_blocked: 120
+services_timeframe_to_monitor_authentication_fails: 60
+services_number_of_authentication_fails_to_block_host: 3
+services_allow_root_console_access: "no"
+services_rescue_mode_require_authentication: "no"
+services_password_protected_boot: "no"

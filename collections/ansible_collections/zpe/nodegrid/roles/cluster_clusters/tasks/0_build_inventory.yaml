@@ -1,0 +1,4 @@
+  - name: Create empty fact for Local Clusters
+    set_fact:
+            cluster_peers: []
+    when: nodegrid_roles is defined and "super_coordinator" is in nodegrid_roles

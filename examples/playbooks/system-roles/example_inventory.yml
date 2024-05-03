@@ -128,10 +128,10 @@ all:
 
               # Wireguard Settings
               wireguard_interfaces:
-                - wireguard_hub: ny11-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                - wireguard_hub: ny11-sc1                           # it must match an ansible host defined as wireguard_hub
                   wireguard_interface_name: ny11-sc1                # Wireguard interface and VPN name
                   wireguard_interface_address: 10.21.1.11/32    # Wireguard interface internal IP address
-                - wireguard_hub: sg01-sc1                           # it must match an ansiblehost defined as wireguard_hub
+                - wireguard_hub: sg01-sc1                           # it must match an ansible host defined as wireguard_hub
                   wireguard_interface_name: sg01-sc1                # Wireguard interface and VPN name
                   wireguard_interface_address: 10.21.2.11/32    # Wireguard interface internal IP address
 

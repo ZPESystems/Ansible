@@ -23,3 +23,10 @@
         enable_secondary_failover_by_data_usage: "{{failover_enable_secondary_failover_by_data_usage}}"
         enable_secondary_failover_by_schedule: "{{failover_enable_secondary_failover_by_schedule}}"
         enable_secondary_sim_failback_by_schedule: "{{failover_enable_secondary_sim_failback_by_schedule}}"
+  when: failover_enable_network_failover == "yes"
+
+- name: Configure Nodegrid Failover
+  zpe.nodegrid.network:
+      settings:
+        enable_network_failover: "{{failover_enable_network_failover}}"
+  when: failover_enable_network_failover == "no"

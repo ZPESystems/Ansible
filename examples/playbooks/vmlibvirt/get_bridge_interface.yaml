@@ -1,0 +1,12 @@
+- name: Bridges Connection 
+  tags: get_bridges
+  block:
+    - name: Get bridge interface name from a bridge connection
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'show /settings/network_connections/{{ connection }} interface'
+      register: ng_network_connection_output
+    - name: Create bridges interfaces list
+      set_fact:
+        bridge_interface: "{{ bridge_interface | default([]) + [(ng_network_connection_output.cmds_output[0].stdout | split('\n'))[1] | split(': ') | last | trim ] }}"
+        #bridge_interface: "{{ bridge_interface | default({}) | combine({connection: (ng_network_connection_output.cmds_output[0].stdout | split('\n'))[1] | split(': ') | last | trim }) }}"

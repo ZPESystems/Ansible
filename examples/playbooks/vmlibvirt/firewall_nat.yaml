@@ -1,0 +1,83 @@
+- name: Update Firewall NAT rule
+  tags: firewall-nat
+  when: "nat_rule and 'rule_number' in nat_rule and (nat_rule.rule_number | string) in ng_ipv4_nat_rules[nat_chain]"
+  vars:
+    _nat: 
+      POSTROUTING:
+        _update: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_output_interface fragments reverse_match_for_protocol log_level reverse_match_for_source_ip|mask log_options_from_the_ip_packet_header reverse_match_for_source_port log_options_from_the_tcp_packet_header reverse_match_for_tcp_flags log_prefix rule_number log_tcp_sequence_numbers source_net4 output_interface target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+      PREROUTING:
+        _update: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_input_interface fragments reverse_match_for_protocol input_interface reverse_match_for_source_ip|mask log_level reverse_match_for_source_port log_options_from_the_ip_packet_header reverse_match_for_tcp_flags log_options_from_the_tcp_packet_header rule_number log_prefix source_net4 log_tcp_sequence_numbers target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+      INPUT:
+        _update: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_input_interface fragments reverse_match_for_protocol input_interface reverse_match_for_source_ip|mask log_level reverse_match_for_source_port log_options_from_the_ip_packet_header reverse_match_for_tcp_flags log_options_from_the_tcp_packet_header rule_number log_prefix source_net4 log_tcp_sequence_numbers target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+      OUTPUT:
+        _update: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_output_interface fragments reverse_match_for_protocol log_level reverse_match_for_source_ip|mask log_options_from_the_ip_packet_header reverse_match_for_source_port log_options_from_the_tcp_packet_header reverse_match_for_tcp_flags log_prefix rule_number log_tcp_sequence_numbers source_net4 output_interface target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+  block:
+    - name: (Update) create list of commands
+      vars:
+        _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
+      set_fact:
+        commands: "{{ commands | default([]) + _cmd }}"
+      loop: "{{ nat_rule | dict2items }}"
+      when: "item.key in (_nat[nat_chain]._update | split(' ')) and item.value"
+    
+    - name: (Update) show commands
+      debug:
+        msg: "{{ commands | join(' ; ') }}"
+    
+    - name: (Update) execute commands
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'cd /settings/ipv4_nat/chains/{{ nat_chain }}/{{ nat_rule.rule_number }}'
+          - cmd: "{{ commands | join(' ; ') | trim }}"
+          - cmd: 'commit'
+      register: ng_commands_output
+    - name: (Update) Show commands ng_commands_output
+      debug:
+        msg: "{{ ng_commands_output }}"
+
+- name: Create Firewall NAT rules
+  tags: firewall-nat
+  when: "nat_rule and 'rule_number' not in nat_rule or (nat_rule.rule_number | string) not in ng_ipv4_nat_rules[nat_chain]"
+  vars:
+    _nat: 
+      POSTROUTING:
+        add: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_output_interface fragments reverse_match_for_protocol log_level reverse_match_for_source_ip|mask log_options_from_the_ip_packet_header reverse_match_for_source_port log_options_from_the_tcp_packet_header reverse_match_for_tcp_flags log_prefix rule_number log_tcp_sequence_numbers source_net4 output_interface target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+      PREROUTING:
+        add: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_input_interface fragments reverse_match_for_protocol input_interface reverse_match_for_source_ip|mask log_level reverse_match_for_source_port log_options_from_the_ip_packet_header reverse_match_for_tcp_flags log_options_from_the_tcp_packet_header rule_number log_prefix source_net4 log_tcp_sequence_numbers target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+      INPUT:
+        add: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_input_interface fragments reverse_match_for_protocol input_interface reverse_match_for_source_ip|mask log_level reverse_match_for_source_port log_options_from_the_ip_packet_header reverse_match_for_tcp_flags log_options_from_the_tcp_packet_header rule_number log_prefix source_net4 log_tcp_sequence_numbers target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+      OUTPUT:
+        add: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_output_interface fragments reverse_match_for_protocol log_level reverse_match_for_source_ip|mask log_options_from_the_ip_packet_header reverse_match_for_source_port log_options_from_the_tcp_packet_header reverse_match_for_tcp_flags log_prefix rule_number log_tcp_sequence_numbers source_net4 output_interface target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
+  block:
+    - name: (Add) create list of commands
+      vars:
+        _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
+      set_fact:
+        commands: "{{ commands | default([]) + _cmd }}"
+      loop: "{{ nat_rule | dict2items }}"
+      when: "item.key in _nat[nat_chain].add | split(' ') and item.value"
+    
+    - name: (Add) show commands
+      debug:
+        msg: "{{ commands | join(' ; ') }}"
+    
+    - name: (Add) execute commands
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'cd /settings/ipv4_nat/chains/{{ nat_chain }}'
+          - cmd: 'add'
+          - cmd: "{{ commands | join(' ; ') | trim }}"
+          - cmd: 'commit'
+      register: ng_commands_output
+    
+    - name: (Add) Show commands ng_commands_output
+      debug:
+        msg: "{{ ng_commands_output }}"
+
+- name: Clean commands list
+  set_fact:
+    commands: "{{ [] }}"
+
+
+
+

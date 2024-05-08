@@ -1,0 +1,95 @@
+- name: Update dhcp_server
+  tags: dhcp-server
+  when: "dhcp_server.subnet+'/'+dhcp_server.netmask in ng_dhcp_server"
+  vars:
+    _dhcp_server: 
+      settings_add: "domain lease_time protocol subnet domain_name_servers netmask router_ip wifi_controller_ip"
+      settings_edit: "domain lease_time wifi_controller_ip domain_name_servers router_ip"
+  block:
+    - name: create list of commands
+      vars:
+        _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
+      set_fact:
+        commands: "{{ commands | default([]) + _cmd }}"
+      loop: "{{ dhcp_server | dict2items }}"
+      when: "item.key in _dhcp_server.settings_edit | split(' ') and item.value"
+    - name: show commands
+      debug:
+        msg: "{{ commands | join(' ; ') }}"
+    - name: execute commands
+      vars:
+        _dhcp_path: "{{ dhcp_server.subnet+'|'+dhcp_server.netmask }}"
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'cd /settings/dhcp_server/{{ _dhcp_path }}/settings'
+          - cmd: "{{ commands | join(' ; ') | trim }}"
+          - cmd: 'commit'
+      register: ng_commands_output
+
+- name: Create DHCP Server
+  tags: dhcp-server
+  when: "dhcp_server.subnet+'/'+dhcp_server.netmask not in ng_dhcp_server"
+  vars:
+    _dhcp_server: 
+      settings_add: "domain lease_time protocol subnet domain_name_servers netmask router_ip wifi_controller_ip"
+  block:
+    - name: create list of commands
+      vars:
+        _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
+      set_fact:
+        commands: "{{ commands | default([]) + _cmd }}"
+      loop: "{{ dhcp_server | dict2items }}"
+      when: "item.key in _dhcp_server.settings_add | split(' ') and item.value"
+    
+    - name: show commands
+      debug:
+        msg: "{{ commands | join(' ; ') }}"
+    
+    - name: execute commands
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'cd /settings/dhcp_server/'
+          - cmd: 'add'
+          - cmd: "{{ commands | join(' ; ') | trim }}"
+          - cmd: 'commit'
+      register: ng_commands_output
+    
+- name: Show commands ng_commands_output
+  debug:
+    msg: "{{ ng_commands_output }}"
+
+- name: Clean commands list
+  set_fact:
+    commands: "{{ [] }}"
+
+- name: Network Range
+  tags: dhcp-server
+  vars:
+    _dhcp_path: "{{ dhcp_server.subnet+'|'+dhcp_server.netmask }}"
+  when: "dhcp_server.network_range"
+  block:
+    - name: Get dhcp network range
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'show /settings/dhcp_server/{{ _dhcp_path }}/network_range'
+      register: ng_dhcp_server_network_range_output
+    - name: show ng_dhcp_server_network_range_output
+      debug:
+        msg: "{{ (ng_dhcp_server_network_range_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+    - name: Set dhcp_server network_range list fact
+      set_fact:
+        ng_dhcp_server_network_range: "{{ (ng_dhcp_server_network_range_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+    - name: Create Network Range
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'cd /settings/dhcp_server/{{ _dhcp_path }}/network_range'
+          - cmd: 'add'
+          - cmd: 'set ip_address_start={{ item.ip_address_start }}'
+          - cmd: 'set ip_address_end={{ item.ip_address_end }}'
+          - cmd: 'commit'
+      loop: "{{ dhcp_server.network_range | list }}"
+      when: "item.ip_address_start+'/'+item.ip_address_end not in ng_dhcp_server_network_range"
+      register: ng_dhcp_server_network_range_output
+
+
+

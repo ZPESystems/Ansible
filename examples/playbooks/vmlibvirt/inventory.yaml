@@ -1,0 +1,218 @@
+all:
+  hosts:
+    pm-gatesr2:
+      ansible_port: 2225
+      ansible_host: 10.11.1.1
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+      vm:
+        name: vmansible
+        ram:  
+          size: 2048 # size in MB
+        cpu:
+          count: 2
+        disks:
+          #          - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
+          #            file_source: https://cloud.debian.org/images/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2 # file to be fetch or copied
+          #            type: url # url, local_file, copy_local_file
+          - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
+            #file_source: vm_images/ECV-9.2.4.0_94654-original.qcow2 
+            file_source: vm_images/debian-sid-generic-amd64-daily.qcow2 
+            type: copy_local_file # url, local_file, copy_local_file
+        network_bridges:
+          - MGMT0
+          - WAN0
+          - WAN1
+          - LAN0
+        cloud_init:
+          user_data: "cloudinit/user-data"
+          meta_data: "cloudinit/meta-data"
+          user_data_remote: "/tmp/user-data"
+          meta_data_remote: "/tmp/meta-data"
+          iso_file: /var/lib/libvirt/images/seed1.iso
+      vm_network:
+        settings:
+          hostname: "pm-gatesr2"
+          domain_name: "pm.zpesystems.local"
+          dns_proxy: 192.168.11.1
+          enable_ipv4_ip_forward: "yes"
+          enable_ipv6_ip_forward: "no"
+          reverse_path_filtering: "strict_mode"
+          enable_multiple_routing_tables: "yes"
+          enable_network_failover: "no"
+          enable_primary_failover_by_ip_address: "yes"
+          trigger: "ipv4_default_gateway"
+          enable_primary_failover_by_signal_strength: "no"
+          enable_primary_failover_by_data_usage: "no"
+          enable_primary_failover_by_schedule: "no"
+          enable_primary_sim_failback_by_schedule: "no"
+          enable_third_level_network_failover: "no"
+          enable_secondary_failover_by_ip_address: "yes"
+          secondary_trigger: "secondary_ipv4_default_gateway"
+          enable_secondary_failover_by_signal_strength: "no"
+          enable_secondary_failover_by_data_usage: "no"
+          enable_secondary_failover_by_schedule: "no"
+          enable_secondary_sim_failback_by_schedule: "no"
+          enable_dynamic_dns: "no"
+          enable_bluetooth_network: "yes"
+        ipv4_nat:
+          chains:
+            PREROUTING: []
+            INPUT: []
+            OUTPUT: []
+            POSTROUTING:
+              - target: MASQUERADE
+                rule_number: 1
+                source_net4: 192.168.11.0/24
+                destination_net4: 
+                protocol: numeric
+                protocol_number: 
+                output_interface: "any"
+                fragments: all_packets_and_fragments
+                reverse_match_for_source_ip|mask: "no"
+                reverse_match_for_destination_ip|mask: "no"
+                reverse_match_for_source_port: "no"
+                reverse_match_for_destination_port: "no"
+                reverse_match_for_protocol: "no"
+                reverse_match_for_tcp_flags: "no"
+                reverse_match_for_icmp_type: "no"
+                enable_state_match: "no"
+                reverse_match_for_output_interface: "no"
+                to_source:  
+                to_destination: 
+                log_level: debug
+                log_prefix: 
+                log_tcp_sequence_numbers: "no"
+                log_options_from_the_tcp_packet_header: "no"
+                log_options_from_the_ip_packet_header: "no"
+        dhcp_server:
+          - subnet: 192.168.11.0
+            netmask: 255.255.255.0
+            domain:
+            domain_name_servers: 192.168.11.1
+            lease_time:
+            protocol: dhcp4 # dhcp4  dhcp6 
+            router_ip: 192.168.11.1
+            wifi_controller_ip: 
+            network_range:
+              - ip_address_start: 192.168.11.10
+                ip_address_end: 192.168.11.100
+        switch_vlans:
+          - vlan: 200
+            tagged_ports: "" # comma separated list
+            untagged_ports: "backplane0,netS2,netS3,netS4,netS5,netS6,netS7" # comma separated list
+          - vlan: 254
+            tagged_ports: "netS8" # comma separated list
+            untagged_ports: "" # comma separated list
+        connections:
+          - name: VLAN254  # not editable
+            type: vlan  # not editable
+            ethernet_interface: backplane0
+            vlan_id: 254 
+            description: "vlan254"
+            set_as_primary_connection: 'no'
+            block_unsolicited_incoming_packets: 'no'
+            ethernet_link_mode: auto  # not editable
+            enable_ip_passthrough: 'no'
+            ipv4_mode: dhcp # dhcp no_ipv4_address static
+            enable_lldp: "no"
+          - name: MGMT0
+            type: bridge # analog_modem, bonding, bridge, ethernet, loopback, mobile_broadband_gsm, pppoe, vlan, wifi
+            description: 'MGMT PORT' 
+            bridge_interfaces: lo1
+            enable_lldp: 'no'
+            bridge_mac_configuration: bridge_custom_mac
+            enable_spanning_tree_protocol: "no"
+            ipv4_mode: static # dhcp no_ipv4_address static
+            ipv4_address: 192.168.11.1
+            ipv4_bitmask: 24
+            ipv4_default_route_metric: 425
+            ipv4_ignore_obtained_default_gateway: 'no'
+            ipv4_ignore_obtained_dns_server: 'no'
+            ipv6_mode: no_ipv6_address
+            ipv6_ignore_obtained_default_gateway: 'no'
+            ipv6_ignore_obtained_dns_server: 'no'
+          - name: MGMT1
+            type: bridge # analog_modem, bonding, bridge, ethernet, loopback, mobile_broadband_gsm, pppoe, vlan, wifi
+            description: 'MGMT lanbrd' 
+            bridge_interfaces: lan1
+            enable_lldp: 'no'
+            bridge_mac_configuration: bridge_custom_mac
+            enable_spanning_tree_protocol: "no"
+            ipv4_mode: static # dhcp no_ipv4_address static
+            ipv4_address: 192.168.10.1
+            ipv4_bitmask: 24
+            ipv4_ignore_obtained_default_gateway: 'no'
+            ipv4_ignore_obtained_dns_server: 'no'
+            ipv6_mode: no_ipv6_address
+            ipv6_ignore_obtained_default_gateway: 'no'
+            ipv6_ignore_obtained_dns_server: 'no'
+          - name: LAN0
+            type: bridge
+            ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
+            description: 'LAN' 
+            bridge_interfaces: backplane0
+            enable_lldp: "no"
+            enable_spanning_tree_protocol: "no"
+          - name: WAN0
+            type: bridge
+            ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
+            description: 'wan0 bridge' 
+            bridge_interfaces: lo1
+            enable_lldp: "no"
+            enable_spanning_tree_protocol: "no"
+          - name: WAN1
+            type: bridge
+            ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
+            description: "wan1 bridge"
+            bridge_interfaces: lo1
+            enable_lldp: "no"
+            enable_spanning_tree_protocol: "no"
+          - name: SFP0
+            type: ethernet
+            description: "wan1"
+            connect_automatically: "yes"
+            ethernet_interface: sfp0
+            set_as_primary_connection: "no"
+            enable_lldp: "no"
+            block_unsolicited_incoming_packets: "no"
+            configure_hostname_through_dhcp: "no"
+            ethernet_link_mode: auto
+            ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
+            ipv4_dns_server:
+            ipv4_dns_search:
+            ipv4_default_route_metric: 100
+            ipv4_ignore_obtained_default_gateway: "no"
+            ipv4_ignore_obtained_dns_server: "no"
+            ipv6_mode: no_ipv6_address
+            ipv6_dns_server:
+            ipv6_dns_search:
+            ipv6_default_route_metric: 100
+            ipv6_ignore_obtained_default_gateway: "no"
+            ipv6_ignore_obtained_dns_server: "no"
+            enable_ip_passthrough: "yes"
+            ethernet_connection: WAN0
+          - name: SFP1
+            type: ethernet
+            description: "wan2"
+            connect_automatically: "yes"
+            ethernet_interface: sfp1
+            set_as_primary_connection: "no"
+            enable_lldp: "no"
+            block_unsolicited_incoming_packets: "no"
+            configure_hostname_through_dhcp: "no"
+            ethernet_link_mode: auto
+            ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
+            ipv4_dns_server:
+            ipv4_dns_search:
+            ipv4_default_route_metric: 100
+            ipv4_ignore_obtained_default_gateway: "no"
+            ipv4_ignore_obtained_dns_server: "no"
+            ipv6_mode: no_ipv6_address
+            ipv6_dns_server:
+            ipv6_dns_search:
+            ipv6_default_route_metric: 100
+            ipv6_ignore_obtained_default_gateway: "no"
+            ipv6_ignore_obtained_dns_server: "no"
+            enable_ip_passthrough: "yes"
+            ethernet_connection: WAN1

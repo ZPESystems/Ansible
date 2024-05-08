@@ -1,0 +1,173 @@
+- name: Network Setup
+  hosts: all
+  become: true
+          
+  tasks:
+    - name: VLANS 
+      tags: vlans
+      when: "'vm_network' in hostvars[inventory_hostname] and 'switch_vlans' in hostvars[inventory_hostname].vm_network"
+      block:
+        - name: Get the VLANS
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/switch_vlan/'
+          register: ng_switch_vlan_output
+        - name: Set VLANS list fact 
+          set_fact:
+            ng_switch_vlan: "{{ (ng_switch_vlan_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Show VLANS
+          debug:
+            msg: "{{ ng_switch_vlan }}"
+        - name: Create VLAN 
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'cd /settings/switch_vlan/'
+              - cmd: 'add'
+              - cmd: 'set vlan={{ item.vlan }}'
+              - cmd: 'set tagged_ports={{ item.tagged_ports }}'
+              - cmd: 'set untagged_ports={{ item.untagged_ports }}'
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].vm_network.switch_vlans }}"
+          when: "item.vlan | string not in ng_switch_vlan"
+        - name: Update VLAN 
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'cd /settings/switch_vlan/{{ item.vlan }}'
+              - cmd: 'set tagged_ports={{ item.tagged_ports }}'
+              - cmd: 'set untagged_ports={{ item.untagged_ports }}'
+              - cmd: 'commit'
+          loop: "{{ hostvars[inventory_hostname].vm_network.switch_vlans }}"
+          when: "item.vlan | string in ng_switch_vlan"
+
+    - name: Connections
+      tags: connections
+      when: "'vm_network' in hostvars[inventory_hostname] and 'connections' in hostvars[inventory_hostname].vm_network"
+      block:
+        - name: Get list of connections
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/network_connections'
+          register: ng_network_connections_output
+        - name: show ng_network_connections_output
+          debug:
+            msg: "{{ (ng_network_connections_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Set connections list fact
+          set_fact:
+            ng_network_connections: "{{ (ng_network_connections_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Create Network Connections
+          include_tasks: connections.yaml
+          loop: "{{ hostvars[inventory_hostname].vm_network.connections }}"
+          loop_control:
+            loop_var: connection
+
+    - name: DHCP Server 
+      tags: dhcp-server
+      block:
+        - name: Get list of dhcp_server
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/dhcp_server'
+          register: ng_dhcp_server_output
+        - name: show ng_dhcp_server_output
+          debug:
+            msg: "{{ (ng_dhcp_server_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Set dhcp_server list fact
+          set_fact:
+            ng_dhcp_server: "{{ (ng_dhcp_server_output.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+        - name: Create DHCP Server configs
+          include_tasks: dhcp_server.yaml
+          loop: "{{ hostvars[inventory_hostname].vm_network.dhcp_server }}"
+          loop_control:
+            loop_var: dhcp_server
+
+    - name: Configure NAT rules
+      tags: firewall-nat
+      block:
+        - name: Get list of rules per chain
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'show /settings/ipv4_nat/chains/{{ item }}'
+          register: ng_ipv4_nat_rules_output
+          loop: "{{ hostvars[inventory_hostname].vm_network.ipv4_nat.chains.keys() }}"
+            #        - name: show ng_ipv4_nat_rules_output
+            #          debug:
+            #            msg: "{{ item.item }} +': '+ {{ (item.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }}"
+            #          loop: "{{ ng_ipv4_nat_rules_output.results }}"
+        - name: Set ng_ipv4_nat_rules list fact
+          set_fact:
+            ng_ipv4_nat_rules: "{{ ng_ipv4_nat_rules | default({}) | combine({item.item: (item.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }) }}"
+          loop: "{{ ng_ipv4_nat_rules_output.results }}"
+        - name: show nat rules
+          debug:
+            msg: "{{  ng_ipv4_nat_rules }}"
+        - name: NAT POSTROUTING
+          vars:
+            _nat_chain: "POSTROUTING"
+          block:
+            - name: set current chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+            - name: Create firewall NAT POSTROUTING rules
+              include_tasks: firewall_nat.yaml
+              loop: "{{ hostvars[inventory_hostname].vm_network.ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].vm_network.ipv4_nat and _nat_chain in hostvars[inventory_hostname].vm_network.ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule
+        - name: NAT PREROUTING
+          vars:
+            _nat_chain: "PREROUTING"
+          block:
+            - name: set current chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+            - name: Create firewall NAT PREROUTING rules
+              include_tasks: firewall_nat.yaml
+              loop: "{{ hostvars[inventory_hostname].vm_network.ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].vm_network.ipv4_nat and _nat_chain in hostvars[inventory_hostname].vm_network.ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule
+        - name: NAT INPUT
+          vars:
+            _nat_chain: "INPUT"
+          block:
+            - name: set current chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+            - name: Create firewall NAT INPUT rules
+              include_tasks: firewall_nat.yaml
+              loop: "{{ hostvars[inventory_hostname].vm_network.ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].vm_network.ipv4_nat and _nat_chain in hostvars[inventory_hostname].vm_network.ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule
+        - name: NAT OUTPUT
+          vars:
+            _nat_chain: "OUTPUT"
+          block:
+            - name: set current chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+            - name: Create firewall NAT OUTPUT rules
+              include_tasks: firewall_nat.yaml
+              loop: "{{ hostvars[inventory_hostname].vm_network.ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].vm_network.ipv4_nat and _nat_chain in hostvars[inventory_hostname].vm_network.ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule
+
+    - name: Network Settings
+      tags: network-settings
+      when: "'vm_network' in hostvars[inventory_hostname] and 'settings' in hostvars[inventory_hostname].vm_network"
+      block:
+        - name: Configure Network settings
+          vars:
+            network_settings: "{{ hostvars[inventory_hostname].vm_network.settings }}"
+          include_tasks: network_settings.yaml
+
+              #          when: "hostvars[inventory_hostname].vm_network.delete_connections_if_exist or (not hostvars[inventory_hostname].vm_network.delete_connections_if_exist and connection.name not in ng_network_connections)"
+              #          when: "'vm_network' in hostvars[inventory_hostname] and 'connections' in hostvars[inventory_hostname].vm_network"
+
+        #        - name: Connections
+        #          debug:
+        #            msg: "{{ item.keys() }}"
+        #            #msg: "{{ lookup('ansible.utils.to_paths', item) }}"
+        #            #msg: "{{ item | ansible.utils.to_paths(wantlist=true) }}"
+        #          loop: "{{ hostvars[inventory_hostname].vm_network.connections }}"

@@ -1,0 +1,112 @@
+- name: Deploy a VM
+  hosts: all
+  become: true
+          
+  tasks:
+    - name: Install python3 lxml module
+      ansible.builtin.pip:
+        name: lxml
+
+    - name: Download disks from URL 
+      tags: disks-url
+      block:
+        - name: download disks from url
+          vars:
+            vm: "{{ hostvars[inventory_hostname].vm }}"
+          ansible.builtin.get_url:
+            url: "{{ item.file_source }}"
+            dest: "item.file"
+          loop: "{{ vm.disks | list }}"
+          when: item.type == "url"
+
+    - name: Copy local disks (qcow2) to remote
+      tags: disks-copy-local-file
+      block:
+        - name: copy disk file (qcow2) to remote
+          vars:
+            vm: "{{ hostvars[inventory_hostname].vm }}"
+          ansible.builtin.copy:
+            src: "{{ item.file_source }}"
+            dest: "{{ item.file }}"
+          loop: "{{ vm.disks | list }}"
+          when: item.type == "copy_local_file"
+
+    - name: Create cloud-init iso file
+      vars:
+        vm: "{{ hostvars[inventory_hostname].vm }}"
+      when:
+        - "'vm' in hostvars[inventory_hostname] and 'cloud_init' in hostvars[inventory_hostname].vm"
+        - "hostvars[inventory_hostname].vm.cloud_init"
+      tags:
+        - cloud-init
+      block:
+        - name: copy cloud-init user-data
+          ansible.builtin.copy:
+            src: "{{ vm.cloud_init.user_data }}"
+            dest: "{{ vm.cloud_init.user_data_remote }}"
+        - name: copy cloud-init meta-data
+          ansible.builtin.copy:
+            src: "{{ vm.cloud_init.meta_data }}"
+            dest: "{{ vm.cloud_init.meta_data_remote }}"
+        - name: create the cloud-init iso
+          shell:
+            cmd: "genisoimage -output {{ vm.cloud_init.iso_file }} -input-charset utf-8 -volid cidata -joliet -rock {{ vm.cloud_init.user_data_remote }} {{ vm.cloud_init.meta_data_remote }}"
+        - name: Remove cloud-init config files
+          ansible.builtin.file:
+            path: "{{ item }}"
+            state: absent
+          loop: "{{ [vm.cloud_init.user_data_remote, vm.cloud_init.meta_data_remote] }}"
+          tags: deletecloudinit
+    
+    - name: Create the VM 
+      tags: create-vm
+      block:
+        - name: Get Bridges interfaces
+          include_tasks: get_bridge_interface.yaml
+          loop: "{{ hostvars[inventory_hostname].vm.network_bridges }}"
+          loop_control:
+            loop_var: connection
+          when: "'vm' in hostvars[inventory_hostname]"
+        - name: show interfaces
+          debug:
+            msg: "{{ hostvars[inventory_hostname].bridge_interface }}"
+     
+        - name: Define the VM
+          vars:
+            vm: "{{ hostvars[inventory_hostname].vm }}"
+          community.libvirt.virt:
+            name: "{{ vm.name }}"
+            command: define
+            xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
+            uri: 'qemu:///system'
+        - name: Start the VM
+          vars:
+            vm: "{{ hostvars[inventory_hostname].vm }}"
+          community.libvirt.virt:
+            name: "{{ vm.name }}"
+            state: running
+            uri: 'qemu:///system'
+
+      #      debug:
+      #        msg: "{{item.url}}"
+      #      loop: "{{ vm.disks | list }}"
+      #      when: item.type == "url"
+          #    - name: create cloud-init user and meta data
+          #      ansible.builtin.copy:
+          #        content: "{{ hostvars[inventory_hostname].vm.cloud_init | to_nice_yaml(width=1337) }}"
+          #        dest: "/tmp/data"
+          #      when: 
+          #        - "'vm' in hostvars[inventory_hostname] and 'cloud_init' in hostvars[inventory_hostname].vm"
+          #        - "hostvars[inventory_hostname].vm.cloud_init"
+          #      tags:
+          #        - cloud-init1
+          #    - name: create cloud-init user and meta data
+          #      shell: 
+          #        cmd: "echo -e '#cloud-config\n {{ hostvars[inventory_hostname].vm.cloud_init | to_nice_yaml(width=1337) }}' > /tmp/cloudinit-data"
+          #      args:
+          #        executable: /bin/bash
+          #      when: 
+          #        - "'vm' in hostvars[inventory_hostname] and 'cloud_init' in hostvars[inventory_hostname].vm"
+          #        - "hostvars[inventory_hostname].vm.cloud_init"
+          #      tags:
+          #        - cloud-init

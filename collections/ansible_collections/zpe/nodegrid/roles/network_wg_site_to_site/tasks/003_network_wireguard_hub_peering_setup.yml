@@ -40,5 +40,5 @@
             host: "{{ wg_peer.allowed_ips.split('/') | first }}"
             port: 22
             state: started
-            delay: 2
-            timeout: 20
+            delay: 30
+            timeout: 300

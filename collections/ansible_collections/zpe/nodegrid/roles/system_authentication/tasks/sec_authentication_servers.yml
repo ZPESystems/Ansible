@@ -1,37 +1,43 @@
-- name: Authentication add TACACS+ servers
+#- name: Authentication add TACACS+ servers
+#  zpe.nodegrid.security:
+#        authentication:
+#          servers:
+#            "{{item.number}}":
+#              method: "{{item.method}}"
+#              2-factor_authentication: "{{item.two_factor_authentication}}"
+#              status: "{{item.status}}"
+#              fallback_if_denied_access: "{{item.fallback_if_denied_access| default('yes')}}"
+#              remote_server: "{{item.remote_server}}"
+#              tacacs_plus_accounting_server: "{{item.tacacs_plus_accounting_server}}"
+#              authorize_ssh_pkey_users: "{{item.authorize_ssh_pkey_users}}"
+#              tacacs_plus_port: "{{item.tacacs_plus_port| default('49')}}"
+#              tacacs_plus_service: "{{item.tacacs_plus_service| default('raccess')}}"
+#              tacacs_plus_secret: "{{item.tacacs_plus_secret}}"
+#              tacacs_plus_timeout: "{{item.tacacs_plus_timeout| default('2')}}"
+#              tacacs_plus_retries: "{{item.tacacs_plus_retries| default('2')}}"
+#              tacacs_plus_version: "{{item.tacacs_plus_version| default('v1')}}"
+#              tacacs_plus_enable_user-level: "{{item.tacacs_plus_enable_user_level| default('no')}}"
+#              tacacs_plus_user_level_1: "{{item.tacacs_plus_user_level_1| default('')}}"
+#              tacacs_plus_user_level_2: "{{item.tacacs_plus_user_level_2| default('')}}"
+#              tacacs_plus_user_level_3: "{{item.tacacs_plus_user_level_3| default('')}}"
+#              tacacs_plus_user_level_4: "{{item.tacacs_plus_user_level_4| default('')}}"
+#              tacacs_plus_user_level_5: "{{item.tacacs_plus_user_level_5| default('')}}"
+#              tacacs_plus_user_level_6: "{{item.tacacs_plus_user_level_6| default('')}}"
+#              tacacs_plus_user_level_7: "{{item.tacacs_plus_user_level_7| default('')}}"
+#              tacacs_plus_user_level_8: "{{item.tacacs_plus_user_level_8| default('')}}"
+#              tacacs_plus_user_level_9: "{{item.tacacs_plus_user_level_9| default('')}}"
+#              tacacs_plus_user_level_10: "{{item.tacacs_plus_user_level_10| default('')}}"
+#              tacacs_plus_user_level_11: "{{item.tacacs_plus_user_level_11| default('')}}"
+#              tacacs_plus_user_level_12: "{{item.tacacs_plus_user_level_12| default('')}}"
+#              tacacs_plus_user_level_13: "{{item.tacacs_plus_user_level_13| default('')}}"
+#              tacacs_plus_user_level_14: "{{item.tacacs_plus_user_level_14| default('')}}"
+#              tacacs_plus_user_level_15: "{{item.tacacs_plus_user_level_15| default('')}}"
+#  with_items: "{{nodegrid_authentication_servers}}"
+#  loop_control:
+#    label: "{{ item.number }}"
+#[TODO] Validate against 5.8 and 6.0, appears there are changes
+
+- name: Add Authentication servers
   zpe.nodegrid.security:
         authentication:
-          servers:
-            "{{item.number}}":
-              method: "{{item.method}}"
-              2-factor_authentication: "{{item.two_factor_authentication}}"
-              status: "{{item.status}}"
-              fallback_if_denied_access: "{{item.fallback_if_denied_access| default('yes')}}"
-              remote_server: "{{item.remote_server}}"
-              tacacs_plus_accounting_server: "{{item.tacacs_plus_accounting_server}}"
-              authorize_ssh_pkey_users: "{{item.authorize_ssh_pkey_users}}"
-              tacacs_plus_port: "{{item.tacacs_plus_port| default('49')}}"
-              tacacs_plus_service: "{{item.tacacs_plus_service| default('raccess')}}"
-              tacacs_plus_secret: "{{item.tacacs_plus_secret}}"
-              tacacs_plus_timeout: "{{item.tacacs_plus_timeout| default('2')}}"
-              tacacs_plus_retries: "{{item.tacacs_plus_retries| default('2')}}"
-              tacacs_plus_version: "{{item.tacacs_plus_version| default('v1')}}"
-              tacacs_plus_enable_user-level: "{{item.tacacs_plus_enable_user_level| default('no')}}"
-              tacacs_plus_user_level_1: "{{item.tacacs_plus_user_level_1| default('')}}"
-              tacacs_plus_user_level_2: "{{item.tacacs_plus_user_level_2| default('')}}"
-              tacacs_plus_user_level_3: "{{item.tacacs_plus_user_level_3| default('')}}"
-              tacacs_plus_user_level_4: "{{item.tacacs_plus_user_level_4| default('')}}"
-              tacacs_plus_user_level_5: "{{item.tacacs_plus_user_level_5| default('')}}"
-              tacacs_plus_user_level_6: "{{item.tacacs_plus_user_level_6| default('')}}"
-              tacacs_plus_user_level_7: "{{item.tacacs_plus_user_level_7| default('')}}"
-              tacacs_plus_user_level_8: "{{item.tacacs_plus_user_level_8| default('')}}"
-              tacacs_plus_user_level_9: "{{item.tacacs_plus_user_level_9| default('')}}"
-              tacacs_plus_user_level_10: "{{item.tacacs_plus_user_level_10| default('')}}"
-              tacacs_plus_user_level_11: "{{item.tacacs_plus_user_level_11| default('')}}"
-              tacacs_plus_user_level_12: "{{item.tacacs_plus_user_level_12| default('')}}"
-              tacacs_plus_user_level_13: "{{item.tacacs_plus_user_level_13| default('')}}"
-              tacacs_plus_user_level_14: "{{item.tacacs_plus_user_level_14| default('')}}"
-              tacacs_plus_user_level_15: "{{item.tacacs_plus_user_level_15| default('')}}"
-  with_items: "{{nodegrid_authentication_servers}}"
-  loop_control:
-    label: "{{ item.number }}"
+          servers: "{{nodegrid_authentication_servers}}"

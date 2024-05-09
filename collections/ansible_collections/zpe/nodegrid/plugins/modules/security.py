@@ -120,10 +120,21 @@ def run_option_authentication(option, run_opt):
                     settings_list.extend( format_settings(f"{cli_path}/{key}/{item[field_name]}",item) )
                 else:
                     return result_failed(f"Field '{key}/{field_name}' is required")
-
-        # servers, console, default_group, realms
+        #[TODO] Validated against 5.8 and 6.0 there are changes
+        # servers
+        elif key in ['servers']:
+            if isinstance(value,list):
+                field_name = 'number'
+                for server in value:
+                  if field_name not in server.keys():
+                      return result_failed(f"Field '{field_name}' is required, server is: {server}")
+                  server_key = server.pop(field_name)
+                  settings_list.extend( format_settings(f"{cli_path}/{key}/{server_key}",server) )
+            else:
+                return result_failed(f"Authentication Servers have to be provided as a list")
+        # console, default_group, realms
         else:
-            settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
+           settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
 
     option['cli_path'] = cli_path
     option['settings'] = settings_list

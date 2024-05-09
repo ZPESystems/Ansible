@@ -5,11 +5,13 @@
 #
 - hosts: all
   name: Configure a Nodegrid as Local Coordinator
-  gather_facts: false
+  gather_facts: true
   collections:
     - zpe.nodegrid
 
   tasks:
+    - name: Gather Facts
+      zpe.nodegrid.facts:
     - name: Configure a Nodegrid as Local Coordinator
       block:
       - name: Setup Audit Settings

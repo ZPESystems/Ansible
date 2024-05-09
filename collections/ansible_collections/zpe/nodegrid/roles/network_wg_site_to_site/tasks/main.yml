@@ -26,3 +26,10 @@
   loop_control:
     loop_var: wg_peer
   when: nodegrid_roles is defined and "wireguard_hub" is in nodegrid_roles
+
+# ##############################
+# Hub - Create Wireguard Failover on wg_peers
+- name: Setup Wireguard failover
+  include_tasks: 004_wireguard_failover.yml
+  when: nodegrid_roles is defined and "wireguard_spoke" is in nodegrid_roles and wireguard_failover_status is defined and wireguard_failover_status == "yes"
+  tags: always

@@ -238,7 +238,7 @@ class ActionModule(ActionBase):
                 else:
                     raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
                 login_tries += 1
-            elif ret == 2: # '/]# '
+            elif ret == 2: # '/]# '                     # CLI prompt detected
                 if ssh_key is not None:
                     conn_obj.sendline(f'shell sudo su - {ssh_key_user}')
                     ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
@@ -254,7 +254,7 @@ class ActionModule(ActionBase):
                     conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
                     conn_obj.expect_exact([':~$ ', ':~#'])
                 return True
-            elif ret == 3: # ':~$ '
+            elif ret == 3: # ':~$ '                     # root shell prompt detected
                 if ssh_key is not None:
                     conn_obj.sendline(f'sudo su - {ssh_key_user}')
                     ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
@@ -270,7 +270,7 @@ class ActionModule(ActionBase):
                     conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
                     conn_obj.expect_exact([':~$ ', ':~#'])
                 return True
-            elif ret == 4: # ':~# '
+            elif ret == 4: # ':~# '                 # user shell prompt detected
                 if ssh_key is not None:
                     conn_obj.sendline(f'su - {ssh_key_user}')
                     conn_obj.expect_exact([':~$ ', ':~#'])

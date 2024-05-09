@@ -1,0 +1,12 @@
+- hosts: all
+  gather_facts: true
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Get Facts from Nodegrid
+      zpe.nodegrid.facts:
+
+    - name: output
+      debug:
+        var: ansible_facts

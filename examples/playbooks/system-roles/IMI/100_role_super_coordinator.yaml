@@ -5,11 +5,14 @@
 #
 - hosts: all
   name: Configure a nodegrid as Super Coordinator
-  gather_facts: false
+  gather_facts: true
   collections:
     - zpe.nodegrid
 
   tasks:
+    - name: Gather Facts
+      zpe.nodegrid.facts:
+
     - name: Configure a nodegrid as Super Coordinator
       block:
       - name: Setup Audit Settings

@@ -95,6 +95,8 @@ def run_module():
                 cmd_result['set_fact'] = cmd['set_fact']
             if 'ignore_error' in cmd.keys():
                 cmd_result['ignore_error'] = cmd['ignore_error']
+            if 'json' in cmd.keys():
+                cmd_result['json'] = cmd['json']
             cmd_result['command'] = cmd.get('cmd')
             cmd_results.append(cmd_result)
             if cmd_result['error']:

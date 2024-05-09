@@ -1,0 +1,78 @@
+    - name: Configure NAT rules
+      tags: firewall-nat
+      block:
+        - name: Get list of IPv4 NAT rules per chain
+          zpe.nodegrid.nodegrid_cmds:
+            cmds:
+              - cmd: 'show /settings/ipv4_nat/chains/{{ item }}'
+          register: ng_ipv4_nat_rules_output
+          loop: "{{ hostvars[inventory_hostname].ipv4_nat.chains.keys() }}"
+
+        - name: Set ng_ipv4_nat_rules list fact
+          set_fact:
+            ng_ipv4_nat_rules: "{{ ng_ipv4_nat_rules | default({}) | combine({item.item: (item.cmds_output[0].stdout | split('\n'))[3:-1] | map('trim') | map('split',' ') | map('first') }) }}"
+          loop: "{{ ng_ipv4_nat_rules_output.results }}"
+
+        - name: Show IPv4 NAT rules
+          debug:
+            msg: "{{  ng_ipv4_nat_rules }}"
+
+        - name: NAT POSTROUTING
+          vars:
+            _nat_chain: "POSTROUTING"
+          block:
+            - name: Update existing IPv4 POSTROUTING chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+
+            - name: Create/Update existing IPv4 POSTROUTING chains
+              include_tasks: sec_ipv4_nat_rules.yaml
+              loop: "{{ hostvars[inventory_hostname].ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].ipv4_nat and _nat_chain in hostvars[inventory_hostname].ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule
+
+        - name: NAT PREROUTING
+          vars:
+            _nat_chain: "PREROUTING"
+          block:
+            - name: set current chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+
+            - name: Create/Update firewall NAT PREROUTING rules
+              include_tasks: sec_ipv4_nat_rules.yaml
+              loop: "{{ hostvars[inventory_hostname].ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].ipv4_nat and _nat_chain in hostvars[inventory_hostname].ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule
+
+        - name: NAT INPUT
+          vars:
+            _nat_chain: "INPUT"
+          block:
+            - name: set current chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+
+            - name: Create/Update firewall NAT INPUT rules
+              include_tasks: sec_ipv4_nat_rules.yaml
+              loop: "{{ hostvars[inventory_hostname].ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].ipv4_nat and _nat_chain in hostvars[inventory_hostname].ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule
+
+        - name: NAT OUTPUT
+          vars:
+            _nat_chain: "OUTPUT"
+          block:
+            - name: set current chains
+              set_fact:
+                nat_chain: "{{ _nat_chain }}"
+
+            - name: Create/Update firewall NAT OUTPUT rules
+              include_tasks: sec_ipv4_nat_rules.yaml
+              loop: "{{ hostvars[inventory_hostname].ipv4_nat.chains[_nat_chain] }}"
+              when: "'vm_network' in hostvars[inventory_hostname] and 'ipv4_nat' in hostvars[inventory_hostname].vm_network and 'chains' in hostvars[inventory_hostname].ipv4_nat and _nat_chain in hostvars[inventory_hostname].ipv4_nat.chains"
+              loop_control:
+                loop_var: nat_rule

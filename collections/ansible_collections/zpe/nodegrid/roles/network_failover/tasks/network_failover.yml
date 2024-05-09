@@ -16,10 +16,16 @@
         enable_primary_failover_by_data_usage: "{{failover_enable_primary_failover_by_data_usage}}"
         enable_primary_failover_by_schedule: "{{failover_enable_primary_failover_by_schedule}}"
         enable_primary_sim_failback_by_schedule: "{{failover_enable_primary_sim_failback_by_schedule}}"
-        enable_third_level_network_failover: "{{failover_enable_third_level_network_failover}}"
         enable_secondary_failover_by_ip_address: "{{failover_enable_secondary_failover_by_ip_address}}"
         secondary_trigger: "{{failover_secondary_trigger}}"
         enable_secondary_failover_by_signal_strength: "{{failover_enable_secondary_failover_by_signal_strength}}"
         enable_secondary_failover_by_data_usage: "{{failover_enable_secondary_failover_by_data_usage}}"
         enable_secondary_failover_by_schedule: "{{failover_enable_secondary_failover_by_schedule}}"
         enable_secondary_sim_failback_by_schedule: "{{failover_enable_secondary_sim_failback_by_schedule}}"
+  when: failover_enable_network_failover == "yes"
+
+- name: Configure Nodegrid Failover
+  zpe.nodegrid.network:
+      settings:
+        enable_network_failover: "{{failover_enable_network_failover}}"
+  when: failover_enable_network_failover == "no"

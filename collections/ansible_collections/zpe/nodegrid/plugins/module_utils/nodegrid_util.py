@@ -67,15 +67,18 @@ def execute_cmd(cmd_cli, cmd):
         if 'ignore_error' in cmd.keys():
             output_dict['error'] = False
             output_dict['stdout'] = output
+            output_dict['json'] = convert_to_json(output)
             output_lines = output.splitlines()
             output_dict['stdout_lines'] = output_lines
         else:
             if "Error" in output or "error" in output:
                 output_dict['error'] = True
+                output_dict['json'] = convert_to_json(output)
                 output_dict['stdout'] = output
             else:
                 output_dict['error'] = False
                 output_dict['stdout'] = output
+                output_dict['json'] = convert_to_json(output)
                 output_lines = output.splitlines()
                 output_dict['stdout_lines'] = output_lines
     return output_dict
@@ -266,6 +269,92 @@ def check_os_version_support():
 
 def to_list(value):
     return value if type(value) is list else [value]
+
+def convert_to_json(cli_output):
+    # Detect if output is a table or not
+    data = []
+
+    if "===" in cli_output:     #Table content
+        details = []
+        lines = cli_output.strip().split('\n')
+        # Find the separator line (assumed to be immediately after headers)
+        separator = lines[2]
+        # Determine the start and end indices of each column based on '===' spans
+        header_indices = []
+        last_pos = 0
+        while last_pos < len(separator):
+            try:
+                start_index = separator.index('=', last_pos)
+                end_index = start_index
+                while separator[end_index] == '=':
+                    end_index += 1
+                header_indices.append((start_index, end_index))
+                last_pos = end_index
+            except ValueError as e:
+                break
+        # Extract headers for key names
+        headers = []
+        for start_index, end_index in header_indices:
+            headers.append(lines[1][start_index:end_index].strip())
+
+        # Extract path
+        cmd, path = lines[0].split(' ', 1)
+        path = path.strip()
+
+        for line in lines[3:]:  # Skip the header and separator lines
+            record = {}
+            try:
+                if "@" not in line:
+                    for idx, header in enumerate(headers):
+                        start_index, end_index = header_indices[idx]
+                        record[header] = line[start_index:end_index].strip()
+                    details.append(record)
+            except Exception as e:
+                data.append({'error': str(e)})
+                break
+
+        data.append({'path': path, 'data': details})
+
+    elif " = " in cli_output and "show" in cli_output:   # Settings Detected
+        lines = cli_output.strip().split('\n')
+        details = {}
+        for line in lines:
+            if '=' in line:
+                key, value = line.split('=', 1)
+                details[key.strip()] = value.strip()
+            elif "show" in line:
+                cmd, path = line.split(' ', 1)
+                path = path.strip()
+        data.append({'path': path, 'data':details})
+    elif ":" in cli_output and "show" in cli_output:   # Details Detected
+        lines = cli_output.strip().split('\n')
+        details = {}
+        path = ''
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                details[key.strip()] = value.strip()
+            elif "show" in line:
+                cmd, path = line.split(' ', 1)
+                path = path.strip()
+        data.append({'path': path, 'data':details})
+    elif "export_settings" in cli_output:
+        lines = cli_output.strip().split('\n')
+        details = {}
+        path = ''
+        for line in lines[1:]:  # skip the first line which is a command line
+            if '=' in line:
+                path, content = line.split(' ', 1)
+                key, value = content.split('=', 1)
+                details[key.strip()] = value.strip()
+                path = path.strip()
+        data.append({'path': path, 'data':details})
+    # #else:       # other output
+
+    return data
+
+
+
 
 def result_failed(msg):
     return {'failed': True, 'changed': False, 'msg': msg}

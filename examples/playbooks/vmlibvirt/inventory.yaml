@@ -5,57 +5,55 @@ all:
       ansible_host: 10.11.1.1
       ansible_user: ansible
       ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
-      vm:
-        name: vmansible
-        ram:  
-          size: 2048 # size in MB
-        cpu:
-          count: 2
-        disks:
-          #          - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
-          #            file_source: https://cloud.debian.org/images/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2 # file to be fetch or copied
-          #            type: url # url, local_file, copy_local_file
-          - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
-            #file_source: vm_images/ECV-9.2.4.0_94654-original.qcow2 
-            file_source: vm_images/debian-sid-generic-amd64-daily.qcow2 
-            type: copy_local_file # url, local_file, copy_local_file
-        network_bridges:
-          - MGMT0
-          - WAN0
-          - WAN1
-          - LAN0
-        cloud_init:
-          user_data: "cloudinit/user-data"
-          meta_data: "cloudinit/meta-data"
-          user_data_remote: "/tmp/user-data"
-          meta_data_remote: "/tmp/meta-data"
-          iso_file: /var/lib/libvirt/images/seed1.iso
-      vm_network:
-        settings:
-          hostname: "pm-gatesr2"
-          domain_name: "pm.zpesystems.local"
-          dns_proxy: 192.168.11.1
-          enable_ipv4_ip_forward: "yes"
-          enable_ipv6_ip_forward: "no"
-          reverse_path_filtering: "strict_mode"
-          enable_multiple_routing_tables: "yes"
-          enable_network_failover: "no"
-          enable_primary_failover_by_ip_address: "yes"
-          trigger: "ipv4_default_gateway"
-          enable_primary_failover_by_signal_strength: "no"
-          enable_primary_failover_by_data_usage: "no"
-          enable_primary_failover_by_schedule: "no"
-          enable_primary_sim_failback_by_schedule: "no"
-          enable_third_level_network_failover: "no"
-          enable_secondary_failover_by_ip_address: "yes"
-          secondary_trigger: "secondary_ipv4_default_gateway"
-          enable_secondary_failover_by_signal_strength: "no"
-          enable_secondary_failover_by_data_usage: "no"
-          enable_secondary_failover_by_schedule: "no"
-          enable_secondary_sim_failback_by_schedule: "no"
-          enable_dynamic_dns: "no"
-          enable_bluetooth_network: "yes"
-        ipv4_nat:
+      vms:
+        - name: vmansible
+          ram:  
+            size: 2048 # size in MB
+          cpu:
+            count: 2
+          disks:
+            #          - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
+            #            file_source: https://cloud.debian.org/images/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2 # file to be fetch or copied
+            #            type: url # url, local_file, copy_local_file
+            - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
+              #file_source: vm_images/ECV-9.2.4.0_94654-original.qcow2 
+              file_source: vm_images/debian-sid-generic-amd64-daily.qcow2 
+              type: copy_local_file # url, local_file, copy_local_file
+          network_bridges:
+            - MGMT0
+            - WAN0
+            - WAN1
+            - LAN0
+          cloud_init:
+            user_data: "cloudinit/user-data"
+            meta_data: "cloudinit/meta-data"
+            user_data_remote: "/tmp/user-data"
+            meta_data_remote: "/tmp/meta-data"
+            iso_file: /var/lib/libvirt/images/seed1.iso
+      hostname: "pm-gatesr2"
+      domain_name: "pm.zpesystems.local"
+      dns_proxy: 192.168.11.1
+      enable_ipv4_ip_forward: "yes"
+      enable_ipv6_ip_forward: "no"
+      reverse_path_filtering: "strict_mode"
+      enable_multiple_routing_tables: "yes"
+      enable_network_failover: "no"
+      enable_primary_failover_by_ip_address: "yes"
+      trigger: "ipv4_default_gateway"
+      enable_primary_failover_by_signal_strength: "no"
+      enable_primary_failover_by_data_usage: "no"
+      enable_primary_failover_by_schedule: "no"
+      enable_primary_sim_failback_by_schedule: "no"
+      enable_third_level_network_failover: "no"
+      enable_secondary_failover_by_ip_address: "yes"
+      secondary_trigger: "secondary_ipv4_default_gateway"
+      enable_secondary_failover_by_signal_strength: "no"
+      enable_secondary_failover_by_data_usage: "no"
+      enable_secondary_failover_by_schedule: "no"
+      enable_secondary_sim_failback_by_schedule: "no"
+      enable_dynamic_dns: "no"
+      enable_bluetooth_network: "yes"
+      ipv4_nat:
           chains:
             PREROUTING: []
             INPUT: []
@@ -85,7 +83,7 @@ all:
                 log_tcp_sequence_numbers: "no"
                 log_options_from_the_tcp_packet_header: "no"
                 log_options_from_the_ip_packet_header: "no"
-        dhcp_server:
+      dhcp_server:
           - subnet: 192.168.11.0
             netmask: 255.255.255.0
             domain:
@@ -97,14 +95,14 @@ all:
             network_range:
               - ip_address_start: 192.168.11.10
                 ip_address_end: 192.168.11.100
-        switch_vlans:
+      switch_vlans:
           - vlan: 200
             tagged_ports: "" # comma separated list
             untagged_ports: "backplane0,netS2,netS3,netS4,netS5,netS6,netS7" # comma separated list
           - vlan: 254
             tagged_ports: "netS8" # comma separated list
             untagged_ports: "" # comma separated list
-        connections:
+      network_connections:
           - name: VLAN254  # not editable
             type: vlan  # not editable
             ethernet_interface: backplane0

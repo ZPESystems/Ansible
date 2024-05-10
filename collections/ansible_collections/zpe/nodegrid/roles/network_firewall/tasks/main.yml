@@ -1,7 +1,7 @@
-- name: Update IPv4 NAT Rules
-  import_tasks: nat.yml
-  tags: always
+- name: Apply Firewall Settings
+  zpe.nodegrid.firewall:
+      ipv4_firewall: "{{ ipv4_firewall }}"
 
-#- name: Update IPv4 Firewall
-#  import_tasks: sec_ipv4_firewall.yml
-#  tags: always
+- name: Apply NAT settings
+  zpe.nodegrid.firewall:
+        ipv4_nat: "{{ ipv4_nat }}"

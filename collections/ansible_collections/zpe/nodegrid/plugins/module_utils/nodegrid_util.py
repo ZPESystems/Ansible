@@ -3,6 +3,7 @@
 
 import pexpect
 import re
+from collections import OrderedDict
 from datetime import datetime
 
 def _get_import_process_timeout(import_text):
@@ -231,6 +232,25 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
     return diff
 
+def dict_diff(dict1, dict2):
+    """Compares two dictionaries, returns what values were changed or were added
+    Args:
+        dict1 (dict): Primary dict, typically representing the desired state
+        dict2 (dict): Secundary dict, typically representing the current state
+    Returns:
+        list: List of new settings
+    """
+
+    new_dict = {}
+    for key, value in dict1.items():
+        if key in dict2:
+            # To avoid issues between numbers and strings to we convert everything to str
+            if str(value) != str(dict2[key]):
+                new_dict[key] = str(dict1[key])
+
+    return new_dict
+
+
 def compare_versions(version1, version2):
     """Compares semantic versions and returns the comparison result
 
@@ -352,9 +372,6 @@ def convert_to_json(cli_output):
     # #else:       # other output
 
     return data
-
-
-
 
 def result_failed(msg):
     return {'failed': True, 'changed': False, 'msg': msg}

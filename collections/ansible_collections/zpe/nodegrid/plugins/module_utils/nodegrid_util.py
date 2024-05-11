@@ -369,6 +369,13 @@ def convert_to_json(cli_output):
                 details[key.strip()] = value.strip()
                 path = path.strip()
         data.append({'path': path, 'data':details})
+    elif "ls" in cli_output:
+        lines = cli_output.strip().split('\n')
+        details = {}
+        paths = []
+        for line in lines[1:]:
+            if "@" not in line:
+                data.append({'path': line.strip()[:-1]})
     # #else:       # other output
 
     return data

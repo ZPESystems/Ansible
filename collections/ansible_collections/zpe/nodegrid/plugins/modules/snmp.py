@@ -20,7 +20,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, dict_diff
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, dict_diff, import_settings
 
 import os
 
@@ -59,12 +59,12 @@ def get_rules( endpoint , rule , timeout):
 def _get_rule( endpoint: str,rule_number: str, cmd_cli: dict) -> dict:
     #build cmd
     cmd: dict = {
-        'cmd' : str('show /settings/' + endpoint + '/' + rule_number)
+        'cmd' : str('export_settings /settings/' + endpoint + '/' + rule_number + ' --plain-password' )
     }
     cmd_result = execute_cmd(cmd_cli, cmd)
     data = {}
     if cmd_result['error']:
-       data[rule_number] =  {'error': cmd_result['error']}
+       data[rule_number] =  {'error': cmd_result}
     else:
        data = cmd_result['json'][0]['data']
     return data
@@ -88,7 +88,8 @@ def get_snmp_system( endpoint: str , timeout: int = 30 ) -> dict:
 
 def resort_rule(rule: dict):
     new_rule: dict = {}
-    sort_list = ['version','community','source']
+    sort_list = ['version','community','source', 'verison', 'username', 'security_level', 'authentication_algorithm',
+                 'authentication_password', 'privacy_algorithm', 'privacy_password']
     for key in sort_list:
         if key in rule.keys():
             new_rule[key] = rule[key]
@@ -148,6 +149,7 @@ def run_module():
     #Get Current NAT Data
 
         # Look at SNMP settings rules
+    desired_state_rules = []
     if module.params['rules']:
         snmp_rules = module.params['rules']
         # Look at Firewall rules
@@ -155,42 +157,49 @@ def run_module():
         chain = "v1_v2_v3"
         # Get the current state of the rules
         rules_current.update(get_rules("snmp", chain, module.params['timeout']))
-        if module.params['debug']:
-            result['snmp_rules_current'] = rules_current
         # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
         diff_rules = []
         for rule in snmp_rules:
-            # Before continue, do we ensure that a source is defined, by default value will be set default
-            if 'source' not in rule.keys():
-                rule['source'] = "default"
-            # Lets define the rule number
-            rule['rule_number'] = str(rule['community'] + "_" + rule['source'])
-            # Ansible inventory dose not honor the order or dictonaries and sort alphabetically, as order is
-            # imporant to some settings are we reordering the rule dictinorary
-            rule = resort_rule(rule)
-            if 'rule_number' in rule.keys():
-                # We set the desired state
-                desired_state = rule
-                result['desired_state'] = desired_state
-                # We found a matching rule number in the current state, we will check against this specific rule
-                if str(rule['rule_number']) in rules_current[chain]['current_state'].keys():
-                    diff_chains['snmp_rules'] = {}
-                    current_state = rules_current[chain]['current_state'][str(rule['rule_number'])]
-                    diff_state = dict_diff(desired_state,current_state)
-                    if len(diff_state) > 0:
-                        diff_state['rule_number'] = rule['rule_number']
-                        diff_rules.append(diff_state)
-                else:
-                     rule.pop('rule_number')
-                     diff_rules.append(rule)
-                diff_chains['snmp_rules'] = diff_rules
+            # The v3 needs to be handled different to v1 and v2
+            if 'version' in rule.keys():
+                    # Before continue, do we ensure that a source is defined, by default value will be set default
+                    if 'source' not in rule.keys() and rule['version'] == 'version_v1|v2':
+                        rule['source'] = "default"
+                    # Lets define the rule number
+                    if str(rule['version']).strip() == 'version_v1|v2':
+                        rule['rule_number'] = str(rule['community'] + "_" + rule['source'])
+                    if str(rule['version']).strip() == 'version_3':
+                        rule['rule_number'] = rule['username']
 
+                    # Ansible inventory dose not honor the order or dictonaries and sort alphabetically, as order is
+                    # imporant to some settings are we reordering the rule dictinorary
+                    rule = resort_rule(rule)
+
+                    if 'rule_number' in rule.keys():
+                        # We set the desired state
+                        desired_state = rule
+                        # We found a matching rule number in the current state, we will check against this specific rule
+                        if str(rule['rule_number']) in rules_current[chain]['current_state'].keys():
+                            diff_chains['snmp_rules'] = {}
+                            current_state = rules_current[chain]['current_state'][str(rule['rule_number'])]
+                            diff_state = dict_diff(desired_state,current_state)
+                            if len(diff_state) > 0:
+                                diff_state['rule_number'] = rule['rule_number']
+                                diff_rules.append(diff_state)
+                        else:
+                             rule.pop('rule_number')
+                             diff_rules.append(rule)
+                        diff_chains['snmp_rules'] = diff_rules
+    result['desirde_rene'] = desired_state_rules
     # Look at SNMP System details
     if module.params['system']:
             snmp_system = module.params['system']
             system_current = {}
             # Get the current state of the plocy
             system_current.update(get_snmp_system("snmp/system", module.params['timeout']))
+            if module.params['debug']:
+                result['system_current'] = system_current
+                result['system_desired'] = snmp_system
             # Create a diff
             diff = []
             for item in snmp_system:
@@ -210,11 +219,10 @@ def run_module():
             else:
                 cmds.append({'cmd': f"cd /settings/snmp/v1_v2_v3/"})
                 cmds.append({'cmd': "add"})
-
             for setting in rule:
                 if 'rule_number' != setting:
                     cmd = {'cmd': f"set {setting}={rule[setting]}"}
-                    cmds.append(cmd)
+                cmds.append(cmd)
             cmds.append({'cmd': "commit"})
 
     # Build Commands for SNMP System settings
@@ -222,7 +230,7 @@ def run_module():
         cmds.append({'cmd': f"cd /settings/snmp/system/"})
         for rule in diff_chains['system']:
             for setting in rule:
-                cmd = {'cmd': f"set {setting}={rule[setting]}"}
+                cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
 
@@ -268,7 +276,6 @@ def run_module():
         result['failed'] = True
         result['message'] = str(exc)
 
-    
     if result['failed']:
         module.fail_json(msg=result['message'], **result)
 

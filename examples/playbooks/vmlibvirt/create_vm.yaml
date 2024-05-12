@@ -46,27 +46,26 @@
 - name: Create the VM 
   tags: create-vm
   block:
+    - name: Clear Bridge interfaces
+      set_fact:
+        bridge_interface: []
     - name: Get Bridges interfaces
       include_tasks: get_bridge_interface.yaml
-      loop: "{{ hostvars[inventory_hostname].vm.network_bridges }}"
+      loop: "{{ vm.network_bridges }}"
       loop_control:
         loop_var: connection
-      when: "'vm' in hostvars[inventory_hostname]"
+      when: "'network_bridges' in vm and vm.network_bridges"
     - name: show interfaces
       debug:
-        msg: "{{ hostvars[inventory_hostname].bridge_interface }}"
+        msg: "{{ bridge_interface }}"
  
     - name: Define the VM
-      vars:
-        vm: "{{ hostvars[inventory_hostname].vm }}"
       community.libvirt.virt:
         name: "{{ vm.name }}"
         command: define
         xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
         uri: 'qemu:///system'
     - name: Start the VM
-      vars:
-        vm: "{{ hostvars[inventory_hostname].vm }}"
       community.libvirt.virt:
         name: "{{ vm.name }}"
         state: running

@@ -1,0 +1,16 @@
+- name: Add License
+  tags: licenses
+  when: "license and license | split('-') | last not in ng_licenses"
+  block:
+    - name: Add a License execute commands
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'cd /settings/license'
+          - cmd: 'add'
+          - cmd: 'set license_key={{ license }}'
+          - cmd: 'commit'
+      register: ng_commands_output
+    
+    - name: Add License Show commands ng_commands_output
+      debug:
+        msg: "{{ ng_commands_output }}"

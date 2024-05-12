@@ -1,0 +1,23 @@
+- name: Configure System Preferences
+  tags: system-preferences
+  vars:
+    _system_preferences_options: "address_location coordinates help_url idle_timeout revision_tag show_hostname_on_webui_header logo_image_selection logo_image logo_download_url logo_download_username logo_download_password logo_download_path_is_absolute_path_name enable_banner enable_local_serial_ports_utilization_rate enable_license_utilization_rate percentage_to_trigger_events console_port_speed enable_alarm_sound_when_one_power_supply_is_powered_off enable_alarm_sound_on_fan_failure unit_ipv4_address unit_netmask unit_ipv4_gateway unit_interface iso_url"
+      #    network_settings: "{{  }}"
+  block:
+    - name: create list of commands
+      vars:
+        _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
+      set_fact:
+        commands: "{{ commands | default([]) + _cmd }}"
+      loop: "{{ system_preferences | dict2items }}"
+      when: "item.key in _system_preferences_options | split(' ') and item.value"
+    - name: show commands
+      debug:
+        msg: "{{ commands | join(' ; ') }}"
+    - name: execute commands
+      zpe.nodegrid.nodegrid_cmds: 
+        cmds:
+          - cmd: 'cd /settings/system_preferences'
+          - cmd: "{{ commands | join(' ; ') | trim }}"
+          - cmd: 'commit'
+      register: ng_commands_output

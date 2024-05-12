@@ -169,7 +169,12 @@ def run_module():
                     if str(rule['version']).strip() == 'version_v1|v2':
                         rule['rule_number'] = str(rule['community'] + "_" + rule['source'])
                     if str(rule['version']).strip() == 'version_3':
-                        rule['rule_number'] = rule['username']
+                        if 'username' in rule.keys():
+                            rule['rule_number'] = rule['username']
+                        else:
+                            result['failed'] = True
+                            result['msg'] = "For SNMP Version 3 must a username parameter be defined"
+                            break
 
                     # Ansible inventory dose not honor the order or dictonaries and sort alphabetically, as order is
                     # imporant to some settings are we reordering the rule dictinorary
@@ -190,7 +195,11 @@ def run_module():
                              rule.pop('rule_number')
                              diff_rules.append(rule)
                         diff_chains['snmp_rules'] = diff_rules
-    result['desirde_rene'] = desired_state_rules
+            else:
+                result['failed'] = True
+                result['msg'] = "Version parameter must be defined"
+                break
+
     # Look at SNMP System details
     if module.params['system']:
             snmp_system = module.params['system']

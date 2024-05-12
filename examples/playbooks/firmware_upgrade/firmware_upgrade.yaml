@@ -1,0 +1,29 @@
+- name: Firmware Upgrade
+  hosts: all
+  become: true
+          
+  tasks:
+    - name: Firmware Upgrade
+      tags: firmware_upgrade
+      when: "'firmware_upgrade' in hostvars[inventory_hostname] and 'iso_source' in hostvars[inventory_hostname].firmware_upgrade and 'iso_dest_file' in hostvars[inventory_hostname].firmware_upgrade"
+      block:
+        - name: Copy ISO file
+          ansible.builtin.copy:
+            src: "{{ hostvars[inventory_hostname].firmware_upgrade.iso_source }}"
+            dest: "/var/sw/{{ hostvars[inventory_hostname].firmware_upgrade.iso_dest_file }}"
+            remote_src: true
+        - name: Update Sys Profile
+          shell: "/usr/sbin/updateSysProfile {{hostvars[inventory_hostname].firmware_upgrade.system_profile}}"
+        - name: System Upgrade
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'software_upgrade'
+              - cmd: 'set filename={{ hostvars[inventory_hostname].firmware_upgrade.iso_dest_file}}'
+              - cmd: 'set format_partitions_before_upgrade=yes'
+              - cmd: 'commit'
+          register: ng_software_upgrade_output
+        - name: Show Commands results
+          debug:
+            msg: "{{ ng_software_upgrade_output }}"
+
+

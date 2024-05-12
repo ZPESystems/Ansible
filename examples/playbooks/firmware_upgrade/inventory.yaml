@@ -1,0 +1,12 @@
+all:
+  hosts:
+    pm-gatesr2:
+      ansible_port: 2225
+      ansible_host: 10.11.1.1
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/admin@zpesystems.com"
+      firmware_upgrade:
+        iso_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/firmware/Nodegrid_Platform_v6.0.5_20240423.iso
+        iso_dest_file: nodegrid.iso
+        system_profile: gateway # gateway, oob
+

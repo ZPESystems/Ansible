@@ -1,18 +1,24 @@
-- name: Download disks from URL 
-  tags: disks-url
+- name: VM Disks
+  when: "'disks' in vm"
+  tags: vm-disks
   block:
-    - name: download disks from url
+    - name: Download disk from URL 
       ansible.builtin.get_url:
         url: "{{ item.file_source }}"
         dest: "item.file"
       loop: "{{ vm.disks | list }}"
       when: item.type == "url"
-
-- name: Copy local disks (qcow2) to remote
-  tags: disks-copy-local-file
-  block:
-    - name: copy disk file (qcow2) to remote
+    
+    - name: Copy local file disk (qcow2) to remote
       ansible.builtin.copy:
+        src: "{{ item.file_source }}"
+        dest: "{{ item.file }}"
+      loop: "{{ vm.disks | list }}"
+      when: item.type == "copy_file_to_remote"
+    
+    - name: Copy local file disk (qcow2)
+      ansible.builtin.copy:
+        remote_src: true
         src: "{{ item.file_source }}"
         dest: "{{ item.file }}"
       loop: "{{ vm.disks | list }}"

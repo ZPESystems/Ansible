@@ -6,10 +6,21 @@
     - name: Install python3 lxml module
       ansible.builtin.pip:
         name: lxml
-    - name: Create VMs 
-      when: "'vms' in hostvars[inventory_hostname] and hostvars[inventory_hostname].vms"
+    - name: VMs creation
+      tags: create-vm
       block:
-        - name: Create a VM
+        - name: List only running VMs
+          community.libvirt.virt:
+            command: list_vms
+            state: running
+          register: running_vms
+        - name: Show running VMs
+          debug:
+            msg: "{{ running_vms }}"
+        - name: Create VM
+          vars:
+            _running_vms: "{{ running_vms.list_vms }}"
+          when: "'vms' in hostvars[inventory_hostname] and hostvars[inventory_hostname].vms and vm.name not in _running_vms"
           include_tasks: create_vm.yaml
           loop: "{{ hostvars[inventory_hostname].vms }}"
           loop_control:

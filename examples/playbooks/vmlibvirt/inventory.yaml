@@ -12,13 +12,15 @@ all:
           cpu:
             count: 2
           disks:
-            #          - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
-            #            file_source: https://cloud.debian.org/images/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2 # file to be fetch or copied
-            #            type: url # url, local_file, copy_local_file
-            - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
-              #file_source: vm_images/ECV-9.2.4.0_94654-original.qcow2 
-              file_source: vm_images/debian-sid-generic-amd64-daily.qcow2 
-              type: copy_local_file # url, local_file, copy_local_file
+              # VM disk file path on target device (used in the KVM domain)
+            - file: /var/lib/libvirt/images/vmansible.qcow2 
+              # VM disk file source (e.g., URL or file path in the target node or control node)
+              file_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/files/ECV-9.2.4.0_94654-original.qcow2 
+              # Defines how to get the disk:
+              #  - url: URL to download the qcow2 file
+              #  - copy_local_file: copies the file 'file_source' to the 'file' path (both paths are in the target node)
+              #  - copy_file_to_remote: copies the local file 'file_source' to the target node path 'file'
+              type: copy_local_file
           network_bridges:
             - MGMT0
             - WAN0
@@ -30,6 +32,26 @@ all:
             user_data_remote: "/tmp/user-data"
             meta_data_remote: "/tmp/meta-data"
             iso_file: /var/lib/libvirt/images/seed1.iso
+        - name: debian
+          ram:  
+            size: 2048 # size in MB
+          cpu:
+            count: 2
+          disks:
+            #          - file: /var/lib/libvirt/images/vmansible.qcow2 # VM disk file on kvm domain
+            #            file_source: https://cloud.debian.org/images/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2 # file to be fetch or copied
+            - file: /var/lib/libvirt/images/debian.qcow2 # VM disk file on kvm domain
+              #file_source: vm_images/ECV-9.2.4.0_94654-original.qcow2 
+              file_source: vm_images/debian-sid-generic-amd64-daily.qcow2 
+              type: copy_file_to_remote # url, local_file, copy_local_file, copy_file_to_remote
+          network_bridges:
+            - MGMT0
+          cloud_init:
+            user_data: "cloudinit/user-data"
+            meta_data: "cloudinit/meta-data"
+            user_data_remote: "/tmp/user-data"
+            meta_data_remote: "/tmp/meta-data"
+            iso_file: /var/lib/libvirt/images/seed2.iso
       licenses:
         - "xxxxx-xxxxx-xxxxx-xxxxx"
       hostname: "pm-gatesr2"

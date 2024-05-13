@@ -39,8 +39,9 @@ def get_state(endpoint: str, timeout: int = 30) -> dict:
 
     # build cmd
     cmd = {
-        'cmd': str('show /settings/' + endpoint )
+         'cmd': str('show /settings/' + endpoint )
     }
+
     cmd_result = execute_cmd(cmd_cli, cmd)
     data = {}
     if cmd_result['error']:
@@ -49,7 +50,6 @@ def get_state(endpoint: str, timeout: int = 30) -> dict:
         data = cmd_result['json'][0]['data']
     close_cli(cmd_cli)
     return data
-
 
 def resort_rule(rule: dict) -> dict:
     new_rule: dict = {}
@@ -78,9 +78,10 @@ def clean_rule(rule: dict) -> dict:
     bluetooth = {'key': 'enable_bluetooth', 'list': ['bluetooth_display_name','bluetooth_discoverable_mode']}
     docker = {'key': 'enable_docker', 'list':[]}
     qemu = {'key': 'enable_qemu|kvm', 'list':[]}
+    autodiscovery = {'key': 'enable_autodiscovery', 'list':['dhcp_lease_per_autodiscovery_rules']}
     vm_serial_access = {'key': 'enable_vm_serial_access', 'list': ['vm_serial_port','vmotion_timeout']}
     multiple_authentication_fails = {'key': 'block_host_with_multiple_authentication_fails', 'list': ['period_host_will_stay_blocked','timeframe_to_monitor_authentication_fails','number_of_authentication_fails_to_block_host']}
-    master_list = [vm_serial_access,status_page,docker,qemu,multiple_authentication_fails,search_engine,bluetooth]
+    master_list = [autodiscovery,vm_serial_access,status_page,docker,qemu,multiple_authentication_fails,search_engine,bluetooth]
 
     for item in master_list:
         if item['key'] in rule.keys():
@@ -150,7 +151,7 @@ def run_module():
         diff = []
         try:
             for item in services_desired:
-                if services_current[item]:
+                if item in services_current.keys():
                     # to avoid comparision issues, will we compare string to strings
                     if str(services_desired[item]) != str(services_current[item]):
                         diff.append({item: services_desired[item]})

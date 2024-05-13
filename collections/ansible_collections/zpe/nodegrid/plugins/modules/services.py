@@ -78,8 +78,9 @@ def clean_rule(rule: dict) -> dict:
     bluetooth = {'key': 'enable_bluetooth', 'list': ['bluetooth_display_name','bluetooth_discoverable_mode']}
     docker = {'key': 'enable_docker', 'list':[]}
     qemu = {'key': 'enable_qemu|kvm', 'list':[]}
+    vm_serial_access = {'key': 'enable_vm_serial_access', 'list': ['vm_serial_port','vmotion_timeout']}
     multiple_authentication_fails = {'key': 'block_host_with_multiple_authentication_fails', 'list': ['period_host_will_stay_blocked','timeframe_to_monitor_authentication_fails','number_of_authentication_fails_to_block_host']}
-    master_list = [status_page,docker,qemu,multiple_authentication_fails,search_engine,bluetooth]
+    master_list = [vm_serial_access,status_page,docker,qemu,multiple_authentication_fails,search_engine,bluetooth]
 
     for item in master_list:
         if item['key'] in rule.keys():
@@ -147,12 +148,17 @@ def run_module():
         services_current.update(get_state("services", module.params['timeout']))
         # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
         diff = []
-        for item in services_desired:
-            if services_current[item]:
-                # to avoid comparision issues, will we compare string to strings
-                if str(services_desired[item]) != str(services_current[item]):
-                    diff.append({item: services_desired[item]})
-        diff_chains['services'] = diff
+        try:
+            for item in services_desired:
+                if services_current[item]:
+                    # to avoid comparision issues, will we compare string to strings
+                    if str(services_desired[item]) != str(services_current[item]):
+                        diff.append({item: services_desired[item]})
+        except Exception as e:
+            result['failed'] = True
+            result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
+        finally:
+            diff_chains['services'] = diff
 
     # Build out commands
     cmds = []

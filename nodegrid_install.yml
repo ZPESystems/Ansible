@@ -132,18 +132,10 @@
             - "templates"
             - "roles"
 
-        - name: find the playbooks dirs
-          find:
-            paths: "./examples/playbooks"
-            file_type: any
-            recurse: yes
-          register: playbooks_dirs
-
         - name: copy playbooks to /etc/ansible/playbooks
           copy:
-            src: "{{ item }}" 
-            dest: /etc/ansible/playbooks/
-          loop: "{{ playbooks_dirs.files }}"
+            src: ./examples/
+            dest: /etc/ansible/playbooks/examples/
 
         - name: copy hosts.yml to /etc/ansible/inventories
           copy:

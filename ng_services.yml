@@ -21,10 +21,10 @@
            enable_dashboards: "yes"
            enable_telegraf: "no"
            enable_services_status_page: "no"
-           enable_reboot_on_services_status_page: "yes"
+          enable_reboot_on_services_status_page: "yes"
            enable_vmware_manager: "no"
            enable_docker: "no"
-           enable_qemu|kvm: "no"
+           enable_qemu: "no"
            cluster_tcp_port: 9966
            auto_cluster_enroll: "no"
            search_engine_tcp_port: 9300
@@ -34,11 +34,11 @@
            vmotion_timeout: 300
            enable_zero_touch_provisioning: "no"
            enable_bluetooth: "no"
-           bluetooth_display_name: "NGM_Standard PC (i440FX + PIIX, 1996)_"
+           bluetooth_display_name: "Nodegrid"
            bluetooth_discoverable_mode: "no"
            enable_pxe: "no"
-           device_access_per_user_group_authorization: "no"
-           enable_autodiscovery: "no"
+           device_access_per_user_group_authorization: "yes"
+           enable_autodiscovery: "yes"
            dhcp_lease_per_autodiscovery_rules: "no"
            block_host_with_multiple_authentication_fails: "no"
            period_host_will_stay_blocked: 10
@@ -63,14 +63,10 @@
            frr_enable_ospfv3: "no"
            frr_enable_rip: "no"
            frr_enable_vrrp: "no"
-           tlsv1.3: "yes"
-           tlsv1.2: "yes"
-           tlsv1.1: "no"
+           tlsv1_3: "yes"
+           tlsv1_2: "yes"
+           tlsv1_1: "no"
            tlsv1: "no"
            cipher_suite_level: medium
          debug: True
       register: output
-
-    - name: Display stdout_line Result
-      debug:
-        msg: "{{ output }}"

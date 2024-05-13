@@ -20,7 +20,7 @@ enable_qemu: "no"
 cluster_tcp_port: 9966
 auto_cluster_enroll: "no"
 search_engine_tcp_port: 9300
-enable_search_engine_high_level_cipher_suite: "yes"
+enable_search_engine_high_level_cipher_suite: "no"
 enable_vm_serial_access: "no"
 vm_serial_port: 9977
 vmotion_timeout: 300
@@ -55,8 +55,8 @@ frr_enable_ospfv2: "no"
 frr_enable_ospfv3: "no"
 frr_enable_rip: "no"
 frr_enable_vrrp: "no"
-tlsv1.3: "yes"
-tlsv1.2: "yes"
-tlsv1.1: "no"
+tlsv1_3: "yes"
+tlsv1_2: "yes"
+tlsv1_1: "no"
 tlsv1: "no"
-cipher_suite_level: high
+cipher_suite_level: medium

@@ -7,27 +7,17 @@
     - name: Apply SNMP System Settings
       zpe.nodegrid.snmp:
          system:
-           syscontact: "'{{ syscontact | default('admin@nodegrid')}}'"
-           syslocation: "'{{ syslocation | default('')}}'"
-         debug: True
-      register: output
-
-    - name: Display stdout_line Result
-      debug:
-        msg: "{{ output }}"
+           syscontact: "admin@nodegrid"
+           syslocation: "Nodegrid"
 
     - name: Apply SNMP Rule Settings
       zpe.nodegrid.snmp:
          rules:
-           - version: "{{ version | default('version_v1|v2')}}"
-             community: "{{ community | default('public')}}"
-             source: "{{ source | default('default')}}"
-             snmp_for_ipv6: "{{ snmp_for_ipv6 | default('no')}}"
-             oid: "{{ oid | default('')}}"
-             access_type: "{{ access_type | default('read_only')}}"
-         debug: True
-      register: output
+           - version: "version_v1|v2"
+             community: "public"
+             source: ""
+             snmp_for_ipv6: "no"
+             oid: ""
+             access_type: "read_only"
 
-    - name: Display stdout_line Result
-      debug:
-        msg: "{{ output }}"
+

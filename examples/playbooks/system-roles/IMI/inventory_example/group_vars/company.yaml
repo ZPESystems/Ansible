@@ -55,11 +55,11 @@ nodegrid_local_user_groups:
     manage_devices_permissions: "no"
 
 # Default Authentication Server: (CHANGE - TO DESIRED VALUES)
+# TACACS server settings have changed from 5.8 to 6.0 Update settings as required
 nodegrid_authentication_servers:
             - number: 1
               method: "tacacs+"
-              two_factor_authentication: "none"
-              status: "disable"
+              status: "disabled"
               fallback_if_denied_access: "yes"
               remote_server: "10.1.1.5"
               tacacs_plus_accounting_server: "10.1.1.5"
@@ -70,17 +70,23 @@ nodegrid_authentication_servers:
               tacacs_plus_timeout: "2"
               tacacs_plus_retries: "2"
               tacacs_plus_version: "v1"
-              tacacs_plus_enable_user_level: "yes"
+              tacacs_plus_enable_user-level: "yes"
               tacacs_plus_user_level_12: "user"
               tacacs_plus_user_level_15: "admin"
 
 # System SNMP Settings: (CHANGE - TO DESIRED VALUES)
-sys_snmp_syscontact: "noc@zpesystems.internal"
-sys_snmp_syslocation: "Nodegrid"
-sys_snmp_two_community: "public"
-sys_snmp_two_version: "version_v1|v2"
-sys_snmp_two_source: "default"
-sys_snmp_two_access_type: "read_only"
+syscontact: "noc@zpesystems.internal"
+syslocation: "Nodegrid"
+snmp_rules:
+    - version: "version_v1|v2"
+      community: "public"
+     source: ""
+     snmp_for_ipv6: "no"
+     oid: ""
+     access_type: "read_only"
+
+# Network Settings (CHANGE - TO DESIRED VALUES)
+nodegrid_domain_name: us.internal
 
 # SECTION - NO CHANGE REQUIRED - NO CHANGES ARE REQUIRED
 
@@ -92,8 +98,12 @@ nodegrid_enable_multiple_routing_tables: "yes"
 failover_enable_network_failover: "no"
 
 # Default Audit Settings: (NO CHANGE REQUIRED)
-auditing_event_enable_persistent_logs: "yes"
-auditing_datalog_add_timestamp: "yes"
+auditing_settings:
+  event_timestamp_format: local_time
+  datalog_add_timestamp: "no"
+  datalog_timestamp_format: local_time
+  datalog_destination: file
+  enable_persistent_logs: "no"
 
 # System Session Logging: (NO CHANGE REQUIRED)
 system_logging_enable_session_logging_alerts: "no"
@@ -105,6 +115,79 @@ authentication_enable_authentication_server_selection_based_on_realms: "yes"
 
 # System Services: (NO CHANGE REQUIRED)
 services_enable_snmp_service: "yes"
+
+# Firewall Settings
+ipv4_firewall:
+  policy:
+    FORWARD: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+  chains:
+    INPUT:
+        - target: ACCEPT
+          rule_number: 0
+          input_interface: lo
+          output_interface: any
+          description: DEFAULT_RULE_DO_NOT_REMOVE
+        - target: ACCEPT
+          rule_number: 1
+          protocol: tcp
+          destination_port: 22
+          source_net4: ""
+          destination_net4: ""
+          description: 'NODEGRID_SSH'
+        - target: ACCEPT
+          rule_number: 2
+          protocol: tcp
+          source_net4: ""
+          destination_net4: ""
+          destination_port: 9300
+          description: 'NODEGRID_SEARCH_9300'
+        - target: ACCEPT
+          rule_number: 3
+          protocol: tcp
+          destination_port: 9966
+          description: 'NODEGRID_CLUSTER_9966'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 4
+          protocol: tcp
+          destination_port: 443
+          description: 'NODEGRID_HTTPS'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 5
+          protocol: udp
+          destination_udp_port: 161
+          description: 'NODEGRID_SNMP'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 6
+          protocol: udp
+          destination_udp_port: 51820
+          description: 'NODEGRID_WIREGUARD'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 7
+          protocol: numeric
+          description: 'ACCEPT_RELATED_TRAFFIC'
+          enable_state_match: "yes"
+          new: "no"
+          established: "yes"
+          related: "yes"
+          invalid: "no"
+          reverse_state_match: "no"
+          source_net4: ""
+          destination_net4: ""
+        - target: DROP
+          rule_number: 8
+          protocol: numeric
+          description: 'DROP_ALL'
+          source_net4: ""
 
 # SECTION - DO NOT CHANGE - THIS SECTION CONTAINS SETTING WHICH SHOULD NOT BE CHANGED
 # Generic Ansible Settings: (DO NOT CHANGE)

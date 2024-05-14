@@ -2,10 +2,10 @@
   zpe.nodegrid.cluster:
         settings:
           enable_cluster: "{{cluster_settings_enable_cluster}}"
-          cluster_name: "{{cluster_settings_cluster_name}}"
+          cluster_name: "{{cluster_settings_name}}"
           type: "{{cluster_settings_type}}"
           allow_enrollment: "{{cluster_settings_allow_enrollment}}"
-          cluster_mode: "{{cluster_settings_cluster_mode}}"
+          cluster_mode: "{{cluster_settings_mode}}"
           polling_rate: "{{cluster_settings_polling_rate}}"
           psk: "{{cluster_settings_psk}}"
           enable_clustering_access: "{{cluster_settings_enable_clustering_access}}"
@@ -18,10 +18,10 @@
   zpe.nodegrid.cluster:
         settings:
           enable_cluster: "{{cluster_settings_enable_cluster}}"
-          cluster_name: "{{cluster_settings_cluster_name}}"
+          cluster_name: "{{cluster_settings_name}}"
           type: "{{cluster_settings_type}}"
           allow_enrollment: "{{cluster_settings_allow_enrollment}}"
-          cluster_mode: "{{cluster_settings_cluster_mode}}"
+          cluster_mode: "{{cluster_settings_mode}}"
           coordinator_address: "{{cluster_coordinator_address}}"
           polling_rate: "{{cluster_settings_polling_rate}}"
           psk: "{{cluster_settings_psk}}"

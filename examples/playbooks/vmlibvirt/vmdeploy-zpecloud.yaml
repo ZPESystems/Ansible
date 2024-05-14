@@ -1,0 +1,45 @@
+- name: Deploy a VM
+  hosts: all
+  gather_facts: no
+  become: true
+  vars:
+    ansible_connection: zpe.zpecloud.zpecloud
+  vars_prompt:
+    - name: ansible_zpecloud_username
+      prompt: Enter ZPE Cloud Username
+      private: false
+    - name: ansible_zpecloud_password
+      prompt: Enter ZPE Cloud Password
+      private: true
+    - name: ansible_zpecloud_url
+      prompt: Provide ZPE Cloud URL 
+      default: "https://zpecloud.com"
+      private: false
+    - name: ansible_zpecloud_organization
+      prompt: Enter the ZPE Cloud Organization 
+      private: false
+          
+  tasks:
+    - name: Install python3 lxml module
+      ansible.builtin.pip:
+        name: lxml
+    - name: VMs creation
+      tags: create-vm
+      block:
+        - name: List only running VMs
+          community.libvirt.virt:
+            command: list_vms
+            state: running
+          register: running_vms
+        - name: Show running VMs
+          debug:
+            msg: "{{ running_vms }}"
+        - name: Create VM
+          vars:
+            _running_vms: "{{ running_vms.list_vms }}"
+          when: "'vms' in hostvars[inventory_hostname] and hostvars[inventory_hostname].vms and vm.name not in _running_vms"
+          include_tasks: create_vm.yaml
+          loop: "{{ hostvars[inventory_hostname].vms }}"
+          loop_control:
+            loop_var: vm
+

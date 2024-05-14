@@ -4,7 +4,7 @@
     - zpe.nodegrid
 
   tasks:
-    - name: Apply Firewall Settings
+    - name: Apply System Services
       zpe.nodegrid.services:
          services:
            enable_detection_of_usb_devices: "yes"
@@ -21,7 +21,7 @@
            enable_dashboards: "yes"
            enable_telegraf: "no"
            enable_services_status_page: "no"
-          enable_reboot_on_services_status_page: "yes"
+           enable_reboot_on_services_status_page: "yes"
            enable_vmware_manager: "no"
            enable_docker: "no"
            enable_qemu: "no"
@@ -68,5 +68,3 @@
            tlsv1_1: "no"
            tlsv1: "no"
            cipher_suite_level: medium
-         debug: True
-      register: output

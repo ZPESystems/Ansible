@@ -67,9 +67,3 @@
          destinations_email:
            email_port: "25"
            start_tls: "no"
-         debug: True
-      register: output
-
-    - name: Display stdout_line Result
-      debug:
-        msg: "{{ output }}"

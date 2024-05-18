@@ -44,13 +44,16 @@ Requirements to replicate this setup:
 - Download Ansible Library from https://github.com/ZPESystems/Ansible
 	- Click on Code and select "Download ZIP"
 	   ![[images/Pasted image 20240502115134.png]]
+
 -  Login to the Nodegrid appliance via the WebUI as admin user
-- Open the **File Manager** and navigate to **admin_group**
+- Open  **System > Toolkit > File Manager** and navigate to **admin_group**
   ![[images/Pasted image 20240502124116.png]]
+
 - Navigate to **admin_group**
 ![[images/Pasted image 20240502124157.png]]
 - Upload the downloaded `.zip` file into the folder (default name: Ansible-main.zip)
   ![[images/Pasted image 20240502124403.png]]
+
 - Close the File Manager window
 - Open a **Console connection** to Nodegrid
 - Access the shell as an **admin** user using the `shell` command
@@ -164,9 +167,9 @@ total 20
 drwxrwxr-x 4 ansible admin   1024 May 13 10:30 examples
 -rwxrwxr-x 1 ansible admin    425 Mar  9  2018 import_settings.yaml
 ```
-- Run a test playbook
+- Run a test playbook. In case the host's SSH TCP port is different than `22`, add the variable as follows (e.g., port TCP `2222`):
 ```shell
-ansible-playbook 300_nodegrid_facts.yaml
+ansible-playbook 300_nodegrid_facts.yaml -e "ansible_ssh_port=2222"
 ```
 Example Output
 ```shell
@@ -208,7 +211,7 @@ ok: [localhost] => {
 PLAY RECAP *************************************************************************************************************************************************************************************************************************************************************************
 localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0 
 ```
-- The Ansible Nodegrid Library has been successfully installed. The next step is to define the inventory.yaml file, which is a strict requirement for the IMI building process.
+- The Ansible Nodegrid Library has been successfully installed. The next step is to define the `inventory.yaml` file, which is a **strict requirement for the IMI building process**.
 
 ## Step 3: Build the Ansible Inventory
 ### Overview
@@ -217,19 +220,19 @@ This step is critical, as the setting will be used as a source of truth for all 
 Inventory Overview
 1. The inventory is organized hierarchically and utilizes groups that can be nested.
 2. Infrastructure devices like Nodegrid appliances are represented as `hosts` which can be part of one or multiple groups
-3. Each group and host can have multiple variables assigned to it. These Variables are typically key-value pairs but can be in the form of lists and dictionaries
-4. The Ansible inventory files utilize standard `YAML` or `JSON` notation, both are valid, but should ideally not be mixed to avoid confusion. The example will only use `YAML` notation.
-5. The default location for the ansible inventory on a Nodegrid appliance is `/etc/ansible/inventories/`
+3. Each group and host can have multiple variables assigned to it. These Variables are typically `key-value` pairs but can be in the form of `lists` and `dictionaries`
+4. The Ansible inventory files utilize standard `YAML` or `JSON` notation. Both are valid, but ideally should not be mixed to avoid confusion. This document will only use `YAML` notation.
+5. The default location for the Ansible inventory on a Nodegrid appliance is `/etc/ansible/inventories/`
 6. The Inventory is stored in `YAML` files. The main file is the `hosts.yml` file, which must contain the inventory structure. 
 
 > [!NOTE] Dynamic Inventory Plugins
 > Ansible supports dynamic inventory sources, like [Netbox](https://galaxy.ansible.com/ui/repo/published/netbox/netbox/) and other systems. This guide does not cover the setup of dynamic Inventory plugins, see [here](https://docs.ansible.com/ansible/latest/plugins/inventory.html) for more details and here to search for additional [modules](https://galaxy.ansible.com) which can be installed.
 
 > [!NOTE] ZPE Systems Dynamic Inventory Plugins
-> ZPE Systems currently supports three dynamic inventory plugins, which support ZPE Systems solutions.
-> 1. Cluster plugin: This exposes all cluster hosts to a local installation of Ansible on a Nodegrid appliance. This is installed and active by default and only requires a working Cluster configuration
-> 2. Device plugin: This Exposes all locally configured managed devices on Nodegrid appliance. This plugin is automatically installed with the Nodegrid Ansible library.
-> 3. ZPE Cloud plugin: This plugin enables the execution of Ansible playbooks and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. See [here](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) for more details.
+> ZPE Systems currently supports three dynamic inventory plugins:
+> 1. **Cluster plugin**: This exposes all cluster hosts to a local installation of Ansible on a Nodegrid appliance. This is installed and active by default and only requires a working Cluster configuration
+> 2. **Device plugin**: This Exposes all locally configured managed devices on Nodegrid appliance. This plugin is automatically installed with the Nodegrid Ansible library.
+> 3. **ZPE Cloud plugin**: This plugin enables the execution of Ansible playbooks via ZPE Cloud as the connectior, and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. [Ansible ZPE Cloud](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) describes in detail this plugin.
 ### Inventory Structure
 Configure the Inventory
 
@@ -322,14 +325,14 @@ ansible@nodegrid:/etc/ansible/inventories$ ansible-inventory --host ny-sc1
 	```bash
 cd /etc/ansible/inventories/group_vars  
 	```
-- create the file `company.yaml`, which will contain variables which apply to all hosts
+- Create the file `company.yaml`, which will contain variables which apply to all hosts
 	```bash
 vi company.yaml 
 	```
 
 > [!WARNING] The file name must match the group name used in the inventory in this case 'company.yaml'
 
-- add the following content; this is an example list with the minimum requirements for the example. 
+- Add the following content; this is an example list with the minimum requirements for the example. 
   
   The list should be adjusted as needed, each section is marked with:
   "**DO NOT CHANGE**" (Settings should not be changed), 
@@ -397,33 +400,33 @@ nodegrid_local_user_groups:
 # Default Authentication Server: (CHANGE - TO DESIRED VALUES)
 # TACACS server settings have changed from 5.8 to 6.0 Update settings as required
 nodegrid_authentication_servers:  
-            - number: 1  
-              method: "tacacs+"   
-              status: "disabled"  
-              fallback_if_denied_access: "yes"  
-              remote_server: "10.1.1.5"  
-              tacacs_plus_accounting_server: "10.1.1.5"  
-              authorize_ssh_pkey_users: "yes"  
-              tacacs_plus_port: "49"  
-              tacacs_plus_service: "raccess"  
-              tacacs_plus_secret: "tacacs"  
-              tacacs_plus_timeout: "2"  
-              tacacs_plus_retries: "2"  
-              tacacs_plus_version: "v1"  
-              tacacs_plus_enable_user-level: "yes"  
-              tacacs_plus_user_level_12: "user"  
-              tacacs_plus_user_level_15: "admin" 
+  - number: 1
+    method: "tacacs+"
+    status: "disabled"
+    fallback_if_denied_access: "yes"
+    remote_server: "10.1.1.5"
+    tacacs_plus_accounting_server: "10.1.1.5"
+    authorize_ssh_pkey_users: "yes"
+    tacacs_plus_port: "49"
+    tacacs_plus_service: "raccess"
+    tacacs_plus_secret: "tacacs"
+    tacacs_plus_timeout: "2"
+    tacacs_plus_retries: "2"
+    tacacs_plus_version: "v1"
+    tacacs_plus_enable_user-level: "yes"
+    tacacs_plus_user_level_12: "user" 
+    tacacs_plus_user_level_15: "admin"
 
 # System SNMP Settings: (CHANGE - TO DESIRED VALUES)
-syscontact: "noc@zpesystems.internal"  
-syslocation: "Nodegrid"  
-snmp_rules:  
-    - version: "version_v1|v2"  
-      community: "public"  
-     source: ""  
-     snmp_for_ipv6: "no"  
-     oid: ""  
-     access_type: "read_only"
+syscontact: "noc@zpesystems.internal"
+syslocation: "Nodegrid"
+snmp_rules:
+  - version: "version_v1|v2"
+    community: "public"
+    source: ""
+    snmp_for_ipv6: "no"
+    oid: ""
+    access_type: "read_only"
 
 # Network Settings (CHANGE - TO DESIRED VALUES)
 nodegrid_domain_name: us.internal
@@ -577,14 +580,22 @@ ansible@nodegrid:/etc/ansible/inventories/group_vars$
 ```
 vi /etc/ansible/inventories/host_vars/ny-sc1.yaml
 ```
-- Add the following values to the local first node. In this example, this is the local node `ny-sc1`
+- Add the following values to the local first node. In this example, `ny-sc1` is considered to be the local first node.
 
 > [!SUCCESS] RECOMMENDED
 > It is recommended to configure some base settings. Other settings can be added later. The below example defines the required variables for a SuperCoordinator. Adjust the values are required.
 
+> [!NOTE] SSH TCP Port `22`
+>  In case you require to configure SSH TCP port to a specific value (e.g., `2222`), adjust the following lines: 
+>  ```
+>  ansible_ssh_port: 2222
+>  ssh_tcp_port: 2222
+
 ```ny-sc1.yaml
 # Generic Ansible Settings  (REQUIRED)
-ansible_host: 10.0.2.134  # IP address, which ansible will use to communicate with the host
+ansible_host: 127.0.0.1  # IP address, which ansible will use to communicate with the host
+ansible_ssh_port: 22
+ssh_tcp_port: 22
 # Generic Nodegrid Roles (DO NOT CHANGE)  
 nodegrid_roles:  
   - super_coordinator  
@@ -614,9 +625,87 @@ cluster_settings_name: NY
 cluster_settings_psk: NYCluster
 cluster_settings_type: coordinator
 cluster_settings_mode: star
+
+# Firewall Settings
+ipv4_firewall:
+  policy:
+    FORWARD: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+  chains:
+    INPUT:
+        - target: ACCEPT
+          rule_number: 0
+          input_interface: lo
+          output_interface: any
+          description: DEFAULT_RULE_DO_NOT_REMOVE
+        - target: ACCEPT
+          rule_number: 1
+          protocol: tcp
+          destination_port: 2222
+          source_net4: ""
+          destination_net4: ""
+          description: 'NODEGRID_SSH'        
+        - target: ACCEPT
+          rule_number: 2
+          protocol: tcp
+          source_net4: ""
+          destination_net4: ""
+          destination_port: 9300
+          description: 'NODEGRID_SEARCH_9300' 
+        - target: ACCEPT
+          rule_number: 3
+          protocol: tcp
+          destination_port: 9966
+          description: 'NODEGRID_CLUSTER_9966'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 4
+          protocol: tcp
+          destination_port: 443
+          description: 'NODEGRID_HTTPS'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 5
+          protocol: udp
+          destination_udp_port: 161
+          description: 'NODEGRID_SNMP'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 6
+          protocol: udp
+          destination_udp_port: 51820
+          description: 'NODEGRID_WIREGUARD'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 7
+          protocol: numeric
+          description: 'ACCEPT_WIREGUARD_TRAFFIC'
+          input_interface: 'ny-sc1-hub'
+          enable_state_match: "no"
+        - target: ACCEPT
+          rule_number: 8
+          protocol: numeric
+          description: 'ACCEPT_RELATED_TRAFFIC'
+          enable_state_match: "yes"
+          new: "no"
+          established: "yes"
+          related: "yes"
+          invalid: "no"
+          reverse_state_match: "no"
+          source_net4: ""
+          destination_net4: ""
+        - target: DROP
+          rule_number: 9
+          protocol: numeric
+          description: 'DROP_ALL'
+          source_net4: ""
 ```
-- Now that all required variables for the first super coordinator are defined, we can validate that the inventory is working before continuing.
-- To display host-specific settings, use the following command
+- Now that all required variables for the first super coordinator are defined, we can validate that the inventory is working before continuing:
 ```bash
 ansible-inventory --host ny-sc1
 ```
@@ -640,7 +729,7 @@ ny-sc1 | SUCCESS => {
 ```
 
 ## Step 4: Configure Nodegrid on Local System
-At this point, everything is ready to configure the local system as a super-coordinator. If we want to change any configurations in future, we only have to adjust the inventory variables, and the changes will be on the next run applied to all of the specific systems.
+At this point, everything is ready to configure the local system as a Super-Coordinator. If we want to change any configurations in future, we only have to adjust the inventory variables, and the changes will be on the next run applied to all of the specific systems.
 
 To push the configuration, use the following commands.
 - Navigate to the playbooks folder.
@@ -687,7 +776,7 @@ ny-sc1                     : ok=26   changed=18   unreachable=0    failed=0    s
 To configure and add additional hosts to the environment, we need to add their configurations to our inventory and then deploy the configuration.
 
 ## Add additional host variables to the Inventory.
-As outlined before, host-specific variables can be maintained in the `hots.yaml` file or in host-specific files, which are stored in the hosts_vars directory. Similarly to the first system, we will add the additional host variables into the `hosts.yaml` file. 
+As outlined before, host-specific variables can be maintained in the `/etc/ansible/inventories/hots.yaml` file or in host-specific files, which are stored in the `/etc/ansible/inventories/hosts_vars` directory. Similarly to the first system, we will add the additional host variables into the `hosts.yaml` file. 
 
 Before we do this, let us cover briefly which settings are required for each system:
 ### Variables Overview
@@ -720,7 +809,7 @@ Before we do this, let us cover briefly which settings are required for each sys
 |                    | wireguard_udp_port                | Super and Local Coordinator | The UDP port used for the VPN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 51820                                                                                                                                                                                                                    |
 
 ### Setting up Environment Inventory
-Add the variables for the remaining hosts to the `host_vars` directory. 
+Add the variables for the remaining hosts to the `/etc/ansible/inventories/host_vars` directory. 
 
 > [!WARNING] YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
 > 
@@ -747,15 +836,17 @@ vi /etc/ansible/inventories/host_vars/dub-sc1.yaml
 ```
 - Add the following values 
 ```dub-sc1.yaml
-# Generic Ansible Settings  
-ansible_host: 10.0.2.136  
-# Generic Nodegrid Roles  
-nodegrid_roles:  
-    - super_coordinator  
-    - wireguard_hub  
-# Nodegrid Network Settings  
-nodegrid_hostname: dub-sc1  
-nodegrid_domain_name: emea.internal  
+# Generic Ansible Settings
+ansible_host: 10.0.2.136
+ansible_ssh_port: 22
+ssh_tcp_port: 22
+# Generic Nodegrid Roles
+nodegrid_roles:
+    - super_coordinator
+    - wireguard_hub
+# Nodegrid Network Settings
+nodegrid_hostname: dub-sc1
+nodegrid_domain_name: emea.internal
 # Nodegrid Network Connections  
 network_connections:  
     - nodegrid_connection_name: ETH0  
@@ -776,6 +867,85 @@ cluster_settings_name: DUB
 cluster_settings_psk: DUBCluster
 cluster_settings_type: coordinator
 cluster_settings_mode: star
+
+# Firewall Settings
+ipv4_firewall:
+  policy:
+    FORWARD: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+  chains:
+    INPUT:
+        - target: ACCEPT
+          rule_number: 0
+          input_interface: lo
+          output_interface: any
+          description: DEFAULT_RULE_DO_NOT_REMOVE
+        - target: ACCEPT
+          rule_number: 1
+          protocol: tcp
+          destination_port: 2222
+          source_net4: ""
+          destination_net4: ""
+          description: 'NODEGRID_SSH'        
+        - target: ACCEPT
+          rule_number: 2
+          protocol: tcp
+          source_net4: ""
+          destination_net4: ""
+          destination_port: 9300
+          description: 'NODEGRID_SEARCH_9300' 
+        - target: ACCEPT
+          rule_number: 3
+          protocol: tcp
+          destination_port: 9966
+          description: 'NODEGRID_CLUSTER_9966'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 4
+          protocol: tcp
+          destination_port: 443
+          description: 'NODEGRID_HTTPS'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 5
+          protocol: udp
+          destination_udp_port: 161
+          description: 'NODEGRID_SNMP'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 6
+          protocol: udp
+          destination_udp_port: 51820
+          description: 'NODEGRID_WIREGUARD'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 7
+          protocol: numeric
+          description: 'ACCEPT_WIREGUARD_TRAFFIC'
+          input_interface: 'dub-sc1-hub'
+          enable_state_match: "no"
+        - target: ACCEPT
+          rule_number: 8
+          protocol: numeric
+          description: 'ACCEPT_RELATED_TRAFFIC'
+          enable_state_match: "yes"
+          new: "no"
+          established: "yes"
+          related: "yes"
+          invalid: "no"
+          reverse_state_match: "no"
+          source_net4: ""
+          destination_net4: ""
+        - target: DROP
+          rule_number: 9
+          protocol: numeric
+          description: 'DROP_ALL'
+          source_net4: ""
 ```
 - To validate the inventory run
 ```bash
@@ -832,6 +1002,91 @@ cluster_settings_name: LA-CLUSTER
 cluster_settings_psk: LA-NGCluster
 cluster_settings_type: coordinator
 cluster_settings_mode: mesh
+
+# Firewall Settings
+ipv4_firewall:
+  policy:
+    FORWARD: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+  chains:
+    INPUT:
+        - target: ACCEPT
+          rule_number: 0
+          input_interface: lo
+          output_interface: any
+          description: DEFAULT_RULE_DO_NOT_REMOVE
+        - target: ACCEPT
+          rule_number: 1
+          protocol: tcp
+          destination_port: 22
+          source_net4: ""
+          destination_net4: ""
+          description: 'NODEGRID_SSH'        
+        - target: ACCEPT
+          rule_number: 2
+          protocol: tcp
+          source_net4: ""
+          destination_net4: ""
+          destination_port: 9300
+          description: 'NODEGRID_SEARCH_9300' 
+        - target: ACCEPT
+          rule_number: 3
+          protocol: tcp
+          destination_port: 9966
+          description: 'NODEGRID_CLUSTER_9966'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 4
+          protocol: tcp
+          destination_port: 443
+          description: 'NODEGRID_HTTPS'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 5
+          protocol: udp
+          destination_udp_port: 161
+          description: 'NODEGRID_SNMP'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 6
+          protocol: udp
+          destination_udp_port: 51820
+          description: 'NODEGRID_WIREGUARD'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          rule_number: 7
+          protocol: numeric
+          description: 'ACCEPT_WIREGUARD_TRAFFIC_HUB1'
+          input_interface: 'ny-sc1'
+          enable_state_match: "no"
+        - target: ACCEPT
+          rule_number: 8
+          protocol: numeric
+          description: 'ACCEPT_WIREGUARD_TRAFFIC_HUB2'
+          input_interface: 'dub-sc1'
+          enable_state_match: "no"
+        - target: ACCEPT
+          rule_number: 9
+          protocol: numeric
+          description: 'ACCEPT_RELATED_TRAFFIC'
+          enable_state_match: "yes"
+          new: "no"
+          established: "yes"
+          related: "yes"
+          invalid: "no"
+          reverse_state_match: "no"
+          source_net4: ""
+          destination_net4: ""
+        - target: DROP
+          rule_number: 10
+          protocol: numeric
+          description: 'DROP_ALL'
+          source_net4: ""
 ```
 
 - To validate the inventory run
@@ -879,8 +1134,8 @@ ansible-inventory --host la-lp1
 	1. Push Wireguard overlay network
 	2. Push Super_Cluster cluster configuration
 
-### Establish a Ansible connection
-By default, the super coordinator communicates with a new remote host only via the admin user. In order to enable Ansible communication, the Ansible user's SSH_key must be exchanged. The library provides a playbook that enables an automated method to exchange the SSH_keys directly from the super_coordinator.
+### Establish the Ansible connection
+By default, the super coordinator communicates with a new remote host only via the `admin` user. In order to enable Ansible communication, the Ansible user's `SSH_key` must be exchanged. The library provides a playbook that enables an automated method to exchange the `SSH_keys` directly from the super_coordinator.
 
 > [!WARNING] Admin default password
 > The `001_setup_nodegrid_ansible.yaml` playbook does currently not support the change of the admin default password. Ensure that the default admin password is changed, otherwise the playbook will fail.
@@ -929,7 +1184,7 @@ ny-sc1                     : ok=3    changed=1    unreachable=0    failed=0    s
 ```
 
 > [!INFO] Testing Connection
-> The playbook validates at the end the ansible communication, but to manually validate the ansible can communicate with a host run the command
+> The playbook validates at the end the ansible communication, but to manually validate the Ansible can communicate with a host run the command
 > `ansible -m ping <hostname>`
 
 Example Output:
@@ -943,7 +1198,7 @@ la-lc1 | SUCCESS => {
 ```
 
 ### Validate firmware version
-As some configuration options are firmware version-specific, validating that all Nodegrid hosts are running the same version is recommended. The playbook `301_nodegrid_firmware_update.yaml` can be used to push the specific firmware version to all units automatically. It will check if the correct version is running on the system and, if required, will update it to the defined version. 
+As some configuration options are firmware version specific, validating that all Nodegrid hosts are running the same version is recommended. The playbook `301_nodegrid_firmware_update.yaml` can be used to push the specific firmware version to all units automatically. It will check if the correct version is running on the system and, if required, will update it to the defined version. 
 
 > [!WARNING] Required Settings
 >  Before running this playbook, check that the inventory details are defined in the company.yaml file, the following settings must be provided: 
@@ -952,7 +1207,7 @@ As some configuration options are firmware version-specific, validating that all
 > `nodegrid_target_version` 
 > The script assumes that the firmware file is located on the Ansible controller and that Ansible can copy the file to the target. The playbook dose not require that the files are hosted on a server.
 
-- run the playbook to validate the firmware with
+- Run the playbook to validate the firmware with:
 ```shell
 ansible-playbook 301_nodegrid_firmware_update.yaml --limit company
 ```
@@ -999,13 +1254,17 @@ ny-sc1                     : ok=2    changed=0    unreachable=0    failed=0    s
 ```
 
 ### Push System configuration
-Once the communication has been established, it is time to push the configuration to all the hosts. The scenario defines three separate roles: "Super Coordinator", "Local Coordinator", and "Local Peer". Each one is represented through an individual playbook. The system configuration playbooks can be run without filters as the playbook will automatically apply the correct configuration based on the `nodegrid_role`,
+Once the communication has been established, it is time to push the configuration to all the hosts. The scenario defines three separate roles: **Super Coordinator**, **Local Coordinator**, and **Local Peer**. Each one is represented through an individual playbook. The system configuration playbooks can be run without filters as the playbook will automatically apply the correct configuration based on the `nodegrid_role`,
 
 #### Super Coordinators
 - Apply a full configuration to all Super Coordinators
 ```shell
 ansible-playbook 100_role_super_coordinator.yaml
 ```
+> [!WARNING] [FIXME] SNMP configuration already present
+> There is an error if there is already snmp configuration
+> 
+
 - Apply a full configuration to a specific Super Coordinator
 ```shell
 ansible-playbook 100_role_super_coordinator.yaml --limit dub-sc1

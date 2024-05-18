@@ -10,7 +10,6 @@
     - zpe.nodegrid
 
   vars:
-      ssh_port: 22
       ssh_key_user: ansible
       ansible_sudoers: true
       ssh_key_type: ed25519
@@ -23,6 +22,10 @@
     - name: current_password
       prompt: Provide a password for the user
       private: true
+    - name: ssh_port
+      prompt: Enter target ssh port
+      default: 22
+      private: false
 
 
   tasks:

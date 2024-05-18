@@ -1,7 +1,9 @@
 - name: Apply Firewall Settings
+  tags: always
   zpe.nodegrid.firewall:
       ipv4_firewall: "{{ ipv4_firewall }}"
 
 - name: Apply NAT settings
+  tags: always
   zpe.nodegrid.firewall:
         ipv4_nat: "{{ ipv4_nat }}"

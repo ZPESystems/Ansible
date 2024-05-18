@@ -22,7 +22,7 @@ RETURN = r'''
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, dict_diff, import_settings
 
-import os
+import os, copy
 
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -159,11 +159,16 @@ def run_module():
         rules_current.update(get_rules("snmp", chain, module.params['timeout']))
         # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
         diff_rules = []
+        if module.params['debug']:
+            result['rules_current'] = copy.deepcopy(rules_current)
+            result['rules_desired'] = copy.deepcopy(snmp_rules)
         for rule in snmp_rules:
             # The v3 needs to be handled different to v1 and v2
             if 'version' in rule.keys():
                     # Before continue, do we ensure that a source is defined, by default value will be set default
                     if 'source' not in rule.keys() and rule['version'] == 'version_v1|v2':
+                        rule['source'] = "default"
+                    if 'source' in rule.keys() and len(rule['source']) == 0 and rule['version'] == 'version_v1|v2':
                         rule['source'] = "default"
                     # Lets define the rule number
                     if str(rule['version']).strip() == 'version_v1|v2':
@@ -177,10 +182,11 @@ def run_module():
                             break
 
                     # Ansible inventory dose not honor the order or dictonaries and sort alphabetically, as order is
-                    # imporant to some settings are we reordering the rule dictinorary
+                    # important to some settings are we reordering the rule dictinorary
                     rule = resort_rule(rule)
-
                     if 'rule_number' in rule.keys():
+                        if module.params['debug']:
+                            result[rule['rule_number']] = rule.copy()
                         # We set the desired state
                         desired_state = rule
                         # We found a matching rule number in the current state, we will check against this specific rule
@@ -188,6 +194,8 @@ def run_module():
                             diff_chains['snmp_rules'] = {}
                             current_state = rules_current[chain]['current_state'][str(rule['rule_number'])]
                             diff_state = dict_diff(desired_state,current_state)
+                            if module.params['debug']:
+                                result['diff_state'] = diff_state.copy()
                             if len(diff_state) > 0:
                                 diff_state['rule_number'] = rule['rule_number']
                                 diff_rules.append(diff_state)
@@ -204,16 +212,16 @@ def run_module():
     if module.params['system']:
             snmp_system = module.params['system']
             system_current = {}
-            # Get the current state of the plocy
+            # Get the current state of the policy
             system_current.update(get_snmp_system("snmp/system", module.params['timeout']))
             if module.params['debug']:
-                result['system_current'] = system_current
-                result['system_desired'] = snmp_system
+                result['system_current'] = system_current.copy()
+                result['system_desired'] = snmp_system.copy()
             # Create a diff
             diff = []
             for item in snmp_system:
                 if system_current[item]:
-                    if snmp_system[item] != system_current[item]:
+                    if str(snmp_system[item]).strip() != str(system_current[item]).strip():
                         diff.append({item: snmp_system[item]})
             diff_chains['system'] = diff
 

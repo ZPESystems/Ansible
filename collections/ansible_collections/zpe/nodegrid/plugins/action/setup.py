@@ -233,6 +233,7 @@ class ActionModule(ActionBase):
         display.vvv(str(action_module_args))
 
         host = task_vars.get("ansible_host")
+        ssh_port = task_vars.get("ansible_ssh_port")
         options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
 
         username = None
@@ -242,7 +243,6 @@ class ActionModule(ActionBase):
         action_sudoers = False
         new_password = None
         ssh_key = None
-        ssh_port = None
         ssh_key_user = None
         ssh_key_type = None
 
@@ -273,7 +273,7 @@ class ActionModule(ActionBase):
                 return self._result_failed('No ssh_key_type was provided')
             if OPTION_INSTALL_SSH_PORT in action_module_args.keys():
                 ssh_port = action_module_args[OPTION_INSTALL_SSH_PORT]
-                options = options + f" -p {ssh_port}"
+            options = options + f" -p {ssh_port}"
                 
         if ssh_key is not None and len(ssh_key) > 0 and len(ssh_key_type) > 0:
             split_key = ssh_key.split()

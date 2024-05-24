@@ -339,13 +339,14 @@ ansible@nodegrid:/etc/ansible/inventories$ ansible-inventory --host ny-sc1
 > [!Tip] RECOMMENDATION
 > It is recommended to store group variables in dedicated files, for example, variables which apply to all hosts can be stored in the file `group_vars/company.yaml` 
 -  Navigate to the Inventory folder  
-	```bash
+```bash
 cd /etc/ansible/inventories/group_vars  
-	```
+```
+
 - Create the file `company.yaml`, which will contain variables which apply to all hosts
-	```bash
+```bash
 vi company.yaml 
-	```
+```
 
 > [!Warning] The file name must match the group name used in the inventory in this case 'company.yaml'
 

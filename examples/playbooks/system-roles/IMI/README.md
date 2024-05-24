@@ -43,16 +43,21 @@ Requirements to replicate this setup:
 ## Step 1: Download Ansible Library
 - Download Ansible Library from https://github.com/ZPESystems/Ansible
 	- Click on Code and select "Download ZIP"
-	   ![[images/Pasted image 20240502115134.png]]
+
+	   ![](images/zpe_github.png)
 
 -  Login to the Nodegrid appliance via the WebUI as admin user
 - Open  **System > Toolkit > File Manager** and navigate to **admin_group**
-  ![[images/Pasted image 20240502124116.png]]
+
+  ![](images/system_toolkit.png)
 
 - Navigate to **admin_group**
-![[images/Pasted image 20240502124157.png]]
+
+![](images/file_manager.png)
+
 - Upload the downloaded `.zip` file into the folder (default name: Ansible-main.zip)
-  ![[images/Pasted image 20240502124403.png]]
+
+  ![](images/file_upload.png)
 
 - Close the File Manager window
 - Open a **Console connection** to Nodegrid
@@ -140,7 +145,7 @@ drwxrwxr-x 2 ansible admin 1024 May 13 10:30 system
 drwxrwxr-x 3 ansible admin 1024 May 13 10:30 system-roles
 ```
 
-> [!NOTE] Example Playbooks
+> [!Note] Example Playbooks
 > The examples are sorted into folders for reference. Users have the option to either directly run the playbooks from the examples folder or to copy the desired playbooks to `/etc/ansible/playbooks/`.
 > 
 > It is recommended that the examples be copied to the working directory. This allows users to change and adapt them as needed freely.
@@ -152,7 +157,7 @@ cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansibl
 
 - *Example*:
 ```shell
-ansible@nodegrid:~$ cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yml /etc/ansible/playbooks/
+ansible@nodegrid:/etc/ansible/playbooks$ cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansible/playbooks/
 ansible@nodegrid:/etc/ansible/playbooks$ ls -l
 total 20
 -rwxr-xr-x 1 ansible ansible 1580 May 13 10:42 001_setup_nodegrid_ansible.yaml
@@ -167,10 +172,18 @@ total 20
 drwxrwxr-x 4 ansible admin   1024 May 13 10:30 examples
 -rwxrwxr-x 1 ansible admin    425 Mar  9  2018 import_settings.yaml
 ```
-- Run a test playbook. In case the host's SSH TCP port is different than `22`, add the variable as follows (e.g., port TCP `2222`):
+- Run a test playbook. 
+```shell
+ansible-playbook 300_nodegrid_facts.yaml
+```
+
+---
+> [!Tip] In case the host's SSH TCP port is different than the default `22`, add the following variable (e.g., for port TCP `2222`):
 ```shell
 ansible-playbook 300_nodegrid_facts.yaml -e "ansible_ssh_port=2222"
 ```
+---
+
 Example Output
 ```shell
 ansible@nodegrid:/etc/ansible/playbooks$ ansible-playbook 300_nodegrid_facts.yaml
@@ -225,14 +238,18 @@ Inventory Overview
 5. The default location for the Ansible inventory on a Nodegrid appliance is `/etc/ansible/inventories/`
 6. The Inventory is stored in `YAML` files. The main file is the `hosts.yml` file, which must contain the inventory structure. 
 
-> [!NOTE] Dynamic Inventory Plugins
+---
+> [!Note] Dynamic Inventory Plugins
 > Ansible supports dynamic inventory sources, like [Netbox](https://galaxy.ansible.com/ui/repo/published/netbox/netbox/) and other systems. This guide does not cover the setup of dynamic Inventory plugins, see [here](https://docs.ansible.com/ansible/latest/plugins/inventory.html) for more details and here to search for additional [modules](https://galaxy.ansible.com) which can be installed.
+---
 
-> [!NOTE] ZPE Systems Dynamic Inventory Plugins
+> [!Note] ZPE Systems Dynamic Inventory Plugins
 > ZPE Systems currently supports three dynamic inventory plugins:
 > 1. **Cluster plugin**: This exposes all cluster hosts to a local installation of Ansible on a Nodegrid appliance. This is installed and active by default and only requires a working Cluster configuration
 > 2. **Device plugin**: This Exposes all locally configured managed devices on Nodegrid appliance. This plugin is automatically installed with the Nodegrid Ansible library.
 > 3. **ZPE Cloud plugin**: This plugin enables the execution of Ansible playbooks via ZPE Cloud as the connectior, and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. [Ansible ZPE Cloud](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) describes in detail this plugin.
+---
+
 ### Inventory Structure
 Configure the Inventory
 
@@ -266,10 +283,10 @@ all:
                dub-sc1:
 ```
 
-> [!SUCCESS] RECOMMENDATION:
+> [!Tip] RECOMMENDATION:
 > It is recommended to utilise a group that identifies the organisation/company. This serves to clearly differentiate manually configured hosts from hosts provided through an automated inventory plugin, like the Nodegrid Cluster inventory plugin, which exposes all Nodegrid Cluster nodes.
 
-> [!WARNING] YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
+> [!Warning] YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
 > 
 > To display in `vi` special characters, you can use `vi` the command: `:set list`
 
@@ -313,13 +330,13 @@ ansible@nodegrid:/etc/ansible/inventories$ ansible-inventory --host ny-sc1
 {}
 ```
 
-> [!WARNING] COMMAND OUTPUT:
+> [!Warning] COMMAND OUTPUT:
 >  The inventory output for the specific host is currently still empty as no variables have been defined. This will be done during the following steps.
 
 ### Group Variables
 - Variables can be stored in the `hosts.yaml` file or in dedicated variable files, which are stored in the `group_vars` sub-folders. 
 
-> [!SUCCESS] RECOMMENDATION
+> [!Tip] RECOMMENDATION
 > It is recommended to store group variables in dedicated files, for example, variables which apply to all hosts can be stored in the file `group_vars/company.yaml` 
 -  Navigate to the Inventory folder  
 	```bash
@@ -330,7 +347,7 @@ cd /etc/ansible/inventories/group_vars
 vi company.yaml 
 	```
 
-> [!WARNING] The file name must match the group name used in the inventory in this case 'company.yaml'
+> [!Warning] The file name must match the group name used in the inventory in this case 'company.yaml'
 
 - Add the following content; this is an example list with the minimum requirements for the example. 
   
@@ -569,10 +586,10 @@ ansible@nodegrid:/etc/ansible/inventories/group_vars$
 ### Host Specific Variables (ny-sc1)
 - Host-specific variables can be stored either in the `hosts.yaml` file or similar to group variables in individual files. 
   
-> [!SUCCESS] RECOMMENDATION
+> [!Tip] RECOMMENDATION
 > It is recommended to store host-specific variables in host-specific files. These files are located in the folder `host_vars` and would typically have the name of the host, for example, `ny-sc1.yaml`
 
-> [!NOTE] OVERWRITING OF VARIABLES
+> [!Note] OVERWRITING OF VARIABLES
 >  Variables with the same name, that are defined on a host level will overwrite group-level variables; this allows us to have generic defaults defined on group levels, which then get overwritten with specific values on a lower level.
 
 - For this example, we will store the variable inside the `host_vars` directory
@@ -582,14 +599,14 @@ vi /etc/ansible/inventories/host_vars/ny-sc1.yaml
 ```
 - Add the following values to the local first node. In this example, `ny-sc1` is considered to be the local first node.
 
-> [!SUCCESS] RECOMMENDED
+> [!Tip] RECOMMENDED
 > It is recommended to configure some base settings. Other settings can be added later. The below example defines the required variables for a SuperCoordinator. Adjust the values are required.
 
-> [!NOTE] SSH TCP Port `22`
->  In case you require to configure SSH TCP port to a specific value (e.g., `2222`), adjust the following lines: 
->  ```
->  ansible_ssh_port: 2222
->  ssh_tcp_port: 2222
+> [!Important] SSH TCP Port `22`
+>  In case your device requires an specific SSH TCP port (e.g., `2222`) for SSH connections, adjust the following line in the inventory file `ny-sc1.yaml`: 
+```
+ansible_ssh_port: 2222
+```
 
 ```ny-sc1.yaml
 # Generic Ansible Settings  (REQUIRED)
@@ -614,11 +631,11 @@ network_connections:
   nodegrid_ipv4_bitmask: 24  
   
 # Wireguard Settings:  (CHANGE)  
-wireguard_interface_name: ny-sc1-hub                            # Wireguard interface and VPN name  
-wireguard_interface_address: 10.21.1.1/32                     # Wireguard interface internal IP address  
-wireguard_external_address_main: 10.0.2.134                     # Wireguard main external IP address (used on the spoke side)  
-wireguard_external_address_backup: 10.0.2.134                    # Wireguard backup external IP address (used on the spoke side)  
-wireguard_udp_port: 51820                                     # Wireguard UDP port  
+wireguard_interface_name: ny-sc1-hub            # Wireguard interface and VPN name  
+wireguard_interface_address: 10.21.1.1/32       # Wireguard interface internal IP address  
+wireguard_external_address_main: 10.0.2.134     # Wireguard main external IP address (used on the spoke side)  
+wireguard_external_address_backup: 10.0.2.134   # Wireguard backup external IP address (used on the spoke side)  
+wireguard_udp_port: 51820                       # Wireguard UDP port  
   
 # Cluster Settings:  (NO CHANGE REQUIRED)  
 cluster_settings_name: NY  
@@ -642,7 +659,7 @@ ipv4_firewall:
         - target: ACCEPT
           rule_number: 1
           protocol: tcp
-          destination_port: 2222
+          destination_port: 22
           source_net4: ""
           destination_net4: ""
           description: 'NODEGRID_SSH'        
@@ -715,7 +732,7 @@ ansible-inventory --host ny-sc1
 ansible -m ping ny-sc1
 ```
 
-> [!WARNING] WARNING
+> [!Warning] WARNING
 >  This command will only be successful if the target host is the local system. 
 >  In the case of a remote target, the user `ssh_keys` must be installed first on the remote system. This is covered in the section [[#Configure a new host]]
 
@@ -770,7 +787,7 @@ PLAY RECAP *********************************************************************
 ny-sc1                     : ok=26   changed=18   unreachable=0    failed=0    skipped=4    rescued=0    ignored=0
 ```
 
-- The first Super Coordinator (`ny-sc1`) is now configured
+- The first Super Coordinator `ny-sc1` is now configured!.
 
 # Setup of the rest of the Environment
 To configure and add additional hosts to the environment, we need to add their configurations to our inventory and then deploy the configuration.
@@ -802,7 +819,7 @@ Before we do this, let us cover briefly which settings are required for each sys
 |                    | failover_secondary_connection     | Local Coordinator           | Secondary Interface                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | CELLULAR-A                                                                                                                                                                                                               |
 |                    | failover_trigger_ip_address       | Local Coordinator           | Test Endpoint to be used, is the trigger for failover                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | zpecloud.com                                                                                                                                                                                                             |
 | Wireguard Settings | **Wireguard Settings**            |                             | Wireguard is used as an overlay network between the Super Coordinators and local Coordinators. The VPN ensures security and resilience in case of Network failover scenarios                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |                                                                                                                                                                                                                          |
-|                    | wireguard_interface_name          | Super and Local Coordinator | VPN interface Name on the system                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ny11-hub                                                                                                                                                                                                                 |
+|                    | wireguard_interface_name          | Super and Local Coordinator | VPN interface Name on the system                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ny-sc1-hub                                                                                                                                                                                                                 |
 |                    | wireguard_interface_address       | Super and Local Coordinator | The internal VPN IP address of the system                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | 10.21.1.1/32                                                                                                                                                                                                             |
 |                    | wireguard_external_address_main   | Super and Local Coordinator | The primary public IP address. This is used to configure VPN failover on the spoke systems                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 10.0.2.134                                                                                                                                                                                                               |
 |                    | wireguard_external_address_backup | Super and Local Coordinator | The backup public IP address. This so used to configure VPN failover on the spoke systems                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | 2.2.2.2                                                                                                                                                                                                                  |
@@ -811,12 +828,12 @@ Before we do this, let us cover briefly which settings are required for each sys
 ### Setting up Environment Inventory
 Add the variables for the remaining hosts to the `/etc/ansible/inventories/host_vars` directory. 
 
-> [!WARNING] YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
+> [!Warning] YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
 > 
 > To display in `vi` special characters, you can use in `vi` the command: `:set list`
 
 ### Global Settings
-> [!SUCCESS] RECOMMENDED
+> [!Tip] RECOMMENDED
 > To avoid issues with the IMI playbooks, it is recommended that you apply a configuration that excludes all hosts from any of the system roles. This is specifically required in case these playbooks are executed without any filters.
 
 - edit the `all.yaml` file in group_vars
@@ -839,7 +856,6 @@ vi /etc/ansible/inventories/host_vars/dub-sc1.yaml
 # Generic Ansible Settings
 ansible_host: 10.0.2.136
 ansible_ssh_port: 22
-ssh_tcp_port: 22
 # Generic Nodegrid Roles
 nodegrid_roles:
     - super_coordinator
@@ -856,11 +872,11 @@ network_connections:
       nodegrid_ipv4_address: 10.0.2.136  
       nodegrid_ipv4_bitmask: 24  
 # Wireguard Settings  
-wireguard_interface_name: dub-sc1-hub      #VPN interface name
-wireguard_interface_address: 10.21.2.1/32  #VPN Internal IP address
+wireguard_interface_name: dub-sc1-hub           # VPN interface name
+wireguard_interface_address: 10.21.2.1/32       # VPN Internal IP address
 # The following settings are used to configure the Wireguard Spokes
-wireguard_external_address_main: 10.0.2.136  # VPN primary external IP  
-wireguard_external_address_backup: 10.0.2.136 # VPN backup external IP  
+wireguard_external_address_main: 10.0.2.136     # VPN primary external IP  
+wireguard_external_address_backup: 10.0.2.136   # VPN backup external IP  
 wireguard_udp_port: 51820     # VPN UDP port  
 # Cluster Settings  
 cluster_settings_name: DUB  
@@ -884,7 +900,7 @@ ipv4_firewall:
         - target: ACCEPT
           rule_number: 1
           protocol: tcp
-          destination_port: 2222
+          destination_port: 22
           source_net4: ""
           destination_net4: ""
           description: 'NODEGRID_SSH'        
@@ -991,12 +1007,12 @@ failover_trigger_ip_address: 10.0.2.1
 # Wireguard Settings
 wireguard_failover_status: "yes"
 wireguard_interfaces:  
-    - wireguard_hub: ny-sc1   #super_coordinator ansible hostname  
-      wireguard_interface_name: ny-sc1  # VPN interface name  
-      wireguard_interface_address: 10.21.1.11/32  #Internal IP address  
-    - wireguard_hub: dub-sc1    #super_coordinator ansible hostname
-      wireguard_interface_name: dub-sc1 # VPN interface name
-      wireguard_interface_address: 10.21.2.11/32  #Internal IP address
+    - wireguard_hub: ny-sc1                       # super_coordinator ansible hostname  
+      wireguard_interface_name: ny-sc1            # VPN interface name  
+      wireguard_interface_address: 10.21.1.11/32  # Internal IP address  
+    - wireguard_hub: dub-sc1                      # super_coordinator ansible hostname
+      wireguard_interface_name: dub-sc1           # VPN interface name
+      wireguard_interface_address: 10.21.2.11/32  # Internal IP address
 # Cluster Settings
 cluster_settings_name: LA-CLUSTER  
 cluster_settings_psk: LA-NGCluster
@@ -1137,7 +1153,7 @@ ansible-inventory --host la-lp1
 ### Establish the Ansible connection
 By default, the super coordinator communicates with a new remote host only via the `admin` user. In order to enable Ansible communication, the Ansible user's `SSH_key` must be exchanged. The library provides a playbook that enables an automated method to exchange the `SSH_keys` directly from the super_coordinator.
 
-> [!WARNING] Admin default password
+> [!Waring] Admin default password
 > The `001_setup_nodegrid_ansible.yaml` playbook does currently not support the change of the admin default password. Ensure that the default admin password is changed, otherwise the playbook will fail.
 
 - To set the ansible communication run the following command for a specific host, during the execution provide the current admin password
@@ -1183,7 +1199,7 @@ la-lp1                     : ok=3    changed=1    unreachable=0    failed=0    s
 ny-sc1                     : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0 
 ```
 
-> [!INFO] Testing Connection
+> [!Tip] Testing Connection
 > The playbook validates at the end the ansible communication, but to manually validate the Ansible can communicate with a host run the command
 > `ansible -m ping <hostname>`
 
@@ -1200,7 +1216,7 @@ la-lc1 | SUCCESS => {
 ### Validate firmware version
 As some configuration options are firmware version specific, validating that all Nodegrid hosts are running the same version is recommended. The playbook `301_nodegrid_firmware_update.yaml` can be used to push the specific firmware version to all units automatically. It will check if the correct version is running on the system and, if required, will update it to the defined version. 
 
-> [!WARNING] Required Settings
+> [!Warning] Required Settings
 >  Before running this playbook, check that the inventory details are defined in the company.yaml file, the following settings must be provided: 
 > `nodegrid_iso_location`
 > `nodegrid_iso_file`
@@ -1261,9 +1277,6 @@ Once the communication has been established, it is time to push the configuratio
 ```shell
 ansible-playbook 100_role_super_coordinator.yaml
 ```
-> [!WARNING] [FIXME] SNMP configuration already present
-> There is an error if there is already snmp configuration
-> 
 
 - Apply a full configuration to a specific Super Coordinator
 ```shell
@@ -1374,20 +1387,20 @@ ansible-playbook --skip-tags <tags> <playbook>
 
 Other Ansible options to control a playbook execution are described in the following list. Full list can be found [here](https://docs.ansible.com/ansible/latest/cli/ansible-playbook.html#ansible-playbook)
 
-| Option         | Description                                                                        |
-| -------------- | ---------------------------------------------------------------------------------- |
-| --list-hosts   | outputs a list of matching hosts; does not execute anything else                   |
-| --list-tags    | list all available tags                                                            |
-| --list-tasks   | list all tasks that would be executed                                              |
-| --step         | One-step-at-a-time confirm each task before running                                |
-| --syntax-check | perform a syntax check on the playbook, but do not execute it                      |
-| --check        | don't make any changes; instead, try to predict some of the changes that may occur |
+| Option           | Description                                                                        |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| `--list-hosts`   | outputs a list of matching hosts; does not execute anything else                   |
+| `--list-tags`    | list all available tags                                                            |
+| `--list-tasks`   | list all tasks that would be executed                                              |
+| `--step`         | One-step-at-a-time confirm each task before running                                |
+| `--syntax-check` | perform a syntax check on the playbook, but do not execute it                      |
+| `--check`        | don't make any changes; instead, try to predict some of the changes that may occur |
 
 ### Configure VPN Overlay
 After the basic or full configuration is applied, which ensures network connectivity, the **Wireguard Overlay network** can be configured using `201_setup_wireguard_tunnels.yaml`
 This playbook will automatically extract the right details from each host and build the overlay tunnels. After the playbook is completed successfully, the system will have a working overlay network.
 
-> [!WARNING] Limiting the playbook
+> [!Warning] Limiting the playbook
 > The playbook requires access to all Super Coordinators and Local Coordinators; due to this, it is not easily possible to limit the execution to a single connection.
 
 Run the following command
@@ -1402,14 +1415,27 @@ ansible-playbook 202_cluster_super_coordinator.yaml
 ```
 
 # Validate Configuration
-[TODO] add Validation Steps
+Below you can find the expected results on each of the involved nodes: **Access > Table**
 
-![[images/Pasted image 20240514112901.png]]
+## Super-Coordinator `ny-sc1`
+![](images/access_ny_sc1.png)
+
+## Super-Coordinator `dub-sc1`
+![](images/access_dub_sc1.png)
+
+## Local-Coordinator `la-lc1`
+![](images/access_la_lc1.png)
+
+## Local-Peer `la-lp1`
+![](images/access_la_lp1.png)
+
+---
+
 # Appendix
-# vi editor tips
+## vi editor tips
 ### Display TAB characters in vi
 
-> [! WARNING] WARNING
+> [!Warning] WARNING
 > YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname, `hosts.yaml` and the `ny-sc1.yaml` file for formatting errors.
 
 To display in `vi` special characters like a tab, use in `vi` the command combination 
@@ -1418,14 +1444,19 @@ To display in `vi` special characters like a tab, use in `vi` the command combin
 - Tab characters are displayed as ^I
 
 #### Example `:set list`
-Before
-![[images/Pasted image 20240513125056.png]]
+Before:
+
+![](images/vi_before.png)
+
 After
-![[images/Pasted image 20240513125205.png]]
+
+![](images/vi_after.png)
+
 
 
 ### Recommended settings for vi to work with yaml files
 [TODO] fill in recomendations
+
 ### Known Issues
 
 - [ ] The following modules do not support Check Mode:
@@ -1446,3 +1477,9 @@ After
 - [ ] Some service changes restart of the web server, when running ansible on this same system, this will cause the connection to the system to gets disconnected and the user must login again.
 - [ ] Services: enable_search_engine_high_level_cipher_suite="yes" is currently not working
 - [ ] Cluster Module reports back OK even when a change was performed
+- [ ] **Nodegrid Nat Reversal Proxy**: if a Nodegrid is behind a NAT/Router with public IP, to have SSH access, a specific TCP port is required to be configured in port-forward mode pointing to the Nodegrid TCP/`22`. Furthermore, on the ansible host inventory, this port must be specified. For example, add the following to `dub-sc1.yaml` for configuring SSH access on port `2222`
+```
+ansible_host: <dub-sc1 Public IP>
+ansible_ssh_port: 2222
+```
+- [ ] **Clustering Issue on KVM VMs deployment**: In the tests, both `la-lc1` and `la-lp1` were deployed on a KVM host with Nodegrid verion v6.0.5, and in order to configure the *Cluster* options, first it is required that both Nodegrids are Restored to **Factory Default Settings**. Without this step, the `la-lc1`--`la-lp1` cluster fails.

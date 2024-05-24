@@ -30,8 +30,6 @@ id1 -.-|VPN| id3
 id2 -.-|VPN| id3
 ```
 
-^ce5928
-
 Requirements to replicate this setup:
 - 4 Nodegrid appliances, physical or virtual or a mix
 - Nodegrid Version 5.8.16 or higher
@@ -145,7 +143,10 @@ drwxrwxr-x 2 ansible admin 1024 May 13 10:30 system
 drwxrwxr-x 3 ansible admin 1024 May 13 10:30 system-roles
 ```
 
-> [!Note] Example Playbooks
+> [!Note]
+> 
+> **Example Playbooks**
+> 
 > The examples are sorted into folders for reference. Users have the option to either directly run the playbooks from the examples folder or to copy the desired playbooks to `/etc/ansible/playbooks/`.
 > 
 > It is recommended that the examples be copied to the working directory. This allows users to change and adapt them as needed freely.
@@ -178,7 +179,9 @@ ansible-playbook 300_nodegrid_facts.yaml
 ```
 
 ---
-> [!Tip] In case the host's SSH TCP port is different than the default `22`, add the following variable (e.g., for port TCP `2222`):
+> [!Tip]
+> 
+> In case the host's SSH TCP port is different than the default `22`, add the following variable (e.g., for port TCP `2222`):
 ```shell
 ansible-playbook 300_nodegrid_facts.yaml -e "ansible_ssh_port=2222"
 ```
@@ -239,11 +242,17 @@ Inventory Overview
 6. The Inventory is stored in `YAML` files. The main file is the `hosts.yml` file, which must contain the inventory structure. 
 
 ---
-> [!Note] Dynamic Inventory Plugins
+> [!Note]
+> 
+> Dynamic Inventory Plugins
+> 
 > Ansible supports dynamic inventory sources, like [Netbox](https://galaxy.ansible.com/ui/repo/published/netbox/netbox/) and other systems. This guide does not cover the setup of dynamic Inventory plugins, see [here](https://docs.ansible.com/ansible/latest/plugins/inventory.html) for more details and here to search for additional [modules](https://galaxy.ansible.com) which can be installed.
 ---
 
-> [!Note] ZPE Systems Dynamic Inventory Plugins
+> [!Note]
+> 
+> ZPE Systems Dynamic Inventory Plugins
+> 
 > ZPE Systems currently supports three dynamic inventory plugins:
 > 1. **Cluster plugin**: This exposes all cluster hosts to a local installation of Ansible on a Nodegrid appliance. This is installed and active by default and only requires a working Cluster configuration
 > 2. **Device plugin**: This Exposes all locally configured managed devices on Nodegrid appliance. This plugin is automatically installed with the Nodegrid Ansible library.
@@ -283,10 +292,13 @@ all:
                dub-sc1:
 ```
 
-> [!Tip] RECOMMENDATION:
+> [!Tip]
+> 
 > It is recommended to utilise a group that identifies the organisation/company. This serves to clearly differentiate manually configured hosts from hosts provided through an automated inventory plugin, like the Nodegrid Cluster inventory plugin, which exposes all Nodegrid Cluster nodes.
 
-> [!Warning] YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
+> [!Warning]
+> 
+> YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
 > 
 > To display in `vi` special characters, you can use `vi` the command: `:set list`
 
@@ -330,13 +342,15 @@ ansible@nodegrid:/etc/ansible/inventories$ ansible-inventory --host ny-sc1
 {}
 ```
 
-> [!Warning] COMMAND OUTPUT:
+> [!Warning]
+> 
 >  The inventory output for the specific host is currently still empty as no variables have been defined. This will be done during the following steps.
 
 ### Group Variables
 - Variables can be stored in the `hosts.yaml` file or in dedicated variable files, which are stored in the `group_vars` sub-folders. 
 
-> [!Tip] RECOMMENDATION
+> [!Tip]
+> 
 > It is recommended to store group variables in dedicated files, for example, variables which apply to all hosts can be stored in the file `group_vars/company.yaml` 
 -  Navigate to the Inventory folder  
 ```bash
@@ -348,7 +362,9 @@ cd /etc/ansible/inventories/group_vars
 vi company.yaml 
 ```
 
-> [!Warning] The file name must match the group name used in the inventory in this case 'company.yaml'
+> [!Warning]
+> 
+> The file name must match the group name used in the inventory in this case 'company.yaml'
 
 - Add the following content; this is an example list with the minimum requirements for the example. 
   
@@ -587,10 +603,14 @@ ansible@nodegrid:/etc/ansible/inventories/group_vars$
 ### Host Specific Variables (ny-sc1)
 - Host-specific variables can be stored either in the `hosts.yaml` file or similar to group variables in individual files. 
   
-> [!Tip] RECOMMENDATION
+> [!Tip]
+> 
 > It is recommended to store host-specific variables in host-specific files. These files are located in the folder `host_vars` and would typically have the name of the host, for example, `ny-sc1.yaml`
 
-> [!Note] OVERWRITING OF VARIABLES
+> [!Warning]
+> 
+> **OVERWRITING OF VARIABLES**
+> 
 >  Variables with the same name, that are defined on a host level will overwrite group-level variables; this allows us to have generic defaults defined on group levels, which then get overwritten with specific values on a lower level.
 
 - For this example, we will store the variable inside the `host_vars` directory
@@ -600,14 +620,18 @@ vi /etc/ansible/inventories/host_vars/ny-sc1.yaml
 ```
 - Add the following values to the local first node. In this example, `ny-sc1` is considered to be the local first node.
 
-> [!Tip] RECOMMENDED
+> [!Tip]
+>
 > It is recommended to configure some base settings. Other settings can be added later. The below example defines the required variables for a SuperCoordinator. Adjust the values are required.
 
-> [!Important] SSH TCP Port `22`
->  In case your device requires an specific SSH TCP port (e.g., `2222`) for SSH connections, adjust the following line in the inventory file `ny-sc1.yaml`: 
-```
-ansible_ssh_port: 2222
-```
+> [!Important]
+>
+> **SSH TCP Port `22`**
+> 
+> In case your device requires an specific SSH TCP port (e.g., `2222`) for SSH connections, adjust the following line in the inventory file `ny-sc1.yaml`: 
+> ```
+> ansible_ssh_port: 2222
+> ```
 
 ```ny-sc1.yaml
 # Generic Ansible Settings  (REQUIRED)
@@ -733,7 +757,8 @@ ansible-inventory --host ny-sc1
 ansible -m ping ny-sc1
 ```
 
-> [!Warning] WARNING
+> [!Warning]
+> 
 >  This command will only be successful if the target host is the local system. 
 >  In the case of a remote target, the user `ssh_keys` must be installed first on the remote system. This is covered in the section [[#Configure a new host]]
 
@@ -776,7 +801,6 @@ changed: [ny-sc1]
 TASK [zpe.nodegrid.auditing : Setup E-Mail Auditing Settings] ****************************************************************************************************************************************************************************************************************
 changed: [ny-sc1]
 ....
-
 
 ....
 TASK [Setup System SNMP Settings] ********************************************************************************************************************************************************************************************************************************************
@@ -829,12 +853,15 @@ Before we do this, let us cover briefly which settings are required for each sys
 ### Setting up Environment Inventory
 Add the variables for the remaining hosts to the `/etc/ansible/inventories/host_vars` directory. 
 
-> [!Warning] YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
+> [!Warning]
+> 
+> YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
 > 
 > To display in `vi` special characters, you can use in `vi` the command: `:set list`
 
 ### Global Settings
-> [!Tip] RECOMMENDED
+> [!Tip]
+> 
 > To avoid issues with the IMI playbooks, it is recommended that you apply a configuration that excludes all hosts from any of the system roles. This is specifically required in case these playbooks are executed without any filters.
 
 - edit the `all.yaml` file in group_vars
@@ -1154,7 +1181,10 @@ ansible-inventory --host la-lp1
 ### Establish the Ansible connection
 By default, the super coordinator communicates with a new remote host only via the `admin` user. In order to enable Ansible communication, the Ansible user's `SSH_key` must be exchanged. The library provides a playbook that enables an automated method to exchange the `SSH_keys` directly from the super_coordinator.
 
-> [!Waring] Admin default password
+> [!Waring]
+>
+> **Admin default password**
+> 
 > The `001_setup_nodegrid_ansible.yaml` playbook does currently not support the change of the admin default password. Ensure that the default admin password is changed, otherwise the playbook will fail.
 
 - To set the ansible communication run the following command for a specific host, during the execution provide the current admin password
@@ -1200,7 +1230,10 @@ la-lp1                     : ok=3    changed=1    unreachable=0    failed=0    s
 ny-sc1                     : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0 
 ```
 
-> [!Tip] Testing Connection
+> [!Tip]
+> 
+> **Testing Connection**
+> 
 > The playbook validates at the end the ansible communication, but to manually validate the Ansible can communicate with a host run the command
 > `ansible -m ping <hostname>`
 
@@ -1217,7 +1250,10 @@ la-lc1 | SUCCESS => {
 ### Validate firmware version
 As some configuration options are firmware version specific, validating that all Nodegrid hosts are running the same version is recommended. The playbook `301_nodegrid_firmware_update.yaml` can be used to push the specific firmware version to all units automatically. It will check if the correct version is running on the system and, if required, will update it to the defined version. 
 
-> [!Warning] Required Settings
+> [!Warning]
+> 
+> **Required Settings**
+> 
 >  Before running this playbook, check that the inventory details are defined in the company.yaml file, the following settings must be provided: 
 > `nodegrid_iso_location`
 > `nodegrid_iso_file`
@@ -1401,7 +1437,10 @@ Other Ansible options to control a playbook execution are described in the follo
 After the basic or full configuration is applied, which ensures network connectivity, the **Wireguard Overlay network** can be configured using `201_setup_wireguard_tunnels.yaml`
 This playbook will automatically extract the right details from each host and build the overlay tunnels. After the playbook is completed successfully, the system will have a working overlay network.
 
-> [!Warning] Limiting the playbook
+> [!Warning]
+> 
+> **Limiting the playbook**
+> 
 > The playbook requires access to all Super Coordinators and Local Coordinators; due to this, it is not easily possible to limit the execution to a single connection.
 
 Run the following command
@@ -1436,7 +1475,8 @@ Below you can find the expected results on each of the involved nodes: **Access 
 ## vi editor tips
 ### Display TAB characters in vi
 
-> [!Warning] WARNING
+> [!Warning]
+> 
 > YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname, `hosts.yaml` and the `ny-sc1.yaml` file for formatting errors.
 
 To display in `vi` special characters like a tab, use in `vi` the command combination 
@@ -1479,8 +1519,8 @@ After
 - [ ] Services: enable_search_engine_high_level_cipher_suite="yes" is currently not working
 - [ ] Cluster Module reports back OK even when a change was performed
 - [ ] **Nodegrid Nat Reversal Proxy**: if a Nodegrid is behind a NAT/Router with public IP, to have SSH access, a specific TCP port is required to be configured in port-forward mode pointing to the Nodegrid TCP/`22`. Furthermore, on the ansible host inventory, this port must be specified. For example, add the following to `dub-sc1.yaml` for configuring SSH access on port `2222`
-```
-ansible_host: <dub-sc1 Public IP>
-ansible_ssh_port: 2222
-```
-- [ ] **Clustering Issue on KVM VMs deployment**: In the tests, both `la-lc1` and `la-lp1` were deployed on a KVM host with Nodegrid verion v6.0.5, and in order to configure the *Cluster* options, first it is required that both Nodegrids are Restored to **Factory Default Settings**. Without this step, the `la-lc1`--`la-lp1` cluster fails.
+   ```
+   ansible_host: <dub-sc1 Public IP>
+   ansible_ssh_port: 2222
+   ```
+- [ ] **Clustering Issue on KVM VMs deployment**: In the tests, both `la-lc1` and `la-lp1` were deployed on a KVM host with Nodegrid verion v6.0.5, and in order to configure the *Cluster* options, first it is required that both Nodegrids are Restored to **Factory Default Settings**. Without this step, the `la-lc1`--`la-lp1` cluster failed.

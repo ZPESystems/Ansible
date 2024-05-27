@@ -39,6 +39,12 @@
         tags:
           - network_connections
 
+      - name: Setup IPv4 Firewall Settings
+        include_role:
+          name: network_firewall
+        tags:
+          - firewall
+
       - name: Setup System Preferences
         include_role:
           name: system_preferences

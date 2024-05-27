@@ -349,7 +349,7 @@ cd /etc/ansible/inventories/
 ```
 2. Edit the `hosts.yaml` file and create the inventory
 ```bash
-vi hosts.yaml
+vim hosts.yaml
 ```
 3.  Example `hosts.yaml` file without variables, based on the provided Example
 ```hosts.yaml
@@ -381,7 +381,7 @@ all:
 > 
 > YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
 > 
-> To display in `vi` special characters, you can use `vi` the command: `:set list`
+> To display in `vim` special characters, you can use the command: `:set list`
 
 4. To test the current inventory changes, run the command, which will show and validate the inventory structure
 ```bash
@@ -440,7 +440,7 @@ cd /etc/ansible/inventories/group_vars
 
 - Create the file `company.yaml`, which will contain variables which apply to all hosts
 ```bash
-vi company.yaml 
+vim company.yaml 
 ```
 
 > [!Warning]
@@ -704,7 +704,7 @@ ansible@nodegrid:/etc/ansible/inventories/group_vars$
 - For this example, we will store the variable inside the `host_vars` directory
 - Edit the `ny-sc1.yaml` file
 ```
-vi /etc/ansible/inventories/host_vars/ny-sc1.yaml
+vim /etc/ansible/inventories/host_vars/ny-sc1.yaml
 ```
 - Add the following values to the local first node. In this example, `ny-sc1` is considered to be the local first node.
 
@@ -717,7 +717,7 @@ vi /etc/ansible/inventories/host_vars/ny-sc1.yaml
 > **SSH TCP Port `22`**
 > 
 > In case your device requires an specific SSH TCP port (e.g., `2222`) for SSH connections, adjust the following line in the inventory file `ny-sc1.yaml`: 
-> ```
+> ```shell
 > ansible_ssh_port: 2222
 > ```
 
@@ -862,12 +862,6 @@ Before we do this, let us cover briefly which settings are required for each sys
 ### Setting up Environment Inventory
 Add the variables for the remaining hosts to the `/etc/ansible/inventories/host_vars` directory. 
 
-> [!Warning]
-> 
-> YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname and the `hosts.yaml` file for formatting errors.
-> 
-> To display in `vi` special characters, you can use in `vi` the command: `:set list`
-
 ### Global Settings
 > [!Tip]
 > 
@@ -875,7 +869,7 @@ Add the variables for the remaining hosts to the `/etc/ansible/inventories/host_
 
 - edit the `all.yaml` file in group_vars
 ```
-vi /etc/ansible/inventories/group_vars/all.yaml
+vim /etc/ansible/inventories/group_vars/all.yaml
 ```
 add the following values 
 ```all.yaml
@@ -883,10 +877,10 @@ nodegrid_roles:
   - ignore
 ```
 
-#### Variables for Super Coordinator (dub-sc1)
+#### Variables for Super Coordinator (`dub-sc1`)
 - Edit the `dub-sc1.yaml` file
 ```
-vi /etc/ansible/inventories/host_vars/dub-sc1.yaml
+vim /etc/ansible/inventories/host_vars/dub-sc1.yaml
 ```
 - Add the following values 
 ```dub-sc1.yaml
@@ -926,10 +920,10 @@ cluster_settings_mode: star
 ansible-inventory --host dub-sc1
 ```
 
-#### Variables for Local Coordinator (la-lc1)
+#### Variables for Local Coordinator (`la-lc1`)
 - Edit the `la-lc1.yaml` file
 ```
-vi /etc/ansible/inventories/host_vars/la-lc1.yaml
+vim /etc/ansible/inventories/host_vars/la-lc1.yaml
 ```
 - Add the following values 
 ```la-lc1.yaml  
@@ -983,10 +977,10 @@ cluster_settings_mode: mesh
 ansible-inventory --host la-lc1
 ```
 
-#### Variables for Local Peer(la-lp1)
+#### Variables for Local Peer(`la-lp1`)
 - Edit the `la-lp1.yaml` file
 ```
-vi /etc/ansible/inventories/host_vars/la-lp1.yaml
+vim /etc/ansible/inventories/host_vars/la-lp1.yaml
 ```
 - Add the following values 
 ```la-lp1.yaml
@@ -1317,8 +1311,20 @@ Below you can find the expected results on each of the involved nodes: **Access 
 ---
 
 # Appendix
-## vi editor tips
-### Display TAB characters in vi
+## `vim` editor tips
+
+The playboook `001_setup_nodegrid_ansible.yaml` creates the file `/home/ansible/.vimrc` to configure `vim` with the following options:
+
+```shell
+set number
+set tabstop=2 softtabstop=2 shiftwidth=2
+set number ruler
+set autoindent smartindent
+syntax enable
+filetype plugin indent on
+```
+
+### Display TAB characters in `vim`
 
 > [!Warning]
 > 
@@ -1338,10 +1344,6 @@ After
 
 ![](images/vi_after.png)
 
-
-
-### Recommended settings for vi to work with yaml files
-[TODO] fill in recomendations
 
 ### Known Issues
 

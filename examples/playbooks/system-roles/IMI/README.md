@@ -5,7 +5,7 @@ The Guide assumes that one of the Super Coordinators (NY-SC1) is used as an Ansi
 
 ```mermaid
 ---
-title: Example Setup
+title: Setup Overview
 ---
 flowchart
  id1["ny-sc1 - Super Coordinator"]
@@ -36,6 +36,13 @@ Requirements to replicate this setup:
 - Cluster Licenses for 4 Nodes
 
 # Overview
+This document will guide users through the installation and configuration of the required tools and configurations on 
+each host. The guide will first look at the installation of the Ansible dependencies on one of teh SuperCoordinators. 
+This system will then be used to maintain teh configuration of each Nodegrid node. After this will the guide compleat 
+the configuration for each host and setup a VPN overlay network between each Coordinator systems, 
+which allows for an automatic failover, in case the primary link fails.
+
+The configuration can be easly expanded to include more location or nodes per site, by adding additional hosts to the inventory.
 
 # Configuration of NY-SC1
 ## Step 1: Download Ansible Library
@@ -233,6 +240,82 @@ localhost                  : ok=2    changed=0    unreachable=0    failed=0    s
 ### Overview
 This step is critical, as the setting will be used as a source of truth for all appliances and will determine which settings get applied to each system. The Inventory should match the designed layout. The following section outlines a few basic concepts, for more information about the Ansible Inventory option, see [How to Build Your Inventory](https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html)
 
+The Expample will build out the following network and 
+```mermaid
+flowchart TB
+    id-ny-sc1{"`Nodegrid Node
+    hostname: **NY-SC1**
+    role: **SuperCoordinator**
+    description: **Central Access Node**`"}
+		
+    id-ny-sc1-eth0[["`InterfaceName: **ETH0** 
+                      IP Address: **10.0.2.134**`"]]
+    id-ny-sc1-wg0[["`InterfaceName: **wg-ny** 
+                    IP Address: **10.21.1.1**`"]]                      
+    id-ny-router{{Router}}
+    id-ny-sc1 --- id-ny-sc1-eth0 ---id-ny-router --- id-ny-router-pub[["`Public IP: 10.0.2.134`"]]
+    
+    id-dub-sc1{"`Nodegrid Node
+    hostname: **DUB-SC1**
+    role: **SuperCoordinator**
+    description: **Central Access Node**`"}
+    id-dub-sc1-eth0[["`InterfaceName: **ETH0** 
+                       IP Address: **10.0.2.136**`"]]
+     id-dub-sc1-wg0[["`InterfaceName: **wg-dub** 
+                    IP Address: **10.21.2.1**`"]]                      
+    id-dub-router{{Router}}
+    id-dub-sc1 --- id-dub-sc1-eth0 --- id-dub-router --- id-dub-router-pub[["`Public IP: 10.0.2.136`"]]
+    
+    id-backbone(("Backbone"))
+    id-internet(("Internet"))
+    
+    id-ny-router --- id-backbone --- id-la-router
+    id-dub-router --- id-backbone
+    
+    id-ny-router-pub -.- id-internet
+    id-dub-router-pub -.- id-internet
+    
+    id-la-lc1{"`Nodegrid Node
+    hostname: **LA-LC1**
+    role: **LocalCoordinator**
+    description: **Site Controller**`"}
+    id-la-lc1-lte[["`InterfaceName: LTE 
+                    IP Address: Dynamic`"]]
+    id-la-lc1-eth0[["`InterfaceName: **ETH0** 
+                       IP Address: **10.0.2.135**`"]]
+
+    id-la-lc1 -.- id-la-lc1-wg0 & id-la-lc1-wg1
+    id-internet -.- id-la-lc1-lte --- id-la-lc1
+    id-la-router{{Router}} --- id-la-lc1-eth0 --- id-la-lc1
+    
+%%    id-la-lp1{LA-LP1}
+%%    id-la-lp1-eth0[[ETH0]]
+%%    id-la-router{{Router}} --- id-la-lp1-eth0 --- id-la-lp1
+    
+
+    id-la-lc1-wg0[["`InterfaceName: **wg-ny** 
+                    IP Address: **10.21.1.2**`"]]
+    id-ny-sc1 -.- id-ny-sc1-wg0 -. "`VPN`" .- id-la-lc1-wg0
+    
+    id-la-lc1-wg1[["`InterfaceName: **wg-dub** 
+                    IP Address: **10.21.2.2**`"]]
+    id-dub-sc1 -.- id-dub-sc1-wg0 -. "`VPN`" .- id-la-lc1-wg1
+    
+    classDef classWireguardNY fill:#ff9900,stroke:#333,stroke-width:2px
+    class id-ny-sc1-wg0,id-la-lc1-wg0,id-ny-sc1,id-ny-sc1-eth0,id-ny-router,id-ny-router-pub classWireguardNY;
+    classDef classWireguardDUB fill:#d140b3,stroke:#333,stroke-width:2px
+    class id-dub-sc1-wg0,id-la-lc1-wg1,id-dub-sc1,id-dub-sc1-eth0,id-dub-router,id-dub-router-pub classWireguardDUB;
+    classDef classWireguardLA fill:#02c746,stroke:#333,stroke-width:2px
+    class id-la-lc1,id-la-lc1-eth0,id-la-lc1-lte,id-la-router classWireguardLA;
+    classDef classBackbone fill:#1999,stroke:#333,stroke-width:2px
+    class id-backbone classBackbone;
+    classDef classInternet fill:#1999,stroke:#333,stroke-width:2px
+    class id-internet classInternet;
+```
+
+
+
+
 Inventory Overview
 1. The inventory is organized hierarchically and utilizes groups that can be nested.
 2. Infrastructure devices like Nodegrid appliances are represented as `hosts` which can be part of one or multiple groups
@@ -240,6 +323,7 @@ Inventory Overview
 4. The Ansible inventory files utilize standard `YAML` or `JSON` notation. Both are valid, but ideally should not be mixed to avoid confusion. This document will only use `YAML` notation.
 5. The default location for the Ansible inventory on a Nodegrid appliance is `/etc/ansible/inventories/`
 6. The Inventory is stored in `YAML` files. The main file is the `hosts.yml` file, which must contain the inventory structure. 
+
 
 ---
 > [!Note]

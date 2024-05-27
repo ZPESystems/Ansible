@@ -40,4 +40,15 @@
           ansible_sudoers: "{{ ansible_sudoers }}"
 
      - name: Validate Connection
+       vars:
+         ansible_user: ansible
        ping:
+     - name: Copy .vimrc config file
+       vars:
+         ansible_user: ansible
+       ansible.builtin.template:
+         src: templates/.vimrc
+         dest: /home/ansible/
+         owner: ansible
+         group: ansible
+         mode: '0644'

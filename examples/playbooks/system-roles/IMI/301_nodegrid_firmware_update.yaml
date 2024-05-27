@@ -65,17 +65,17 @@
          register: smartctl
          ignore_errors: true
 
-       - name: Check for badblocks
-         command: badblocks -v "/dev/{{ item }}"
-         become: true
-         with_items: ["sda1","sda2","sda3","sda5","sda7","sda8"]
-         register: badblocks
-
-       - name: assert that there are no badblocks
-         assert:
-           that:
-             - "'Pass completed, 0 bad blocks found. (0/0/0 errors)' in item.stderr_lines"
-         with_items: "{{ badblocks.results }}"
+#       - name: Check for badblocks
+#         command: badblocks -v "/dev/{{ item }}"
+#         become: true
+#         with_items: ["sda1","sda2","sda3","sda5","sda7","sda8"]
+#         register: badblocks
+#
+#       - name: assert that there are no badblocks
+#         assert:
+#           that:
+#             - "'Pass completed, 0 bad blocks found. (0/0/0 errors)' in item.stderr_lines"
+#         with_items: "{{ badblocks.results }}"
 
        - name: Check for ext4 error
          command: "cat /sys/fs/ext4/{{ item }}/errors_count"

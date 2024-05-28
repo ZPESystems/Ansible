@@ -240,7 +240,77 @@ localhost                  : ok=2    changed=0    unreachable=0    failed=0    s
 ### Overview
 This step is critical, as the setting will be used as a source of truth for all appliances and will determine which settings get applied to each system. The Inventory should match the designed layout. The following section outlines a few basic concepts. For more information about the Ansible Inventory option, see [How to Build Your Inventory](https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html)
 
-The Example will build out the following network and 
+The Example will build out the following network:
+
+```mermaid
+graph TB
+    subgraph sc["`**Super-Coordinators**`"]
+        subgraph ny-sc1
+            style ny-sc1 fill: white
+            subgraph ny-ifaces[ifaces]
+                style ny-ifaces fill: lightgray
+                ny-LTE["LTE
+                a.b.c.d
+                @public_IPv4"]
+                ny-MPLS["MPLS
+                172.16.1.1"]
+                ny-wg["Wireguard1
+                10.21.1.1"]
+            end
+        end
+        subgraph dub-sc1
+            style dub-sc1 fill: white
+            subgraph dub-ifaces[ifaces]
+                style dub-ifaces fill: lightgray
+                dub-wg["Wireguard2
+                10.21.2.1"]
+                dub-LTE["LTE
+                w.x.y.z
+                @public_IPv4"]
+                dub-MPLS["MPLS
+                172.16.1.2"]
+                
+            end
+        end
+    end
+    cloud([<img src='https://uxwing.com/wp-content/themes/uxwing/download/web-app-development/cloud-icon.svg'  width='50' height='50' />Internet])
+    mpls([<img src='https://uxwing.com/wp-content/themes/uxwing/download/web-app-development/cloud-icon.svg'  width='50' height='50' />MPLS])
+    subgraph lc["`**Local-Coordinator**`"]
+        subgraph la-lc1
+            style la-lc1 fill: white
+            subgraph la-lc-ifaces[ifaces]
+                style la-lc-ifaces fill: lightgray
+                lc-LTE["LTE
+                @public_IPv4"]
+                lc-MPLS["MPLS
+                172.16.1.11"]            
+                lc-ny-wg["Wireguard1
+                10.21.1.11"]
+                lc-dub-wg["Wireguard2
+                10.21.2.11"]
+                lc-LAN["LAN
+                192.168.1.1"]
+            end
+        end
+    end
+    subgraph lp["`**Local-Peer**`"]
+        direction TB
+        subgraph la-lp1
+            style la-lp1 fill: white
+            subgraph la-lp-ifaces[ifaces]
+                lp-LAN["LAN
+                192.168.1.2"]
+            end
+        end
+    end
+    
+    dub-wg =====|Wireguard VPN| lc-dub-wg
+    ny-wg ===|Wireguard VPN| lc-ny-wg
+    ny-MPLS & dub-MPLS & lc-MPLS -..- mpls
+    ny-LTE & dub-LTE & lc-LTE -...- cloud
+    lc-LAN --- lp-LAN
+```
+
 ```mermaid
 flowchart TB
     id-ny-sc1{"`Nodegrid Node

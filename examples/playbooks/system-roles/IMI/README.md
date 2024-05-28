@@ -273,8 +273,8 @@ graph TB
             end
         end
     end
-    cloud([<img src='https://uxwing.com/wp-content/themes/uxwing/download/web-app-development/cloud-icon.svg'  width='50' height='50' />Internet])
-    mpls([<img src='https://uxwing.com/wp-content/themes/uxwing/download/web-app-development/cloud-icon.svg'  width='50' height='50' />MPLS])
+    cloud((<width='50' height='50' />Internet))
+    mpls((<width='50' height='50' />MPLS))
     subgraph lc["`**Local-Coordinator**`"]
         subgraph la-lc1
             style la-lc1 fill: white

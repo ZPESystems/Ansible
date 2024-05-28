@@ -1,7 +1,7 @@
 ## The goal of this guide:
-This guide provides an overview of how an Isolated Management Infrastructure can be created using ZPE Systems' Nodegrid solution. It utilizes the ZPE Systems Ansible Library to automate the setup and configuration process.
+This guide provides an overview of how an Isolated Management Infrastructure IMI can be created using ZPE Systems' Nodegrid solution. It utilizes the ZPE Systems Ansible Library to automate the setup and configuration process.
 
-The Guide assumes that one of the Super Coordinators (NY-SC1) is used as an Ansible host that will provision all other Nodegrid appliances in the demo setup. The Guide assumes that only a minimal configuration was performed on all appliances and that a working network connection exists between all nodes.
+The Guide assumes that one of the Super Coordinators (`ny-sc1`) is used as an Ansible host that will provision all other Nodegrid appliances in the demo setup. The Guide assumes that only a minimal configuration was performed on all appliances and that a working network connection exists between all nodes.
 
 ```mermaid
 ---
@@ -37,12 +37,12 @@ Requirements to replicate this setup:
 
 # Overview
 This document will guide users through the installation and configuration of the required tools and configurations on 
-each host. The guide will first look at the installation of the Ansible dependencies on one of teh SuperCoordinators. 
-This system will then be used to maintain teh configuration of each Nodegrid node. After this will the guide compleat 
-the configuration for each host and setup a VPN overlay network between each Coordinator systems, 
-which allows for an automatic failover, in case the primary link fails.
+each Nodegrid host. The guide will first look at the installation of the Ansible dependencies on one of the SuperCoordinators. 
+This system will then be used to maintain the configuration of each Nodegrid node. After this, the guide will complete 
+the configuration for each host and setup a VPN overlay network between each Coordinator, 
+which allows for an automatic failover in case the primary link fails.
 
-The configuration can be easly expanded to include more location or nodes per site, by adding additional hosts to the inventory.
+The configuration can be easily expanded to include more location or nodes per site by adding additional hosts to the inventory.
 
 # Configuration of NY-SC1
 ## Step 1: Download Ansible Library
@@ -60,7 +60,7 @@ The configuration can be easly expanded to include more location or nodes per si
 
 ![](images/file_manager.png)
 
-- Upload the downloaded `.zip` file into the folder (default name: Ansible-main.zip)
+- Upload the downloaded `.zip` file into the folder (default name: `Ansible-main.zip`)
 
   ![](images/file_upload.png)
 
@@ -71,7 +71,7 @@ The configuration can be easly expanded to include more location or nodes per si
 ```shell
 cd /var/local/file_manager/admin_group/
 ```
-- extract the `.zip` file with
+- Extract the `.zip` file with
 ```shell
 unzip Ansible-main.zip
 ```
@@ -99,7 +99,7 @@ Archive:  Ansible-main.zip
 ```bash
 cd Ansible-main
 ```
-- run the installation playbook.
+- Run the installation playbook.
 ```bash
 ansible-playbook nodegrid_install.yml
 ```
@@ -127,7 +127,7 @@ localhost                  : ok=27   changed=18   unreachable=0    failed=0    s
 admin@nodegrid:/var/local/file_manager/admin_group/Ansible-main$ 
 ```
 
-- Become ansible user.
+- Become `ansible` user.
 ```bash
 sudo su - ansible
 ```
@@ -238,9 +238,9 @@ localhost                  : ok=2    changed=0    unreachable=0    failed=0    s
 
 ## Step 3: Build the Ansible Inventory
 ### Overview
-This step is critical, as the setting will be used as a source of truth for all appliances and will determine which settings get applied to each system. The Inventory should match the designed layout. The following section outlines a few basic concepts, for more information about the Ansible Inventory option, see [How to Build Your Inventory](https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html)
+This step is critical, as the setting will be used as a source of truth for all appliances and will determine which settings get applied to each system. The Inventory should match the designed layout. The following section outlines a few basic concepts. For more information about the Ansible Inventory option, see [How to Build Your Inventory](https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html)
 
-The Expample will build out the following network and 
+The Example will build out the following network and 
 ```mermaid
 flowchart TB
     id-ny-sc1{"`Nodegrid Node
@@ -337,7 +337,7 @@ Inventory Overview
 > ZPE Systems currently supports three dynamic inventory plugins:
 > 1. **Cluster plugin**: This exposes all cluster hosts to a local installation of Ansible on a Nodegrid appliance. This is installed and active by default and only requires a working Cluster configuration
 > 2. **Device plugin**: This Exposes all locally configured managed devices on Nodegrid appliance. This plugin is automatically installed with the Nodegrid Ansible library.
-> 3. **ZPE Cloud plugin**: This plugin enables the execution of Ansible playbooks via ZPE Cloud as the connectior, and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. [Ansible ZPE Cloud](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) describes in detail this plugin.
+> 3. **ZPE Cloud plugin**: This plugin enables the execution of Ansible playbooks via ZPE Cloud as the connector, and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. [Ansible ZPE Cloud](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) describes in detail this plugin.
 ---
 
 ### Inventory Structure
@@ -375,7 +375,7 @@ all:
 
 > [!Tip]
 > 
-> It is recommended to utilise a group that identifies the organisation/company. This serves to clearly differentiate manually configured hosts from hosts provided through an automated inventory plugin, like the Nodegrid Cluster inventory plugin, which exposes all Nodegrid Cluster nodes.
+> It is recommended to utilize a group that identifies the organization/company. This serves to clearly differentiate manually configured hosts from hosts provided through an automated inventory plugin, like the Nodegrid Cluster inventory plugin, which exposes all Nodegrid Cluster nodes.
 
 > [!Warning]
 > 
@@ -1009,7 +1009,7 @@ cluster_settings_mode: mesh
 ansible-inventory --host la-lp1
 ```
 
-## Finalise the Configuration
+## Finalize the Configuration
 1. Setup Ansible connection
 2. Validate Firmware Version
 3. Push system configuration
@@ -1287,8 +1287,8 @@ Run the following command
 ansible-playbook 201_setup_wireguard_tunnels.yaml
 ```
 
-### Finalise the Supper Cluster setup - Join Local Cluster 
-- To finalise the setup configure join now the super coordinators to each local site cluster, by run the following command
+### Finalize the Supper Cluster setup - Join Local Cluster 
+- To finalize the setup configure join now the super coordinators to each local site cluster, by run the following command
 ```shell
 ansible-playbook 202_cluster_super_coordinator.yaml
 ```
@@ -1313,7 +1313,7 @@ Below you can find the expected results on each of the involved nodes: **Access 
 # Appendix
 ## `vim` editor tips
 
-The playboook `001_setup_nodegrid_ansible.yaml` creates the file `/home/ansible/.vimrc` to configure `vim` with the following options:
+The playbook `001_setup_nodegrid_ansible.yaml` creates the file `/home/ansible/.vimrc` to configure `vim` with the following options:
 
 ```shell
 set number
@@ -1370,4 +1370,4 @@ After
    ansible_host: <dub-sc1 Public IP>
    ansible_ssh_port: 2222
    ```
-- [ ] **Clustering Issue on KVM VMs deployment**: In the tests, both `la-lc1` and `la-lp1` were deployed on a KVM host with Nodegrid verion v6.0.5, and in order to configure the *Cluster* options, first it is required that both Nodegrids are Restored to **Factory Default Settings**. Without this step, the `la-lc1`--`la-lp1` cluster failed.
+- [ ] **Clustering Issue on KVM VMs deployment**: In the tests, both `la-lc1` and `la-lp1` were deployed on a KVM host with Nodegrid version v6.0.5, and in order to configure the *Cluster* options, first it is required that both Nodegrids are Restored to **Factory Default Settings**. Without this step, the `la-lc1`--`la-lp1` cluster failed.

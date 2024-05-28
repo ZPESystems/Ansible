@@ -1330,7 +1330,7 @@ filetype plugin indent on
 > 
 > YAML files only accept space characters, are very specific with the indentations, and do not allow tabulators. Should the command fail to display the host's inventory, double-check the hostname, `hosts.yaml` and the `ny-sc1.yaml` file for formatting errors.
 
-To display in `vi` special characters like a tab, use in `vi` the command combination 
+To display in `vim` special characters like a tab, use in `vim` the command combination 
 - Escape key
 - then type `:set list`
 - Tab characters are displayed as ^I

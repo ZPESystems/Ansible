@@ -1,0 +1,148 @@
+- name: Firmware Upgrade
+  hosts: all
+  gather_facts: False
+  collections:
+    - zpe.nodegrid
+      #  become: true
+          
+  tasks:
+    - name: Get Nodegrid Facts
+      zpe.nodegrid.facts:
+
+    - name: Check if update is required
+      when:
+        - "'firmware_upgrade' in hostvars[inventory_hostname]"
+        - "'nodegrid_iso_source' in hostvars[inventory_hostname].firmware_upgrade"
+        - "'nodegrid_iso_dest_file' in hostvars[inventory_hostname].firmware_upgrade"
+        - "'nodegrid_target_version' in hostvars[inventory_hostname].firmware_upgrade" 
+        - "'nodegrid_iso_copy_file' in hostvars[inventory_hostname].firmware_upgrade"
+        - "'nodegrid_format_partitions' in hostvars[inventory_hostname].firmware_upgrade"
+        - "'nodegrid_system_profile' in hostvars[inventory_hostname].firmware_upgrade"
+        - "'nodegrid_check_disk' in hostvars[inventory_hostname].firmware_upgrade"
+      assert:
+        that:
+          - hostvars[inventory_hostname].firmware_upgrade.nodegrid_target_version == ansible_facts.about.version
+        success_msg: "Nodegrid Version match, no upgrade required"
+        fail_msg: "Nodegrid Version do not match, upgrade required"
+      ignore_errors: true
+      register: upgrade
+
+    - name: Get ISO file
+      tags: get-iso
+      when: upgrade.failed == true
+      vars:
+        firmware_upgrade: "{{ hostvars[inventory_hostname].firmware_upgrade }}"
+      block:
+        - name: Download iso file from URL 
+          ansible.builtin.get_url:
+            url: "{{ firmware_upgrade.nodegrid_iso_source }}"
+            dest: "{{ firmware_upgrade.nodegrid_iso_dest_file }}"
+          when: firmware_upgrade.iso_file_soure == "url"
+        
+        - name: Copy local iso file to remote
+          ansible.builtin.copy:
+            src: "{{ firmware_upgrade.nodegrid_iso_source }}"
+            dest: "{{ firmware_upgrade.nodegrid_iso_dest_file }}"
+          when: firmware_upgrade.iso_file_soure == "copy_file_to_remote"
+        
+        - name: Copy local iso file
+          ansible.builtin.copy:
+            remote_src: true
+            src: "{{ firmware_upgrade.nodegrid_iso_source }}"
+            dest: "{{ item.file }}"
+          when: firmware_upgrade.iso_file_soure == "copy_local_file"
+        - name: get disk space after image was copied
+          gather_facts:
+ 
+        - name: assert that there is enough free disk space in /var
+          assert:
+            that:
+             - "{{ item.mount == '/var' and ( item.size_available > 5767168000 ) }}"
+          with_items: "{{ ansible_mounts }}"
+          register: free_space_check
+          when: "item.mount == '/var'"
+ 
+        - name: Clear up /var partition disk space usage by removing old files in /var/coredump
+          file:
+             path: /var/coredump/
+             state: absent
+          become: true
+ 
+        - name: recreate /var/coredump/
+          file:
+              path: /var/coredump/
+              state: directory
+              mode: '0755'
+          become: true
+
+    - name: Check Disks
+      when: 
+        - "'firmware_upgrade' in hostvars[inventory_hostname]"
+        - "'nodegrid_check_disk' in hostvars[inventory_hostname].firmware_upgrade"
+        - "hostvars[inventory_hostname].firmware_upgrade.nodegrid_check_disk"
+      block:
+       - name: check for disk errors
+         command: smartctl -a -q errorsonly /dev/sda
+         become: true
+         register: smartctl
+         ignore_errors: true
+       - name: Check for badblocks
+         command: badblocks -v "/dev/{{ item }}"
+         become: true
+         with_items: ["sda1","sda2","sda3","sda5","sda7","sda8"]
+         register: badblocks
+
+       - name: assert that there are no badblocks
+         assert:
+           that:
+             - "'Pass completed, 0 bad blocks found. (0/0/0 errors)' in item.stderr_lines"
+         with_items: "{{ badblocks.results }}"
+
+       - name: Check for ext4 error
+         command: "cat /sys/fs/ext4/{{ item }}/errors_count"
+         become: true
+         with_items: [ "sda5","sda8" ]
+         register: ext4_errors
+
+       - name: assert that there are no ext4_errors
+         assert:
+           that:
+            - "'0' == item.stdout"
+         with_items: "{{ ext4_errors.results }}"
+        
+    - name: Firmware Upgrade
+      tags: firmware_upgrade
+      when: upgrade.failed == true
+      block:
+        - name: Update Sys Profile
+          shell: "/usr/sbin/updateSysProfile {{hostvars[inventory_hostname].firmware_upgrade.system_profile}}"
+        - name: System Upgrade
+          zpe.nodegrid.nodegrid_cmds: 
+            cmds:
+              - cmd: 'software_upgrade'
+              - cmd: 'set filename={{ hostvars[inventory_hostname].firmware_upgrade.nodegrid_iso_dest_file}}'
+              - cmd: 'set format_partitions_before_upgrade={{ hostvars[inventory_hostname].firmware_upgrade.nodegrid_format_partitions }}'
+              - cmd: 'commit'
+          register: ng_software_upgrade_output
+        - name: Show Commands results
+          debug:
+            msg: "{{ ng_software_upgrade_output }}"
+
+        - name: Wait a max of 15 mins for target connection to become reachable/usable after upgrade
+          wait_for_connection:
+            delay: 60
+            sleep: 30
+            timeout: 900
+
+        - name: Get Updated Nodegrid Facts
+          zpe.nodegrid.facts:
+          retries: 3
+          delay: 60
+
+        - name: Check if update was successful
+          assert:
+            that:
+              - nodegrid_target_version == ansible_facts.about.version
+            success_msg: "Nodegrid Version match, upgrade successful"
+            fail_msg: "Nodegrid Version do not match, upgrade failed"
+

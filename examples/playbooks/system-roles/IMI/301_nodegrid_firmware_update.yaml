@@ -22,7 +22,7 @@
      - name: Check if update is required
        assert:
          that:
-             - nodegrid_target_version == ansible_facts.about.version
+             - nodegrid_iso_target_version == ansible_facts.about.version
          success_msg: "Nodegrid Version match, no upgrade required"
          fail_msg: "Nodegrid Version do not match, upgrade required"
        ignore_errors: true
@@ -116,7 +116,7 @@
        - name: Check if update was successful
          assert:
            that:
-             - nodegrid_target_version == ansible_facts.about.version
+             - nodegrid_iso_target_version == ansible_facts.about.version
            success_msg: "Nodegrid Version match, upgrade successful"
            fail_msg: "Nodegrid Version do not match, upgrade failed"
        when: upgrade.failed == true

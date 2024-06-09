@@ -3,6 +3,11 @@ system_logging_enable_session_logging: yes
 
 # System Settings
 sys_show_hostname_on_webui_header: "yes"
+sys_webui_header_hostname_color: "#feffff"
+sys_address_location: ""
+sys_coordinates: ""
+sys_revision_tag: "r1"
+sys_logo_image: "use_default_logo_image"
 sys_idle_timeout: 1200
 sys_banner: '''
 WARNING: This private system is provided for authorized use only and it may be 

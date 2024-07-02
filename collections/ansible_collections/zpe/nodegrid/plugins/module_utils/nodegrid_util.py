@@ -478,7 +478,18 @@ def run_option(option, run_opt):
     # part where your module will do what it needs to do)
     if len(diff) > 0:
         result['changed'] = True
-        import_result = import_settings(diff, use_config_start=use_config_start_global)
+        if 'import_func' in option:
+            import_func = option['import_func']
+            import_result = import_func(data=dict(
+                option=option,
+                run_opt=run_opt,
+                exported_settings=exported_settings,
+                diff=diff,
+                use_config_start=use_config_start_global
+            ))
+        else:
+            import_result = import_settings(diff, use_config_start=use_config_start_global)
+
         result['import_result'] = import_result
         if import_result['import_status'] == 'succeeded':
             result['message'] = 'Import was successful'

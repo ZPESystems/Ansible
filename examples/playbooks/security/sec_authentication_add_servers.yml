@@ -18,24 +18,24 @@
     zpe.nodegrid.security:
         authentication:
           servers:
-            1:
+            - number: 1
               method: "tacacs+"
               2-factor_authentication: "none"
               status: "enabled"
               fallback_if_denied_access: "yes"
               remote_server: "192.168.0.100"
-              tacacs+_accounting_server: "192.168.0.100"
-              authorize_ssh_pkey_users: "yes"
-              tacacs_port: "49"
-              tacacs+_service: "raccess"
-              tacacs+_secret: "secret"
-              tacacs+_timeout: "2"
-              tacacs+_retries: "2"
-              tacacs+_version: "v0_v1"
-              # tacacs+_enforce_source_ip: ""
-              tacacs+_enable_user-level: "yes"
-              tacacs+_user_level_6: "admin"
-            2:
+              # authorize_ssh_pkey_users: "yes"
+              tacacs_plus_accounting_server: "192.168.0.100"
+              tacacs_plus_port: "49"
+              tacacs_plus_service: "raccess"
+              tacacs_plus_secret: "secret"
+              tacacs_plus_timeout: "2"
+              tacacs_plus_retries: "2"
+              tacacs_plus_version: "v0_v1"
+              # tacacs_plus_enforce_source_ip: ""
+              tacacs_plus_enable_user-level: "yes"
+              tacacs_plus_user_level_6: "admin"
+            - number: 2
               method: "radius"
               2-factor_authentication: "none"
               status: "enabled"
@@ -48,7 +48,7 @@
               radius_timeout: "2"
               radius_retries: "2"
               radius_enable_servicetype: "no"
-            3:
+            - number: 3
               2-factor_authentication: "none"
               status: "enabled"
               apply_2-factor_auth_for_admin_and_root_users: "no"

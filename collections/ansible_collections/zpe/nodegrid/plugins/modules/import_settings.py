@@ -19,7 +19,6 @@ RETURN = r'''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, import_settings
-from ansible.utils.display import Display
 
 import os
 
@@ -29,9 +28,6 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
-# import logging
-display = Display()
-
 
 def run_module():
     # define available arguments/parameters a user can pass to the module

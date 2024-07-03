@@ -1,0 +1,20 @@
+ipv4_firewall:
+  policy:
+    FORWARD: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+  chains:
+    INPUT: []
+    FORWARD: []
+    OUTPUT: []
+ipv4_nat:
+  policy:
+    PREROUTING: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+    POSTROUTING: ACCEPT
+  chains:
+    PREROUTING: []
+    INPUT: []
+    OUTPUT: []
+    POSTROUTING: []

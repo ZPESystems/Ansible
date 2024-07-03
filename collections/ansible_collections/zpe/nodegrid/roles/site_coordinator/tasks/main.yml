@@ -1,0 +1,55 @@
+- name: Setup Wireguard failover
+  import_tasks: wireguard_failover.yml
+
+- name: Setup Auditing
+  import_tasks: auditing.yml
+
+- name: Setup Network Connections
+  import_tasks: network_connections.yml
+
+- name: Setup Network Setting
+  import_tasks: network_settings.yml
+
+- name: Setup Network Failover
+  import_tasks: network_failover.yml
+
+- name: Update System Preferences
+  import_tasks: sys_preferences.yml
+
+- name: Update System Banner
+  import_tasks: sys_preferences_banner.yml
+
+- name: Update System Date and Time
+  import_tasks: sys_preferences_date_and_time.yml
+
+- name: Update License Keys
+  import_tasks: sys_licenses.yml
+
+- name: Setup Cluster
+  import_tasks: cluster_settings.yml
+
+- name: Update Authentication Preferences
+  import_tasks: sec_authentication_preferences.yml
+
+- name: Update Local User Accounts
+  import_tasks: sec_local_accounts.yml
+
+- name: Update Authentication Server
+  import_tasks: sec_authentication_servers.yml
+
+- name: Update User Groups
+  import_tasks: sec_authorization.yml
+
+- name: Update System Session Logging
+  import_tasks: sys_session_logging.yml
+
+- name: Update System SNMP Settings
+  import_tasks: sys_snmp_settings.yml
+
+- name: Update IPv4 Firewall
+  import_tasks: sec_ipv4_firewall.yml
+
+- name: Setup Default Settings for Serial Ports
+  import_tasks: devices_serial_ports.yml
+  vars:
+    serial_ports: "{{ansible_facts['serial_connections_nsr']}}"

@@ -1,0 +1,6 @@
+- name: Update System SNMP Settings
+  zpe.nodegrid.snmp:
+    rules: "{{ snmp_rules }}"
+    system:
+      syscontact: "{{ syscontact | default('admin@nodegrid')}}"
+      syslocation: "{{ syslocation | default('')}}"

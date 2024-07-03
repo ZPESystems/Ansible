@@ -1,0 +1,3 @@
+- name: Setup Auditing
+  import_tasks: auditing.yml
+  tags: always

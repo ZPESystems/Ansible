@@ -19,7 +19,6 @@ RETURN = r'''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell
-from ansible.utils.display import Display
 
 import os, json, pexpect
 
@@ -29,8 +28,6 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
-# import logging
-display = Display()
 
 def run_option_device(option, run_opt):
     suboptions = option['suboptions']
@@ -39,10 +36,19 @@ def run_option_device(option, run_opt):
 
     if not ('access' in suboptions and field_exist(suboptions['access'], 'name')):
         return result_failed("Field 'access/name' is required")
-    cli_path += f"/{suboptions['access']['name']}"
+
+    if ('port_name' in suboptions['access']):
+        port_name = suboptions['access']['port_name']
+        suboptions['access'].pop('port_name')
+        cli_path += f"/{port_name}"
+    else:
+        cli_path += f"/{suboptions['access']['name']}"
 
     for key, value in suboptions.items():
-    
+
+        if key == 'name':
+            print("Rename Port")
+
         # commands, custom_fields
         if key in ['commands','custom_fields']:
             

@@ -3,6 +3,7 @@
 
 import pexpect
 import re
+from collections import OrderedDict
 from datetime import datetime
 
 def _get_import_process_timeout(import_text):
@@ -49,7 +50,7 @@ def close_cli(cmd_cli):
 def execute_cmd(cmd_cli, cmd):
     if 'cmd' in cmd.keys():
         cmd_cli.sendline(cmd['cmd'])
-        if 'confirm' in cmd.keys():
+        if 'confirm' in cmd.keys() or 'restore' in cmd.keys():
             index = cmd_cli.expect_exact(['(yes, no)  :', ']# ', pexpect.EOF, pexpect.TIMEOUT])
             if index == 0:
                 cmd_cli.sendline('yes')
@@ -67,15 +68,18 @@ def execute_cmd(cmd_cli, cmd):
         if 'ignore_error' in cmd.keys():
             output_dict['error'] = False
             output_dict['stdout'] = output
+            output_dict['json'] = convert_to_json(output)
             output_lines = output.splitlines()
             output_dict['stdout_lines'] = output_lines
         else:
             if "Error" in output or "error" in output:
                 output_dict['error'] = True
+                output_dict['json'] = convert_to_json(output)
                 output_dict['stdout'] = output
             else:
                 output_dict['error'] = False
                 output_dict['stdout'] = output
+                output_dict['json'] = convert_to_json(output)
                 output_lines = output.splitlines()
                 output_dict['stdout_lines'] = output_lines
     return output_dict
@@ -133,8 +137,8 @@ def export_settings(cli_path):
         if "=" in line:
             keypath, value = line.split('=', 1)
             if line[0] != '#':
-                settings.append(line)
-                all_settings.append(line)
+                settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
+                all_settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
             else:
                 if value == '':
                     settings.append(line[1:])   # add empty value
@@ -228,6 +232,25 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
     return diff
 
+def dict_diff(dict1, dict2):
+    """Compares two dictionaries, returns what values were changed or were added
+    Args:
+        dict1 (dict): Primary dict, typically representing the desired state
+        dict2 (dict): Secundary dict, typically representing the current state
+    Returns:
+        list: List of new settings
+    """
+
+    new_dict = {}
+    for key, value in dict1.items():
+        if key in dict2:
+            # To avoid issues between numbers and strings to we convert everything to str
+            if str(value) != str(dict2[key]):
+                new_dict[key] = str(dict1[key])
+
+    return new_dict
+
+
 def compare_versions(version1, version2):
     """Compares semantic versions and returns the comparison result
 
@@ -266,6 +289,96 @@ def check_os_version_support():
 
 def to_list(value):
     return value if type(value) is list else [value]
+
+def convert_to_json(cli_output):
+    # Detect if output is a table or not
+    data = []
+
+    if "===" in cli_output:     #Table content
+        details = []
+        lines = cli_output.strip().split('\n')
+        # Find the separator line (assumed to be immediately after headers)
+        separator = lines[2]
+        # Determine the start and end indices of each column based on '===' spans
+        header_indices = []
+        last_pos = 0
+        while last_pos < len(separator):
+            try:
+                start_index = separator.index('=', last_pos)
+                end_index = start_index
+                while separator[end_index] == '=':
+                    end_index += 1
+                header_indices.append((start_index, end_index))
+                last_pos = end_index
+            except ValueError as e:
+                break
+        # Extract headers for key names
+        headers = []
+        for start_index, end_index in header_indices:
+            headers.append(lines[1][start_index:end_index].strip())
+
+        # Extract path
+        cmd, path = lines[0].split(' ', 1)
+        path = path.strip()
+
+        for line in lines[3:]:  # Skip the header and separator lines
+            record = {}
+            try:
+                if "@" not in line:
+                    for idx, header in enumerate(headers):
+                        start_index, end_index = header_indices[idx]
+                        record[header] = line[start_index:end_index].strip()
+                    details.append(record)
+            except Exception as e:
+                data.append({'error': str(e)})
+                break
+
+        data.append({'path': path, 'data': details})
+
+    elif " = " in cli_output and "show" in cli_output:   # Settings Detected
+        lines = cli_output.strip().split('\n')
+        details = {}
+        for line in lines:
+            if '=' in line:
+                key, value = line.split('=', 1)
+                details[key.strip()] = value.strip()
+            elif "show" in line:
+                cmd, path = line.split(' ', 1)
+                path = path.strip()
+        data.append({'path': path, 'data':details})
+    elif ":" in cli_output and "show" in cli_output:   # Details Detected
+        lines = cli_output.strip().split('\n')
+        details = {}
+        path = ''
+        for line in lines:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                details[key.strip()] = value.strip()
+            elif "show" in line:
+                cmd, path = line.split(' ', 1)
+                path = path.strip()
+        data.append({'path': path, 'data':details})
+    elif "export_settings" in cli_output:
+        lines = cli_output.strip().split('\n')
+        details = {}
+        path = ''
+        for line in lines[1:]:  # skip the first line which is a command line
+            if '=' in line:
+                path, content = line.split(' ', 1)
+                key, value = content.split('=', 1)
+                details[key.strip()] = value.strip()
+                path = path.strip()
+        data.append({'path': path, 'data':details})
+    elif "ls" in cli_output:
+        lines = cli_output.strip().split('\n')
+        details = {}
+        paths = []
+        for line in lines[1:]:
+            if "@" not in line:
+                data.append({'path': line.strip()[:-1]})
+    # #else:       # other output
+
+    return data
 
 def result_failed(msg):
     return {'failed': True, 'changed': False, 'msg': msg}
@@ -365,7 +478,18 @@ def run_option(option, run_opt):
     # part where your module will do what it needs to do)
     if len(diff) > 0:
         result['changed'] = True
-        import_result = import_settings(diff, use_config_start=use_config_start_global)
+        if 'import_func' in option:
+            import_func = option['import_func']
+            import_result = import_func(data=dict(
+                option=option,
+                run_opt=run_opt,
+                exported_settings=exported_settings,
+                diff=diff,
+                use_config_start=use_config_start_global
+            ))
+        else:
+            import_result = import_settings(diff, use_config_start=use_config_start_global)
+
         result['import_result'] = import_result
         if import_result['import_status'] == 'succeeded':
             result['message'] = 'Import was successful'

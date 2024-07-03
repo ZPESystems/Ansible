@@ -1,0 +1,3 @@
+# Nodegrid Network Settings
+nodegrid_enable_dynamic_dns: "no"
+nodegrid_enable_bluetooth_network: "no"

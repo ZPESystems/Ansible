@@ -1,0 +1,17 @@
+---
+# Requirements: inventory file with the required variables defined
+# Purpose:
+#  - Setup multiple Wireguard Hub-Spokes overlay networks between Super Coordinators and Local Coordinators
+#
+- hosts: all
+  name: Configure a Wireguard Overlay Network
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+      - name: Configure a Wireguard Overlay Network
+        include_role:
+          name: network_wg_site_to_site
+        tags:
+         - wireguard

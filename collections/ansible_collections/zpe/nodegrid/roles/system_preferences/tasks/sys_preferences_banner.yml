@@ -1,0 +1,5 @@
+- name: Update System Banner
+  zpe.nodegrid.system:
+      preferences:
+        enable_banner: "yes"
+        banner: "{{ sys_banner }}"

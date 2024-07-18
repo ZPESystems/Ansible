@@ -227,8 +227,8 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
             # Add unidentified field or changed values
             # the import_settings fails if this field doesn't exist
-            if not any(line in s for s in exported_settings):
-               diff.append(line)
+            if not any(line.strip() in s.strip() for s in exported_settings):
+               diff.append(line.strip())
 
     return diff
 
@@ -511,7 +511,10 @@ def format_settings(path, in_dict):
             if type(value) is dict:
                 out_list.extend( format_settings(f'{path}/{key}', value) )
             else:
-                out_list.append(f"{path} {key}={value}")
+                if type(value) is str and " " in value:
+                    out_list.append(f"{path} {key}=\'{value}\'")
+                else:
+                    out_list.append(f"{path} {key}={value}")
     return out_list
 
 def get_skip_keys(new_settings, exported_all_settings):

@@ -43,7 +43,6 @@ def run_option_device(option, run_opt):
     if ('port_name' in suboptions['access']):
         port_name = suboptions['access']['port_name']
         suboptions['access'].pop('port_name')
-        cli_path += f"/{port_name}"
 
         # Change managed device name supported only for devices connected through tty or usb (local_serial / usb_serial)
         # The name is changed based on an specific cli command (i.e., no via import_settings). For example:
@@ -55,7 +54,7 @@ def run_option_device(option, run_opt):
             new_name = suboptions['access']['name'].strip()
             suboptions['access'].pop('name')
             devices_table = read_table("/settings/devices")
-            if devices_table[0] == 'error':
+            if devices_table[0].lower() == 'error':
                 return result_failed(f"Failed to get device table on cli: 'show /settings/devices'. Error: {devices_table[1]}")
             # Devices table header
             # 'name'  'connected through'  'type'  'access'  'monitoring'
@@ -71,18 +70,22 @@ def run_option_device(option, run_opt):
                     cmd_cli = get_cli(timeout=30)
                     for cmd in cmds:
                         cmd_result = execute_cmd(cmd_cli, cmd)
+                        if cmd_result['error']:
+                            return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_result}")
                         cmd_results.append(cmd_result)
                     close_cli(cmd_cli)
                     change_name_message = f"managed_device_name: {current_name} -> {new_name}"
+                    cli_path += f"/{new_name}"
                 except Exception as exc:
                     return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_results}")
+            else:
+                cli_path += f"/{current_name}"
+        else:
+            cli_path += f"/{port_name}"
     else:
-        cli_path += f"/{suboptions['access']['name']}"
+        cli_path += f"/{suboptions['access']['name'].strip()}"
 
     for key, value in suboptions.items():
-        if key == 'name':
-            print("Rename Port")
-
         # commands, custom_fields
         if key in ['commands','custom_fields']:
             

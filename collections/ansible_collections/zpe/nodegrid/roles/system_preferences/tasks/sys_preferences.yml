@@ -11,11 +11,11 @@
   zpe.nodegrid.system:
       preferences:
         show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"
-  when: "{{ sys_show_hostname_on_webui_header }} == no"
+  when: sys_show_hostname_on_webui_header == "no"
 
 - name: Update Hostname in WebUI
   zpe.nodegrid.system:
       preferences:
         show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"
         webui_header_hostname_color: "{{ sys_webui_header_hostname_color }}"
-  when: "{{ sys_show_hostname_on_webui_header }} == yes "
+  when: sys_show_hostname_on_webui_header == "yes"

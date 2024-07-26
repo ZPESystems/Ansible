@@ -49,7 +49,7 @@ def run_option_device(option, run_opt):
         # /settings/devices/ttyS1-router1 {spm_rename},ttyS1,spm_name
         #
         # Validate 'port_name' format against the pattern ttyS{numbers} or usbS{numbers}-{numbers}
-        pattern = re.compile("^ttyS([0-9]+)$|^usbS([0-9]-[0-9]+)$")
+        pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$|^usbS([0-9])$|^usbS([0-9]+-[0-9]+)$")
         if pattern.match(port_name):
             new_name = suboptions['access']['name'].strip()
             suboptions['access'].pop('name')

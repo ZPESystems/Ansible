@@ -49,8 +49,18 @@
               radius_retries: "2"
               radius_enable_servicetype: "no"
             - number: 3
-              2-factor_authentication: "none"
-              status: "enabled"
-              apply_2-factor_auth_for_admin_and_root_users: "no"
+              method: "ldap_or_ad"
+              status: "disabled"
+              fallback_if_denied_access: "yes"
+              remote_server: "10.1.1.7"
+              authorize_ssh_pkey_users: "yes"
+              ldap_ad_base: ""
+              ldap_ad_login_attribute: ""
+              ldap_ad_secure: "off"
+              ldap_ad_database_username: "db_username"
+              ldap_ad_database_password: "db_pass"
+              ldap_ad_group_attribute: ""
+              ldap_ad_search_filter: ""
+              ldap_port: "389"
 
 

@@ -58,7 +58,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, get_cli, execute_cmd, close_cli
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, get_cli, execute_cmd, close_cli, read_table, read_table_row, run_option_no_diff, read_path_option
 
 import os
 
@@ -121,16 +121,37 @@ def run_option_authentication(option, run_opt):
                 else:
                     return result_failed(f"Field '{key}/{field_name}' is required")
         #[TODO] Validated against 5.8 and 6.0 there are changes
+
         # servers
         elif key in ['servers']:
-            option['import_func'] = run_option_authentication_import
+            #option['import_func'] = run_option_authentication_import
+            # Servers table header
+            #  index  method  remote server  status   fallback
+            servers_table = read_table("/settings/authentication/servers/")
+            if servers_table[0].lower() == 'error':
+                return result_failed(f"Failed to get authentication servers table on cli: 'show /settings/authentication/servers'. Error: {servers_table[1]}")
+            temp_key = len(servers_table[1]['rows'])
+
             if isinstance(value,list):
                 field_name = 'number'
                 for server in value:
-                  if field_name not in server.keys():
-                      return result_failed(f"Field '{field_name}' is required, server is: {server}")
-                  server_key = server.pop(field_name)
-                  settings_list.extend( format_settings(f"{cli_path}/{key}/{server_key}",server) )
+                    if field_name not in server.keys():
+                        return result_failed(f"Field '{field_name}' is required, server is: {server}")
+                    server_key = server.pop(field_name)
+                    authentication_server = read_table_row(servers_table[1], 0, f"{server_key}")
+                    if authentication_server and authentication_server[1].lower() != "local":
+                        read_option = read_path_option(f"{cli_path}/{key}/{server_key}", "method")
+                        if read_option[0].lower() == 'error':
+                            return result_failed(f"Failed to get option 'method' from path '{cli_path}/{key}/{server_key}'. Error: {read_option[1]}")
+
+                        if read_option[1]['value'] in ['kerberos', 'ldap_or_ad', 'radius', 'tacacs+']:
+                            settings_list.extend( format_settings(f"{cli_path}/{key}/{server_key}",server) )
+                        else:
+                            temp_key += 1
+                            settings_list.extend( format_settings(f"{cli_path}/{key}/{temp_key}",server) )
+                    else:
+                        temp_key += 1
+                        settings_list.extend( format_settings(f"{cli_path}/{key}/{temp_key}",server) )
             else:
                 return result_failed(f"Authentication Servers have to be provided as a list")
         # console, default_group, realms
@@ -139,9 +160,11 @@ def run_option_authentication(option, run_opt):
 
     option['cli_path'] = cli_path
     option['settings'] = settings_list
-    return run_option(option, run_opt)
+    return run_option_no_diff(option, run_opt)
     # return {'failed': False, 'changed': False, 'settings_list': settings_list}
 
+# TODO
+# This function 'run_option_authentication_import' will not be neded! Pending to be deleted
 def run_option_authentication_import(data):
     try:
         cli_path = f"{data['option']['cli_path']}/servers/"

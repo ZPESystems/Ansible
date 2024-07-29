@@ -137,8 +137,8 @@ def export_settings(cli_path):
         if "=" in line:
             keypath, value = line.split('=', 1)
             if line[0] != '#':
-                settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
-                all_settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'"))
+                settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'").strip())
+                all_settings.append(line.replace("\\r","").replace("\\n","").replace("\"","'").strip())
             else:
                 if value == '':
                     settings.append(line[1:])   # add empty value
@@ -227,8 +227,8 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
             # Add unidentified field or changed values
             # the import_settings fails if this field doesn't exist
-            if not any(line in s for s in exported_settings):
-               diff.append(line)
+            if not any(line.strip() in s.strip() for s in exported_settings):
+               diff.append(line.strip())
 
     return diff
 
@@ -504,6 +504,85 @@ def run_option(option, run_opt):
         result['message'] = 'No change required'
     return result
 
+def run_option_no_diff(option, run_opt):
+    """Applies the option on the Nodegrid
+
+    Applies the option on the Nodegrid following these steps:
+        1. Convert the option in a list of settings
+        2. Import all the settings on the Nodegrid
+
+    Args:
+        option (dict): Option to apply
+        run_opt (dict): Dictionary with extra import options
+
+    Returns:
+        dict: Result of import
+    """
+    suboptions = option['suboptions']
+    cli_path = option['cli_path']
+    skip_invalid_keys = run_opt['skip_invalid_keys']
+    check_mode = run_opt['check_mode']
+    use_config_start_global = run_opt['use_config_start_global']
+
+    result = dict(
+        changed=False,
+        failed=False,
+        message='',
+        export_result='',
+        skip_keys = []
+    )
+
+    # Get or format settings
+    diff = []
+    if 'settings' in option:
+        diff = option['settings']
+    else:
+        diff = format_settings(cli_path, suboptions)
+
+    # The module supports diff mode, which will display the configuration
+    # changes which will be performed on the connection
+    prepared_output = str()
+    for item in diff:
+        prepared_output += item + "\r\n"
+    result['diff'] = prepared_output
+
+    # if the user is working with this module in only check mode we do not
+    # want to make any changes to the environment, just return the current
+    # state with no modifications
+    if check_mode:
+        result['changed'] = True
+        return result
+
+    # manipulate or modify the state as needed (this is going to be the
+    # part where your module will do what it needs to do)
+    if len(diff) > 0:
+        result['changed'] = True
+        if 'import_func' in option:
+            import_func = option['import_func']
+            import_result = import_func(data=dict(
+                option=option,
+                run_opt=run_opt,
+                exported_settings=exported_settings,
+                diff=diff,
+                use_config_start=use_config_start_global
+            ))
+        else:
+            import_result = import_settings(diff, use_config_start=use_config_start_global)
+
+        result['import_result'] = import_result
+        if import_result['import_status'] == 'succeeded':
+            result['message'] = 'Import was successful'
+        else:
+            if len(import_result['error_list']) > 0:
+                result['message'] = ', '.join(import_result['error_list'])
+            result['msg'] = 'Import failed'
+            result['failed'] = True
+            return result
+    else:
+        result['changed'] = False
+        result['message'] = 'No change required'
+    return result
+
 def format_settings(path, in_dict):
     out_list = []
     if type(in_dict) is dict:
@@ -511,7 +590,10 @@ def format_settings(path, in_dict):
             if type(value) is dict:
                 out_list.extend( format_settings(f'{path}/{key}', value) )
             else:
-                out_list.append(f"{path} {key}={value}")
+                if type(value) is str and " " in value:
+                    out_list.append(f"{path} {key}=\'{value}\'")
+                else:
+                    out_list.append(f"{path} {key}={value}")
     return out_list
 
 def get_skip_keys(new_settings, exported_all_settings):
@@ -557,3 +639,31 @@ def read_table_row(table, col_index, col_value):
         if row[col_index] == col_value:
             return row
     return None
+
+def read_path_option(cli_path, option):
+    cmd = f"show {cli_path} {option}"
+    cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
+    cmd_cli.setwinsize(500, 10000)
+    cmd_cli.expect_exact('/]# ')
+    cmd_cli.sendline('.sessionpageout undefined=no')
+    cmd_cli.expect_exact('/]# ')
+    cmd_cli.sendline(cmd)
+    cmd_cli.expect_exact('/]# ')
+    output = cmd_cli.before
+    cmd_cli.close()
+    if "Error" in output or "error" in output:
+        return "error", output
+    else:
+        result = {
+            "path": cli_path,
+            "option": option,
+            "value": ""
+        }
+
+        for line in output.splitlines()[1:-1]:
+            if len(line) > 0:
+                row = line.split("=")
+                if len(row) > 0:
+                    result["value"] = row[1].strip()
+
+    return "successful", result

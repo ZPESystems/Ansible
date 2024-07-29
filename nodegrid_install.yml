@@ -11,38 +11,41 @@
           register: key
 
         - name: create sshkey if none exist
-          shell: 'ssh-keygen -t ed25519 -f /home/ansible/.ssh/id_ed25519 -N "" -C ansible@local'
+          block:
+            - name: create sshkey
+              shell: 'ssh-keygen -t ed25519 -f /home/ansible/.ssh/id_ed25519 -N "" -C ansible@local'
+              
+            - name: ensure proper permissions for private sshkey
+              file:
+                path: "/home/ansible/.ssh/id_ed25519"
+                owner: ansible
+                group: ansible
+                mode: 0600
+
+            - name: ensure proper permissions for public sshkey
+              file:
+                path: "/home/ansible/.ssh/id_ed25519.pub"
+                owner: ansible
+                group: ansible
+                mode: 0644
+
+            - name: copy public key to tmp
+              shell: 'cp --preserve=mode,ownership /home/ansible/.ssh/id_ed25519.pub /tmp/id_ed25519.pub'
+
+            - name: update authorized key file
+              shell: 'echo "{{ lookup(''file'', ''/tmp/id_ed25519.pub'') }}" >> /home/ansible/.ssh/authorized_keys'
+
+            - name: remove public_key from tmp
+              file:
+                path: /tmp/id_ed25519.pub
+                state: absent
+              ignore_errors: true  
           when: not key.stat.exists
 
-        - name: ensure proper permissions for private sshkey
-          file:
-            path: "/home/ansible/.ssh/id_ed25519"
-            owner: ansible
-            group: ansible
-            mode: 0600
-            backup: 'true'
-
-        - name: ensure proper permissions for public sshkey
-          file:
-            path: "/home/ansible/.ssh/id_ed25519.pub"
-            owner: ansible
-            group: ansible
-            mode: 0644
-            backup: 'true'
-
-        - name: copy public key to tmp
-          shell: 'cp --preserve=mode,ownership /home/ansible/.ssh/id_ed25519.pub /tmp/id_ed25519.pub'
-
-        - name: update authorized key file
-          authorized_key:
-            user: "ansible"
-            key: "{{ lookup('file', '/tmp/id_ed25519.pub') }}"
-
-        - name: remove public_key from tmp
-          file:
-            path: /tmp/id_ed25519.pub
-            state: absent
-          ignore_errors: true
+        - name: check if sudoers file for ansible user exists
+          stat:
+            path: '/etc/sudoers.d/ansible'
+          register: sudoers_file
 
         - name: add to ansible user to sudoers
           copy:
@@ -51,6 +54,8 @@
             owner: root
             group: root
             mode: 0600
+          when: not sudoers_file.stat.exists
+
       become: true 
       become_user: root
 
@@ -106,13 +111,22 @@
 
         - name: install dependencies
           shell: 'sudo -H -u ansible python3 -m pip install ttp --no-index --find-links=./installation/ttp-0.9.1-py2.py3-none-any.whl'
-          args:
-            warn: false
+
+        - name: check if TTPCACHEFOLDER is set for ansible user
+          shell: 'sudo -H -u ansible bash -c "source ~/.profile && env | grep -v grep | grep TTPCACHEFOLDER"'
+          register: ttp_var_result
+          ignore_errors: yes
+          changed_when: false
+          failed_when: false
 
         - name: create environment variable
-          shell: 'if [ -z $TTPCACHEFOLDER ]; then echo "export TTPCACHEFOLDER=\"/tmp\"" >> /home/ansible/.profile; source /home/ansible/.profile; fi'
-          args:
-            warn: false
+          shell: 'echo "export TTPCACHEFOLDER=\"/tmp\"" >> /home/ansible/.profile; source /home/ansible/.profile'
+          when: ttp_var_result.stdout == ""
+
+        - name: check if ansible.cfg exists
+          stat:
+            path: "/etc/ansible/ansible.cfg"
+          register: ansible_cfg
 
         - name: update ansible.cfg
           copy:
@@ -120,6 +134,7 @@
             dest: /etc/ansible/ansible.cfg
             owner: ansible
             group: ansible
+          when: not ansible_cfg.stat.exists
 
         - name: create symbolic link in file_manager
           ansible.builtin.file:
@@ -137,6 +152,11 @@
             src: ./examples/
             dest: /etc/ansible/playbooks/examples/
 
+        - name: check if hosts.yml exists in /etc/ansible/inventories
+          stat:
+            path: "/etc/ansible/inventories/hosts.yml"
+          register: inventory_hosts
+
         - name: copy hosts.yml to /etc/ansible/inventories
           copy:
             src: ./installation/inventory/hosts.yml
@@ -144,6 +164,7 @@
             owner: ansible
             group: admin
             mode: 0775
+          when: not inventory_hosts.stat.exists
 
         - name: copy devices.py to /etc/ansible/system_inventories
           copy:
@@ -159,7 +180,6 @@
             owner: ansible
             group: admin
             mode: 0775
-            backup: 'true'
             recurse: 'true'
           with_list:
             - "inventories"

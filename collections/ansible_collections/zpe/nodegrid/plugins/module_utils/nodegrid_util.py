@@ -290,6 +290,13 @@ def check_os_version_support():
 def to_list(value):
     return value if type(value) is list else [value]
 
+def split_in_two(line, separator):
+    result = [val.strip() for val in line.split(separator, 1)]
+    if len(result) == 1:
+        return result[0], ''
+    else:
+        return result
+
 def convert_to_json(cli_output):
     # Detect if output is a table or not
     data = []
@@ -318,8 +325,7 @@ def convert_to_json(cli_output):
             headers.append(lines[1][start_index:end_index].strip())
 
         # Extract path
-        cmd, path = lines[0].split(' ', 1)
-        path = path.strip()
+        cmd, path = split_in_two(lines[0], ' ')
 
         for line in lines[3:]:  # Skip the header and separator lines
             record = {}
@@ -340,11 +346,10 @@ def convert_to_json(cli_output):
         details = {}
         for line in lines:
             if '=' in line:
-                key, value = line.split('=', 1)
-                details[key.strip()] = value.strip()
+                key, value = split_in_two(line, '=')
+                details[key] = value
             elif "show" in line:
-                cmd, path = line.split(' ', 1)
-                path = path.strip()
+                cmd, path = split_in_two(line, ' ')
         data.append({'path': path, 'data':details})
     elif ":" in cli_output and "show" in cli_output:   # Details Detected
         lines = cli_output.strip().split('\n')
@@ -352,11 +357,10 @@ def convert_to_json(cli_output):
         path = ''
         for line in lines:
             if ':' in line:
-                key, value = line.split(':', 1)
-                details[key.strip()] = value.strip()
+                key, value = split_in_two(line, ':')
+                details[key] = value
             elif "show" in line:
-                cmd, path = line.split(' ', 1)
-                path = path.strip()
+                cmd, path = split_in_two(line, ' ')
         data.append({'path': path, 'data':details})
     elif "export_settings" in cli_output:
         lines = cli_output.strip().split('\n')
@@ -364,10 +368,9 @@ def convert_to_json(cli_output):
         path = ''
         for line in lines[1:]:  # skip the first line which is a command line
             if '=' in line:
-                path, content = line.split(' ', 1)
-                key, value = content.split('=', 1)
-                details[key.strip()] = value.strip()
-                path = path.strip()
+                path, content =  split_in_two(line, ' ')
+                key, value = split_in_two(content, '=')
+                details[key] = value
         data.append({'path': path, 'data':details})
     elif "ls" in cli_output:
         lines = cli_output.strip().split('\n')

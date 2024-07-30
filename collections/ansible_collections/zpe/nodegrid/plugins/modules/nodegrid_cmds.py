@@ -23,6 +23,7 @@ RETURN = r'''
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support
 
+import traceback
 import pexpect
 import os
 import re
@@ -104,9 +105,9 @@ def run_module():
                 break;
         close_cli(cmd_cli)
         result['cmds_output'] = cmd_results
-    except Exception as exc:
+    except Exception:
         result['failed'] = True
-        result['message'] = exc
+        result['message'] = traceback.format_exc()
 
     
     if result['failed']:

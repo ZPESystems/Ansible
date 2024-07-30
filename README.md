@@ -51,7 +51,7 @@ git clone https://github.com/ZPESystems/Ansible.git
 
 In an **admin shell**, navigate to the downloaded library directory and run the installation playbook.
 ```shell script
-ansible-playbook nodegrid_install.yml
+LANG="en_US.UTF-8" ansible-playbook nodegrid_install.yml
 ```
 Become ansible user.
 ```shell script

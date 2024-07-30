@@ -18,9 +18,10 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell, get_cli, close_cli, execute_cmd, read_table, read_table_row
 
-import os, json, pexpect
+
+import os, json, pexpect, re
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -33,6 +34,8 @@ def run_option_device(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
     settings_list = []
+    cmd_results = None
+    change_name_message = None
 
     if not ('access' in suboptions and field_exist(suboptions['access'], 'name')):
         return result_failed("Field 'access/name' is required")
@@ -40,15 +43,49 @@ def run_option_device(option, run_opt):
     if ('port_name' in suboptions['access']):
         port_name = suboptions['access']['port_name']
         suboptions['access'].pop('port_name')
-        cli_path += f"/{port_name}"
+
+        # Change managed device name supported only for devices connected through tty or usb (local_serial / usb_serial)
+        # The name is changed based on an specific cli command (i.e., no via import_settings). For example:
+        # /settings/devices/ttyS1-router1 {spm_rename},ttyS1,spm_name
+        #
+        # Validate 'port_name' format against the pattern ttyS{numbers} or usbS{numbers}-{numbers}
+        pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$|^usbS([0-9])$|^usbS([0-9]+-[0-9]+)$")
+        if pattern.match(port_name):
+            new_name = suboptions['access']['name'].strip()
+            suboptions['access'].pop('name')
+            devices_table = read_table("/settings/devices")
+            if devices_table[0].lower() == 'error':
+                return result_failed(f"Failed to get device table on cli: 'show /settings/devices'. Error: {devices_table[1]}")
+            # Devices table header
+            # 'name'  'connected through'  'type'  'access'  'monitoring'
+            device = read_table_row(devices_table[1], 1, port_name)
+            if device is None:
+                return result_failed(f"Device port '{port_name}' does not exist!")
+            current_name = device[0]
+            if new_name != current_name:
+                cmds = [{'confirm': True,'cmd': f"cd /settings/devices; rename {port_name}; set new_name={new_name}"}]
+                cmd_results = list()
+                cmd_result = dict()
+                try:
+                    cmd_cli = get_cli(timeout=30)
+                    for cmd in cmds:
+                        cmd_result = execute_cmd(cmd_cli, cmd)
+                        if cmd_result['error']:
+                            return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_result}")
+                        cmd_results.append(cmd_result)
+                    close_cli(cmd_cli)
+                    change_name_message = f"managed_device_name: {current_name} -> {new_name}"
+                    cli_path += f"/{new_name}"
+                except Exception as exc:
+                    return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_results}")
+            else:
+                cli_path += f"/{current_name}"
+        else:
+            cli_path += f"/{port_name}"
     else:
-        cli_path += f"/{suboptions['access']['name']}"
+        cli_path += f"/{suboptions['access']['name'].strip()}"
 
     for key, value in suboptions.items():
-
-        if key == 'name':
-            print("Rename Port")
-
         # commands, custom_fields
         if key in ['commands','custom_fields']:
             
@@ -69,7 +106,17 @@ def run_option_device(option, run_opt):
         
     option['cli_path'] = cli_path
     option['settings'] = settings_list
-    return run_option(option, run_opt)
+    result = run_option(option, run_opt)
+
+    # If device named was changed, update the return result
+    if cmd_results:
+        result['cmds_output'] = cmd_results
+        result['changed'] = True
+        if result['message'] == 'No change required':
+            result['message'] = change_name_message
+        else:
+            result['message'] += f" | {change_name_message}"
+    return result
 
 def run_option_auto_discovery(option, run_opt):
     suboptions = option['suboptions']

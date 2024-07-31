@@ -62,5 +62,7 @@
               ldap_ad_group_attribute: ""
               ldap_ad_search_filter: ""
               ldap_port: "389"
-
-
+            - method: "local"
+              2-factor_authentication: "none"
+              status: "enabled"
+              apply_2-factor_auth_for_admin_and_root_users: "no"

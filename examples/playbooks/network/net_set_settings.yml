@@ -8,4 +8,4 @@
     zpe.nodegrid.network:
       settings:
         hostname: "remote-site"
-        ipv4_loopback: "192.168.20.11"
+        ipv4_loopback: "10.0.0.1"

@@ -71,8 +71,8 @@
           description: "Temperature Sensor"
           address_location: "address"
           launch_url_via_html5: "yes"
-          username: "admin"
-          password: "admin"
+          username: "device_username"
+          password: "device_password"
           allow_pre-shared_ssh_key: "no"
           baud_rate: 9600
           parity: "None"

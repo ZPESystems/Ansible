@@ -9,8 +9,8 @@
       auto_discovery:
         network_scan:
           - scan_id: "test_scan"
-            ip_range_start: "192.168.0.1"
-            ip_range_end: "192.168.0.1"
+            ip_range_start: "10.0.0.1"
+            ip_range_end: "10.0.0.1"
             enable_scanning: "yes"
             similar_devices: "yes"
             device: "nsc"
@@ -20,8 +20,8 @@
             scan_interval: "60"
         vm_managers:
           - vm_server: "local"
-            username: "admin"
-            password: "admin"
+            username: "device_username"
+            password: "device_password"
             type: "VMware"
             html_console_port: "7331,7343"
         discovery_rules:

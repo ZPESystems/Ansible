@@ -10,10 +10,10 @@
         access:
           name: "NSC"
           type: "ilo"
-          ip_address: "192.168.42.223"
+          ip_address: "10.0.0.1"
           credential: "set_now"
-          username: "admin"
-          password: "admin"
+          username: "your_username"
+          password: "your_password"
         management:
           ssh_and_telnet: "yes"
           monitoring_ipmi: "no"

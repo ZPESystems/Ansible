@@ -1,0 +1,27 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Read Network Connections
+      zpe.nodegrid.nodegrid_read_state:
+        read_table:
+          path: '/settings/network_connections'
+      register: output
+
+    - name: Display Result
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ output.output.read_table.table.rows }}"
+
+    - name: Read Authentication Servers Table
+      zpe.nodegrid.nodegrid_read_state:
+        read_table:
+          path: '/settings/authentication/servers'
+      register: output
+
+    - name: Display Result
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ output.output.read_table.table.rows }}"

@@ -148,10 +148,7 @@ def run_option_authentication(option, run_opt):
                         authentication_server = read_table_row(servers_table[1], 0, f"{server_key}")
                     if authentication_server:
                         try:
-                            if authentication_server[1].lower() == "local":
-                                read_option = read_path_option(f"{cli_path}/{key}/{server_key}", "method", separator=":")
-                            else:
-                                read_option = read_path_option(f"{cli_path}/{key}/{server_key}", "method", separator="=")
+                            read_option = read_path_option(f"{cli_path}/{key}/{server_key}", "method")
                         except Exception as e:
                             return result_failed(f"Failed to get option 'method' from path '{cli_path}/{key}/{server_key}'. Error: {e}")
 
@@ -177,11 +174,63 @@ def run_option_authentication(option, run_opt):
     return run_option_no_diff(option, run_opt)
     # return {'failed': False, 'changed': False, 'settings_list': settings_list}
 
+def run_option_authentication_validate_servers(option, run_opt):
+    suboptions = option['suboptions']
+    cli_path = option['cli_path']
+    
+    result = dict(
+        changed=False,
+        failed=False,
+        message=''
+    )
+
+    for key, value in suboptions.items():
+        # servers
+        if key in ['servers']:
+            # Servers table header
+            #  index  method  remote server  status   fallback
+            servers_table = read_table("/settings/authentication/servers/")
+            if servers_table[0].lower() == 'error':
+                return result_failed(f"Failed to get authentication servers table on cli: 'show /settings/authentication/servers'. Error: {servers_table[1]}")
+
+            servers_nodegrid = sum(server[1].lower() != "local" for server in servers_table[1]['rows'])
+            server_index = 0
+
+            
+            if isinstance(value,list):
+                servers_config = sum(server.get('method', '').lower() != "local" for server in value)
+                if servers_nodegrid != servers_config:
+                    return result_failed(f"Authentication Servers have not been properly configured. Servers on nodegrid = {servers_nodegrid}, Servers on ansible configuration= {servers_config}")
+                for server in sorted(value, key=lambda x: x.get('number', float('inf'))):
+                    if server.get('method', "").lower() == "local":
+                        continue
+                    try:
+                        server_key = servers_table[1]['rows'][server_index][0] 
+                        read_option = read_path_option(f"{cli_path}/{server_key}", "method")
+                    except Exception as e:
+                        return result_failed(f"Failed to get option 'method' from path '{cli_path}/{server_key}'. Error: {e}")
+
+                    if read_option[0].lower() == 'error':
+                        return result_failed(f"Failed to get option 'method' from path '{cli_path}/{server_key}'. Error: {read_option[1]}")
+
+                    if read_option[1]['value'].lower() == server.get('method',"").lower(): 
+                        server_index += 1
+                    else:
+                        return result_failed(f"Authentication Servers have not been properly configured. Server index: {server_key} method {read_option[1]['value'].lower()} does not match with server: {server}")
+            else:
+                return result_failed(f"Authentication Servers have to be provided as a list")
+        else:
+            return result_failed(f"Authentication 'servers' section is not defined!")
+
+    result['message'] = "Authentication Servers have been properly configured!"
+    return result
+
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         local_account=dict(type='dict', required=False),
         authentication=dict(type='dict', required=False),
+        authentication_validate_servers=dict(type='dict', required=False),
         authorization=dict(type='dict', required=False),
         password_rules=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
@@ -233,6 +282,12 @@ def run_module():
             'suboptions': module.params['authentication'],
             'cli_path': '/settings/authentication', 
             'func': run_option_authentication
+        },
+        {
+            'name': 'authentication_validate_servers',
+            'suboptions': module.params['authentication_validate_servers'],
+            'cli_path': '/settings/authentication/servers', 
+            'func': run_option_authentication_validate_servers
         },
     ]
 

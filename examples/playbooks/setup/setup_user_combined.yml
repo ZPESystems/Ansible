@@ -6,8 +6,8 @@
 # The module uses it's own ssh connection which is not dependent on a current ansible connection.
 # The use case is to easly configure a default Nodegrid appliance, so that it can be used with ansible
 #
-# Example: 192.168.10.1 represents the IP address of the Nodegrid target device
-#    ansible-playbook setup_user_combined.yml --inventory 192.168.10.1,
+# Example: 203.0.113.0 represents the IP address of the Nodegrid target device
+#    ansible-playbook setup_user_combined.yml --inventory 203.0.113.0,
 #
 - hosts: all
   name: Configure ZPE Out Of Box - Factory Default

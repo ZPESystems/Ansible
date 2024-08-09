@@ -6,9 +6,9 @@ nodegrid_license_keys:
 
 # Local User Accounts: (REQUIRED - UPDATED PASSWORD)
 local_user_accounts:
-  - username: admin
+  - username: "<myusername>"
     hash_format_password: "no"
-    password: "ZPESystems2023!"
+    password: "<mypassword>"
     user_group: "admin"
 
 # SECTION - CHANGE - CHANGES ARE RECOMMENDED BUT NOT REQUIRED

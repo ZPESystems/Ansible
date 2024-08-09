@@ -4,7 +4,7 @@
   collections:
     - zpe.nodegrid
   vars:
-    set_password: "nodegrid2023"
+    set_password: "<mypassword>"
     copy_ssh_key: "/home/ansible/.ssh/id_ed25519.pub"
     nodegrid_version: "6.0.0"
     iso_file: "/home/ansible/nodegrid-genericx86-64-20230209141008.iso"

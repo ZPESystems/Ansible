@@ -68,16 +68,27 @@
              - "'Pass completed, 0 bad blocks found. (0/0/0 errors)' in item.stderr_lines"
          with_items: "{{ badblocks.results }}"
 
-       - name: Check for ext4 error
-         command: "cat /sys/fs/ext4/{{ item }}/errors_count"
+       - name: List ext4 partitions
+         find:
+           paths: /sys/fs/ext4
+           file_type: directory
+           recurse: no
+         register: ext4_partitions
          become: true
-         with_items: [ "sda3","sda5","sda8" ]
+
+       - name: Check for ext4 error
+         command: "cat {{ item.path }}/errors_count"
+         become: true
+         when: "'sda' in item.path"
+         with_items: "{{ ext4_partitions.files }}"
          register: ext4_errors
+         changed_when: false
 
        - name: assert that there are no ext4_errors
          assert:
            that:
             - "'0' == item.stdout"
+         when: item.stdout is defined
          with_items: "{{ ext4_errors.results }}"
 
        - name: Check Version Before Upgrade

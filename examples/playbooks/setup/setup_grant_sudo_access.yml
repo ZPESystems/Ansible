@@ -14,13 +14,19 @@
     - name: nodegrid_user
       prompt: Enter Username for the connection
       default: admin
+      private: false
     - name: current_password
       prompt: Provide a current password for the user
       private: true
+    - name: ssh_user
+      prompt: Username to grant sudo access
+      default: ansible
+      private: false
 
   tasks:
     - name: Provide sudoers permission to ansible user
       zpe.nodegrid.setup:
         username: "{{ nodegrid_user }}"
         password: "{{ current_password }}"
-        ansible_sudoers: True
+        ssh_user: "{{ ssh_user }}"
+        grant_sudo_access: True

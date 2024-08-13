@@ -13,11 +13,11 @@ display = Display()
 OPTION_USERNAME = 'username'
 OPTION_CHANGE_DEFAULT_PASSWORD = 'password'
 OPTION_CHANGE_NEW_PASSWORD = 'new_password'
+OPTION_SSH_PORT = 'ssh_port'
 OPTION_INSTALL_SSH_KEY = 'ssh_key'
-OPTION_INSTALL_SSH_PORT = 'ssh_port'
 OPTION_INSTALL_SSH_KEY_USER = 'ssh_key_user'
 OPTION_INSTALL_SSH_KEY_TYPE = 'ssh_key_type'
-OPTION_GRANT_SUDOERS = 'ansible_sudoers'
+OPTION_GRANT_SUDOERS = 'ssh_key_user_sudoers'
 
 class ResultFailedException(Exception):
     "Raised when a failed happens"
@@ -55,22 +55,29 @@ class ActionModule(ActionBase):
         return result
 
     def _change_password(self, conn_obj, password, new_password):
-        display.vvv(str(password))
-        display.vvv(str(new_password))
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact(['BAD PASSWORD:','Password: ', 'Current password: ', 'New password: ','Retype new password: ', '/]# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
-            display.vvv(str(ret))
+            ret = conn_obj.expect_exact([
+                'Permission denied (publickey,keyboard-interactive).',
+                'Password: ',
+                'Current password: ',
+                'New password: ',
+                'Retype new password: ',
+                '/]# ',
+                ':~$ ',
+                ':~# ',
+                pexpect.TIMEOUT,
+                pexpect.EOF
+            ], timeout=10)
+            display.vvv(f"change password ret: {ret}")
+            display.vvv(f"login_tries: {login_tries}")
             if ret == 0:
-                raise ResultFailedException("BAD PASSWORD, provide a different new password")
+                raise ResultFailedException("Permission denied (publickey,keyboard-interactive). User or password incorrect")
             elif ret == 1:
-                if login_tries == 0:
+                if login_tries < 3:
                     conn_obj.sendline(password)
-                elif login_tries == 1:
-                    conn_obj.sendline(new_password)
-                    return True
                 else:
-                    raise ResultFailedException(f"Could not login to host. Invalid password!")
+                    raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
                 login_tries += 1
             elif ret == 2:
                 conn_obj.sendline(password)
@@ -84,7 +91,17 @@ class ActionModule(ActionBase):
                 conn_obj.sendline("passwd")
                 display.vvv("Start with Loop")
                 for chp in range(10):
-                    res = conn_obj.expect_exact(['Current password: ', 'New password: ', 'Retype new password: ', 'password updated successfully' ,'BAD PASSWORD:', ':~$ ', ':~# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+                    res = conn_obj.expect_exact([
+                        'Current password: ',
+                        'New password: ',
+                        'Retype new password: ',
+                        'password updated successfully',
+                        'BAD PASSWORD:',
+                        ':~$ ',
+                        ':~# ',
+                        pexpect.TIMEOUT,
+                        pexpect.EOF
+                    ], timeout=10)
                     output = conn_obj.before
                     output = output.replace('\r\r\n', '\r\n')
                     display.vvvv(output)
@@ -103,33 +120,63 @@ class ActionModule(ActionBase):
                     elif res == 4:
                         display.vvv("Bad Password detected")
                         raise ResultFailedException("BAD PASSWORD, provide a different new password")
-                    else:
+                    elif res == 5 or res == 6:
                         display.vvv("Prompt was detected, return")
                         return True
+                    elif res == 7:
+                        raise ResultFailedException("ssh command pexpect.TIMEOUT")
+                    elif res == 8:
+                        raise ResultFailedException("ssh command pexpect.EOF")
                 return True
-            else:
-                return False
+            elif ret == 8:
+                raise ResultFailedException("ssh command pexpect.TIMEOUT")
+            elif res == 9:
+                raise ResultFailedException("ssh command pexpect.EOF")
         raise ResultFailedException("End of loop changing password")
 
     def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact(['Permission denied (publickey,keyboard-interactive).','Password: ', '/]# ', ':~$ ', ':~# ', pexpect.TIMEOUT, pexpect.EOF], timeout=10)
+            ret = conn_obj.expect_exact([
+                'Permission denied (publickey,keyboard-interactive).',
+                'Password: ',
+                '/]# ',
+                ':~$ ',
+                ':~# ',
+                pexpect.TIMEOUT,
+                pexpect.EOF
+            ], timeout=10)
             if ret == 0: # 'BAD PASSWORD'
-                raise ResultFailedException(f"Permission denied (publickey,keyboard-interactive). Check user password: {password}")
+                raise ResultFailedException(f"Permission denied (publickey,keyboard-interactive). Invalid user or password")
             elif ret == 1: # 'Password: '
                 if login_tries < 3:
                     conn_obj.sendline(password)
                 else:
-                    raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
+                    raise ResultFailedException(f"Could not login to host. Invalid user or password")
                 login_tries += 1
             elif ret == 2: # '/]# '                     # CLI prompt detected
                 if ssh_key is not None:
+                    display.vvv(f'shell sudo su - {ssh_key_user}')
                     conn_obj.sendline(f'shell sudo su - {ssh_key_user}')
-                    ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
-                    if ret2 == 2:
+                    ret2 = conn_obj.expect_exact([
+                        f"No passwd entry for user '{ssh_key_user}'",
+                        ':~$ ',
+                        ':~#',
+                        'Password: ',
+                        pexpect.TIMEOUT,
+                        pexpect.EOF
+                    ], timeout=10)
+                    display.vvv(f"ret2: {ret2}")
+                    if ret2 == 0:
+                        raise ResultFailedException(f"No passwd entry for user '{ssh_key_user}'")
+                    elif ret2 == 3:
                         conn_obj.sendline(password)
                         conn_obj.expect_exact([':~$ ', ':~#'])
+                    elif ret2 == 4:
+                        raise ResultFailedException("ssh command pexpect.TIMEOUT")
+                    elif ret2 == 5:
+                        raise ResultFailedException("ssh command pexpect.EOF")
+
                     conn_obj.sendline(f"mkdir /home/{ssh_key_user}/.ssh")
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
@@ -186,7 +233,8 @@ class ActionModule(ActionBase):
                 else:
                     raise ResultFailedException(f"Could not login to host. Invalid password: f{password}")
                 login_tries += 1
-            elif ret == 2:
+            elif ret == 2: # '/]# '                     # CLI prompt detected
+                display.vvv(f"Granting Sudoer permissions to user: {sudo_user}")
                 if sudo_user is not None:
                     conn_obj.sendline(f'shell sudo su -')
                     ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
@@ -199,7 +247,7 @@ class ActionModule(ActionBase):
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     display.vvv(f"User {sudo_user} granted sudo permissions")
                 return True
-            elif ret == 3:
+            elif ret == 3: # ':~$ '                     # root shell prompt detected
                 if sudo_user is not None:
                     conn_obj.sendline(f'sudo su -')
                     ret2 = conn_obj.expect_exact([':~$ ', ':~#', 'Password: '])
@@ -212,7 +260,7 @@ class ActionModule(ActionBase):
                     conn_obj.expect_exact([':~$ ', ':~#'])
                     display.vvv(f"User {sudo_user} granted sudo permissions")
                 return True
-            elif ret == 4:
+            elif ret == 4: # ':~# '                 # user shell prompt detected
                 if sudo_user is not None:
                     conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
                     conn_obj.expect_exact([':~$ ', ':~#'])
@@ -233,7 +281,7 @@ class ActionModule(ActionBase):
         display.vvv(str(action_module_args))
 
         host = task_vars.get("ansible_host")
-        ssh_port = task_vars.get("ansible_ssh_port")
+        ssh_port = task_vars.get("ansible_ssh_port", 22)
         options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
 
         username = None
@@ -243,8 +291,8 @@ class ActionModule(ActionBase):
         action_sudoers = False
         new_password = None
         ssh_key = None
-        ssh_key_user = None
-        ssh_key_type = None
+        ssh_key_user = "ansible" # default user
+        ssh_key_type = "ssh-rsa" # default ssh key type
 
         if OPTION_USERNAME in action_module_args.keys():
             username = action_module_args[OPTION_USERNAME]
@@ -252,6 +300,9 @@ class ActionModule(ActionBase):
             return self._result_failed('No username for the connection was provided')
         if OPTION_CHANGE_DEFAULT_PASSWORD in action_module_args.keys():
             password = action_module_args[OPTION_CHANGE_DEFAULT_PASSWORD]
+        if OPTION_SSH_PORT in action_module_args.keys():
+            ssh_port = action_module_args[OPTION_SSH_PORT]
+        options = options + f" -p {ssh_port}"
 
         # Check if a the password should be changed for the current user
         if OPTION_CHANGE_NEW_PASSWORD in action_module_args.keys():
@@ -260,25 +311,26 @@ class ActionModule(ActionBase):
         if password is not None and new_password is not None and len(new_password) > 0:
             action_password_change = True
 
+        # Check if sudoers permissions should be granted
+        if OPTION_GRANT_SUDOERS in action_module_args.keys():
+            if OPTION_INSTALL_SSH_KEY_USER in action_module_args.keys():
+                ssh_key_user = action_module_args[OPTION_INSTALL_SSH_KEY_USER]
+            sudoers_permission = action_module_args[OPTION_GRANT_SUDOERS]
+        else:
+            sudoers_permission = False
+
         # Check if a ssh_key should be installed
         if OPTION_INSTALL_SSH_KEY in action_module_args.keys():
             ssh_key = action_module_args[OPTION_INSTALL_SSH_KEY]
             if OPTION_INSTALL_SSH_KEY_USER in action_module_args.keys():
                 ssh_key_user = action_module_args[OPTION_INSTALL_SSH_KEY_USER]
-            else:
-                return self._result_failed('No username was provided, to which the ssh_key should be installed too')
             if OPTION_INSTALL_SSH_KEY_TYPE in action_module_args.keys():
                 ssh_key_type = action_module_args[OPTION_INSTALL_SSH_KEY_TYPE]
-            else:
-                return self._result_failed('No ssh_key_type was provided')
-            if OPTION_INSTALL_SSH_PORT in action_module_args.keys():
-                ssh_port = action_module_args[OPTION_INSTALL_SSH_PORT]
-            options = options + f" -p {ssh_port}"
+
                 
         if ssh_key is not None and len(ssh_key) > 0 and len(ssh_key_type) > 0:
             split_key = ssh_key.split()
-            display.vvv("Key length")
-            display.vvv(str(len(split_key)))
+            display.vvv(f"Key length: {len(split_key)}")
             # If one value was provided, it should be the ssh key
             if len(split_key) == 1:
                 ssh_key_type = ssh_key_type
@@ -299,7 +351,9 @@ class ActionModule(ActionBase):
                 return self._result_failed('No valid ssh_key was provided:' + str(ssh_key_type))
 
             #Valdidate that the ssh key is valid
-            valid_key_types = ['ssh-rsa', 'ssh-dsa', 'ssh-ecdsa', 'ssh-ecdsa-sk', 'ssh-ed25519', 'ssh-ed25519-sk']
+            # ssh-keygen [-t ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa]
+            # Specifies the type of key to create. Possible values are “ecdsa”, “ecdsa-sk”, “ed25519”, “ed25519-sk”, or “rsa”.
+            valid_key_types = ['ssh-ecdsa', 'ssh-ecdsa-sk', 'ssh-ed25519', 'ssh-ed25519-sk', 'ssh-rsa']
             if ssh_key_type in valid_key_types:
                 action_ssh_key = True
                 try:
@@ -312,16 +366,11 @@ class ActionModule(ActionBase):
             else:
                 return self._result_failed(f"No valid ssh_key_type was provided: {ssh_key_type} | Valid Options: {valid_key_types}")
 
-            display.vvv(f"ssh_key_type: {type}")
+            display.vvv(f"ssh_key_type: {ssh_key_type}")
             display.vvv(f"ssh_key_value: {ssh_key_value}")
             display.vvv(f"comment: {comment}")
             display.vvv(f"ssh options: {options}")
 
-        # Check if sudoers permissions should be granted
-        if OPTION_GRANT_SUDOERS in action_module_args.keys():
-            sudoers_permission = action_module_args[OPTION_GRANT_SUDOERS]
-        else:
-            sudoers_permission = False
 
         if sudoers_permission:
             action_sudoers = True
@@ -339,23 +388,33 @@ class ActionModule(ActionBase):
         # try connect
         for cnt in range(60):
             try:
+                msg = ""
                 if action_password_change:
                     conn_obj = pexpect.spawn(cmd, encoding="utf-8")
                     status_password_change = self._change_password(conn_obj, password, new_password)
                     if conn_obj and conn_obj.isalive():
                         conn_obj.close()
+                    if status_password_change:
+                        password = new_password
+                        msg += f"Password for user {username} has been changed. "
                 if action_ssh_key:
                     conn_obj = pexpect.spawn(cmd, encoding="utf-8")
                     status_ssh_key = self._install_ssh_key(conn_obj, password, ssh_key_user, ssh_key_value, ssh_key_type, comment)
                     if conn_obj and conn_obj.isalive():
                         conn_obj.close()
+                    if status_ssh_key:
+                        msg += f"SSH key has been added to user {ssh_key_user}. "
                 if sudoers_permission:
                     conn_obj = pexpect.spawn(cmd, encoding="utf-8")
                     status_sudoers = self._grant_sudoers_permissions(conn_obj, password, sudo_user=ssh_key_user)
                     if conn_obj and conn_obj.isalive():
                         conn_obj.close()
-
-                return self._result_changed()
+                    if status_sudoers:
+                        msg += f"User {ssh_key_user} has been added to sudoers. "
+                if status_password_change or status_ssh_key or status_sudoers:
+                    return self._result_changed(msg=msg.strip())
+                else:
+                    return self._result_not_changed(msg="No change was executed!")
             except Exception as e:   # pylint: disable=broad-except
                 return self._result_failed(str(e))
             finally:
@@ -365,4 +424,3 @@ class ActionModule(ActionBase):
 
         return self._result_failed('Could not connect to host')
 
-        

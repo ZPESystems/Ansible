@@ -11,7 +11,7 @@
 
   vars:
       ssh_key_user: ansible
-      ansible_sudoers: true
+      ssh_key_user_sudoers: true
       ssh_key_type: ed25519
 
   vars_prompt:
@@ -37,7 +37,7 @@
           ssh_key_user: "{{ ssh_key_user }}"
           ssh_key_type: "{{ ssh_key_type }}"
           ssh_key: "{{ ssh_key }}"
-          ansible_sudoers: "{{ ansible_sudoers }}"
+          ssh_key_user_sudoers: "{{ ssh_key_user_sudoers }}"
 
      - name: Validate Connection
        vars:

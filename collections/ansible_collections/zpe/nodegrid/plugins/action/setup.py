@@ -53,45 +53,50 @@ class ActionModule(ActionBase):
             message=msg
         )
         return result
+    
+    def _expect_for(self, conn_obj, expectation_list=[], timeout=10):
+        expectation_list.append(pexpect.TIMEOUT)
+        expectation_list.append(pexpect.EOF)
+        len = len(expectation_list)
+        ret = conn_obj.expect_exact(expectation_list, timeout=timeout)
+        if ret == (len-2):  # pexpect.TIMEOUT
+            raise ResultFailedException(f"Failure pexpect.TIMEOUT")
+        if ret == (len-1):  # pexpect.EOF
+            raise ResultFailedException(f"Failure pexpect.EOF")
+        return ret
 
     def _change_password_command(self, conn_obj, password, new_password):
+        display.vvv(f"Changing password...")
         conn_obj.sendline("passwd")
         for cnt in range(10):
-            res = conn_obj.expect_exact([
+            ret = self._expect_for(conn_obj, [
                 'Current password: ',
                 'New password: ',
                 'Retype new password: ',
                 'password updated successfully',
                 'BAD PASSWORD:',
                 ':~$ ',
-                ':~# ',
-                pexpect.TIMEOUT,
-                pexpect.EOF
-            ], timeout=10)
-            display.vvv(f"change password res: {res}")
+                ':~# '
+            ])
 
-            if res == 0:
+            if ret == 0:
                 display.vvv("Providing old password")
                 conn_obj.sendline(password)
-            elif res == 1:
+            elif ret == 1:
                 display.vvv("Providing new password")
                 conn_obj.sendline(new_password)
-            elif res == 2:
+            elif ret == 2:
                 display.vvv("Providing Password a 2nd time")
                 conn_obj.sendline(new_password)
-            elif res == 3:
+            elif ret == 3:
                 display.vvv("Password Update Successful")
                 return True
-            elif res == 4:
+            elif ret == 4:
                 display.vvv("Bad Password detected")
                 raise ResultFailedException(f"BAD PASSWORD, provide a different new password")
-            elif res == 5 or res == 6:
+            elif ret == 5 or ret == 6:
                 display.vvv("Prompt was detected, return")
                 return True
-            elif res == 7:      # pexpect.TIMEOUT
-                raise ResultFailedException("SSH connection TIMEOUT")
-            elif res == 8:      # pexpect.EOF
-                raise ResultFailedException("SSH connection EOF")
             else:
                 raise ResultFailedException(f"Failed changing password")
         return False
@@ -99,7 +104,7 @@ class ActionModule(ActionBase):
     def _change_password(self, conn_obj, password, new_password):
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact([
+            expectation_list = [
                 'BAD PASSWORD:',
                 'Password: ',
                 'Current password: ',
@@ -107,16 +112,16 @@ class ActionModule(ActionBase):
                 'Retype new password: ',
                 '/]# ',
                 ':~$ ',
-                'Permission denied (publickey,keyboard-interactive).',
-                pexpect.TIMEOUT,
-                pexpect.EOF
-            ], timeout=10)
-            display.vvv(f"change password ret: {ret}")
-            display.vvv(f"login_tries: {login_tries}")
+                ':~# ',
+                'Permission denied (publickey,keyboard-interactive).'
+            ]
+            ret = self._expect_for(conn_obj, expectation_list)
 
             if ret == 0:
+                display.vvv("Bad Password detected")
                 raise ResultFailedException("BAD PASSWORD, provide a different new password")
             elif ret == 1:
+                display.vvv(f"Password login_tries: {login_tries}")
                 if login_tries == 0:                
                     conn_obj.sendline(password)
                 elif login_tries == 1:
@@ -129,112 +134,105 @@ class ActionModule(ActionBase):
                     raise ResultFailedException(f"Could not login to host. Invalid password!")
                 login_tries += 1
             elif ret == 2:
+                display.vvv("Providing current password")
                 conn_obj.sendline(password)
             elif ret == 3:
+                display.vvv("Providing new password")
                 conn_obj.sendline(new_password)
             elif ret == 4:
+                display.vvv("Providing new password (retype)")
                 conn_obj.sendline(new_password)
-            elif ret == 5:      # CLI prompt detected
+            elif ret in [5, 6, 7]:
+                display.vvv(f"Prompt was detected: {expectation_list}")
                 if password == new_password:
+                    display.vvv("New password already applied")
                     return True
-                conn_obj.sendline(f'shell')
-                conn_obj.expect_exact([':~$ ', ':~# '])
-                self._change_password_command(conn_obj, password, new_password)
-            elif ret == 6:      # user shell prompt detected
-                if password == new_password:
-                    return True
-                self._change_password_command(conn_obj, password, new_password)
-            elif ret == 7:      # Permission denied
+                if ret == 5:    # CLI prompt detected
+                    conn_obj.sendline(f'shell')
+                    self._expect_for(conn_obj, [':~$ ', ':~# '])
+                    self._change_password_command(conn_obj, password, new_password)
+                elif ret in [6, 7]:  # user/root shell prompt detected
+                    self._change_password_command(conn_obj, password, new_password)
+            elif ret == 8:      # Permission denied
+                display.vvv("Permission denied")
                 raise ResultFailedException("Permission denied (publickey,keyboard-interactive).")
-            elif ret == 8:      # pexpect.TIMEOUT
-                raise ResultFailedException("SSH connection TIMEOUT")
-            elif ret == 9:      # pexpect.EOF
-                raise ResultFailedException("SSH connection EOF")
             else:
                 raise ResultFailedException(f"Failed changing password")
         raise ResultFailedException("End of loop changing password")
 
     def _install_ssh_key_command(self, conn_obj, ssh_key_user, ssh_key, ssh_key_type, comment):
+        display.vvv(f"Installing SSH key...")
         conn_obj.sendline(f"mkdir -p /home/{ssh_key_user}/.ssh")
-        conn_obj.expect_exact([':~$ ', ':~# '])
+        self._expect_for(conn_obj, [':~$ ', ':~# '])
         conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
-        conn_obj.expect_exact([':~$ ', ':~# '])
+        self._expect_for(conn_obj, [':~$ ', ':~# '])
         conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
-        conn_obj.expect_exact([':~$ ', ':~# '])
+        self._expect_for(conn_obj, [':~$ ', ':~# '])
         conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
-        conn_obj.expect_exact([':~$ ', ':~# '])
+        self._expect_for(conn_obj, [':~$ ', ':~# '])
         display.vvv(f"SSH key installed")
         return True
 
     def _install_ssh_key(self, conn_obj, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact([
+            expectation_list = [
                 'Permission denied (publickey,keyboard-interactive).',
                 'Password: ',
                 '/]# ',
                 ':~$ ',
-                ':~# ',
-                pexpect.TIMEOUT,
-                pexpect.EOF
-            ], timeout=10)
-            display.vvv(f"install ssh key ret: {ret}")
+                ':~# '
+            ]
+            ret = self._expect_for(conn_obj, expectation_list)
 
             if ret == 0: # 'BAD PASSWORD'
+                display.vvv("Bad Password detected")
                 raise ResultFailedException("Permission denied (publickey,keyboard-interactive). Invalid user or password")
             elif ret == 1: # 'Password: '
+                display.vvv(f"Password login_tries: {login_tries}")
                 if login_tries < 3:
                     conn_obj.sendline(password)
                 else:
                     raise ResultFailedException("Could not login to host. Invalid user or password")
                 login_tries += 1
-            elif ret == 2: # '/]# '                 # CLI prompt detected
-                conn_obj.sendline(f'shell sudo su - {ssh_key_user}')
-                ret2 = conn_obj.expect_exact([':~$ ', ':~# ', 'Password: '])
+            elif ret in [2, 3, 4]:
+                display.vvv(f"Prompt was detected: {expectation_list[ret]}")
+                if ret == 2:    # CLI prompt detected
+                    conn_obj.sendline(f'shell sudo su - {ssh_key_user}')
+                elif ret == 3:  # user shell prompt detected
+                    conn_obj.sendline(f'sudo su - {ssh_key_user}')
+                else:           # root shell prompt detected
+                    conn_obj.sendline(f'su - {ssh_key_user}')
+
+                ret2 = self._expect_for(conn_obj, [':~$ ', ':~# ', 'Password: '])
                 if ret2 == 2:
                     conn_obj.sendline(password)
-                    conn_obj.expect_exact([':~$ ', ':~# '])
+                    self._expect_for(conn_obj, [':~$ ', ':~# '])
                 return self._install_ssh_key_command(conn_obj, ssh_key_user, ssh_key, ssh_key_type, comment)
-            elif ret == 3: # ':~$ '                 # user shell prompt detected
-                conn_obj.sendline(f'sudo su - {ssh_key_user}')
-                ret2 = conn_obj.expect_exact([':~$ ', ':~# ', 'Password: '])
-                if ret2 == 2:
-                    conn_obj.sendline(password)
-                    conn_obj.expect_exact([':~$ ', ':~# '])
-                return self._install_ssh_key_command(conn_obj, ssh_key_user, ssh_key, ssh_key_type, comment)
-            elif ret == 4: # ':~# '                 # root shell prompt detected
-                conn_obj.sendline(f'su - {ssh_key_user}')
-                conn_obj.expect_exact([':~$ ', ':~# '])
-                return self._install_ssh_key_command(conn_obj, ssh_key_user, ssh_key, ssh_key_type, comment)
-            elif ret == 5: # pexpect.TIMEOUT
-                raise ResultFailedException("SSH connection TIMEOUT")
-            elif ret == 6: # pexpect.EOF
-                raise ResultFailedException("SSH connection EOF")
             else:
                 raise ResultFailedException("Failed installing ssh key")
         raise ResultFailedException("End of loop installing ssh_key")
 
     def _grant_sudo_access_command(self, conn_obj, sudo_user):
+        display.vvv(f"Granting sudo permissions to user {sudo_user}")
         conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
-        conn_obj.expect_exact([':~$ ', ':~# '])
+        self._expect_for(conn_obj, [':~$ ', ':~# '])
         conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
-        conn_obj.expect_exact([':~$ ', ':~# '])
+        self._expect_for(conn_obj, [':~$ ', ':~# '])
         display.vvv(f"User {sudo_user} granted sudo permissions")
         return True
 
     def _grant_sudo_access(self, conn_obj, password, sudo_user):
         login_tries = 0
         for cnt in range(20):
-            ret = conn_obj.expect_exact([
+            expectation_list = [
                 'Permission denied (publickey,keyboard-interactive).',
                 'Password: ',
                 '/]# ',
                 ':~$ ',
-                ':~# ',
-                pexpect.TIMEOUT,
-                pexpect.EOF
-            ], timeout=10)
-            display.vvv(f"grant sudo access ret: {ret}")
+                ':~# '
+            ]
+            ret = self._expect_for(conn_obj, expectation_list)
 
             if ret == 0: # 'BAD PASSWORD'
                 raise ResultFailedException(f"Permission denied (publickey,keyboard-interactive). Check user password")
@@ -244,26 +242,19 @@ class ActionModule(ActionBase):
                 else:
                     raise ResultFailedException(f"Could not login to host. Invalid password")
                 login_tries += 1
-            elif ret == 2: # '/]# '                 # CLI prompt detected
-                conn_obj.sendline(f'shell sudo su -')
-                ret2 = conn_obj.expect_exact([':~$ ', ':~# ', 'Password: '])
+            elif ret in [2, 3]:
+                if ret == 2:    # CLI prompt detected
+                    conn_obj.sendline(f'shell sudo su -')
+                else:           # user shell prompt detected
+                    conn_obj.sendline(f'sudo su -')
+
+                ret2 = self._expect_for(conn_obj, [':~$ ', ':~# ', 'Password: '])
                 if ret2 == 2:
                     conn_obj.sendline(password)
-                    conn_obj.expect_exact([':~$ ', ':~# '])
+                    self._expect_for(conn_obj, [':~$ ', ':~# '])
                 return self._grant_sudo_access_command(conn_obj, sudo_user)
-            elif ret == 3: # ':~$ '                 # user shell prompt detected
-                conn_obj.sendline(f'sudo su -')
-                ret2 = conn_obj.expect_exact([':~$ ', ':~# ', 'Password: '])
-                if ret2 == 2:   
-                    conn_obj.sendline(password)
-                    conn_obj.expect_exact([':~$ ', ':~# '])
+            elif ret == 4: # root shell prompt detected
                 return self._grant_sudo_access_command(conn_obj, sudo_user)
-            elif ret == 4: # ':~# '                 # root shell prompt detected
-                return self._grant_sudo_access_command(conn_obj, sudo_user)
-            elif ret == 5: # pexpect.TIMEOUT
-                raise ResultFailedException("SSH connection TIMEOUT")
-            elif ret == 6: # pexpect.EOF
-                raise ResultFailedException("SSH connection EOF")
             else:
                 raise ResultFailedException(f"Failed granting sudo access")
         raise ResultFailedException("End of loop installing granting sudoers permissions")

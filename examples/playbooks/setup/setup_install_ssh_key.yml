@@ -45,10 +45,14 @@
   tasks:
     - name: Install a ssh_key for a user
       zpe.nodegrid.setup:
-        username: "{{ nodegrid_user }}"
-        password: "{{ current_password }}"
-        ssh_key_user: "{{ ssh_key_user }}"
-        ssh_key_type: "{{ ssh_key_type }}"
-        ssh_key: "{{ ssh_key }}"
-        ssh_port: "{{ ssh_port }}"
-        ssh_key_user_sudoers: "{{ ssh_key_user_sudoers }}"
+        login:
+          username: "{{ nodegrid_user }}"
+          password: "{{ current_password }}"
+          ssh_port: "{{ ssh_port }}"
+        install_ssh_key:
+          user: "{{ ssh_key_user }}"
+          key_type: "{{ ssh_key_type }}"
+          key: "{{ ssh_key }}"
+        grant_sudo_access:
+          user: "{{ ssh_key_user }}"
+          enable: "{{ ssh_key_user_sudoers }}"

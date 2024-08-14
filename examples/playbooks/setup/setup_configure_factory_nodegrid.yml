@@ -16,11 +16,15 @@
 
   - name: Change default admin password and install the ansible user ssh key
     zpe.nodegrid.setup:
-      username: "{{ set_username }}"
-      password: "{{ set_password }}"
-      new_password: "{{ set_new_password }}"
-      ssh_key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
-      ssh_key_user_sudoers: True
+      login:
+        username: "{{ set_username }}"
+        password: "{{ set_password }}"
+      change_password:
+        new_password: "{{ set_new_password }}"
+      install_ssh_key:
+        key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
+      grant_sudo_access:
+        enable: True
 
   - name: Get Nodegrid facts
     zpe.nodegrid.facts:
@@ -48,11 +52,15 @@
 
   - name: Change default admin password and install the ansible user ssh key
     zpe.nodegrid.setup:
-      username: "{{ set_username }}"
-      password: "{{ set_password }}"
-      new_password: "{{ set_new_password }}"
-      ssh_key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
-      ssh_key_user_sudoers: True
+      login:
+        username: "{{ set_username }}"
+        password: "{{ set_password }}"
+      change_password:
+        new_password: "{{ set_new_password }}"
+      install_ssh_key:
+        key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
+      grant_sudo_access:
+        enable: True
     when: upgrade_required and format_partitions
 
   - name: Get Nodegrid facts

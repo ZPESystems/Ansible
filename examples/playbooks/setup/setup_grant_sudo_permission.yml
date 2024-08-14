@@ -18,9 +18,13 @@
     - name: current_password
       prompt: Provide a current password for the user
       private: true
-    - name: ssh_user
+    - name: ssh_key_user
       prompt: Username to grant sudo access
       default: ansible
+      private: false
+    - name: ssh_port
+      prompt: Enter SSH port
+      default: 22
       private: false
 
   tasks:
@@ -28,5 +32,6 @@
       zpe.nodegrid.setup:
         username: "{{ nodegrid_user }}"
         password: "{{ current_password }}"
-        ssh_user: "{{ ssh_user }}"
-        grant_sudo_access: True
+        ssh_port: "{{ ssh_port }}"
+        ssh_key_user: "{{ ssh_key_user }}"
+        ssh_key_user_sudoers: True

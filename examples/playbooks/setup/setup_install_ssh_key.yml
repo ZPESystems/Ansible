@@ -21,24 +21,25 @@
     - name: current_password
       prompt: Provide a current password for the user
       private: true
-    - name: ssh_user
-      prompt: Provide username to which the ssh_key should be installed
-      default: ansible
-      private: false
-    - name: ssh_key_type
-      prompt: Provide ssh key type that is used (ssh-dsa | ssh-ecdsa | ssh-ecdsa-sk | ssh-ed25519 | ssh-ed25519-sk | ssh-rsa)?
-      default: ssh-rsa
-      private: false
-    - name: ssh_key
-      prompt: Enter a user's ssh public key to access ansible user via ssh
-      private: false
     - name: ssh_port
       prompt: Enter ssh port
       default: 22
       private: false
-    - name: grant_sudo_access
-      prompt: Grant sudo access to user (True | False)?
-      default: false
+    - name: ssh_key_user
+      prompt: Provide username to which the ssh_key should be installed
+      default: ansible
+      private: false
+    - name: ssh_key_type
+      prompt: Provide ssh key type that is used (ssh-ecdsa | ssh-ecdsa-sk | ssh-ed25519 | ssh-ed25519-sk | ssh-rsa)?
+      default: ssh-ed25519
+      private: false
+    - name: ssh_key
+      prompt: Enter a user's ssh public key to access ansible user via ssh
+      private: false
+    
+    - name: ssh_key_user_sudoers
+      prompt: Add ssh user to sudoers (True | False)?
+      default: true
       private: false
 
   tasks:
@@ -46,8 +47,8 @@
       zpe.nodegrid.setup:
         username: "{{ nodegrid_user }}"
         password: "{{ current_password }}"
-        ssh_user: "{{ ssh_user }}"
+        ssh_key_user: "{{ ssh_key_user }}"
         ssh_key_type: "{{ ssh_key_type }}"
         ssh_key: "{{ ssh_key }}"
         ssh_port: "{{ ssh_port }}"
-        grant_sudo_access: "{{ grant_sudo_access }}"
+        ssh_key_user_sudoers: "{{ ssh_key_user_sudoers }}"

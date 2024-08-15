@@ -212,7 +212,7 @@ class ActionModule(ActionBase):
                 raise ResultFailedException(f"Failed changing password")
         raise ResultFailedException("End of loop change password")
 
-    def _install_ssh_key(self, conn_obj, prompt, password, ssh_key_user, ssh_key, ssh_key_type, comment=""):
+    def _install_ssh_key(self, conn_obj, prompt, ssh_key_user, ssh_key, ssh_key_type, comment=""):
         display.vvv(f"Installing SSH key ...")
 
         if prompt == PromptType.CLI:
@@ -221,11 +221,7 @@ class ActionModule(ActionBase):
             conn_obj.sendline(f'sudo su - {ssh_key_user}')
         else: # PromptType.ROOT_SHELL
             conn_obj.sendline(f'su - {ssh_key_user}')
-        
-        ret = self._expect_for(conn_obj, [':~$ ', ':~# ', 'Password: '])
-        if ret == 2:
-            conn_obj.sendline(password)
-            self._expect_for(conn_obj, [':~# ', ':~# '])
+        self._expect_for(conn_obj, [':~$ ', ':~# '])
 
         conn_obj.sendline(f"mkdir -p /home/{ssh_key_user}/.ssh")
         self._expect_for(conn_obj, [':~$ ', ':~# '])
@@ -242,20 +238,15 @@ class ActionModule(ActionBase):
         display.vvv(f"SSH key installed")
         return True
 
-    def _grant_sudo_access(self, conn_obj, prompt, password, sudo_user):
+    def _grant_sudo_access(self, conn_obj, prompt, sudo_user):
         display.vvv(f"Granting sudo permissions ...")
 
         if prompt != PromptType.ROOT_SHELL:
-
             if prompt == PromptType.CLI:
                 conn_obj.sendline(f'shell sudo su -')
             elif prompt == PromptType.USER_SHELL:
                 conn_obj.sendline(f'sudo su -')
-
-            ret = self._expect_for(conn_obj, [':~$ ', ':~# ', 'Password: '])
-            if ret == 2:
-                conn_obj.sendline(password)
-                self._expect_for(conn_obj, [':~$ ', ':~# '])
+            self._expect_for(conn_obj, [':~$ ', ':~# '])
 
         conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
         self._expect_for(conn_obj, [':~$ ', ':~# '])
@@ -436,13 +427,13 @@ class ActionModule(ActionBase):
                 
             # Install SSH key
             if action_ssh_key:
-                ssh_key_installed = self._install_ssh_key(conn_obj, prompt, password, ssh_key_user, ssh_key_value, ssh_key_type, comment)
+                ssh_key_installed = self._install_ssh_key(conn_obj, prompt, ssh_key_user, ssh_key_value, ssh_key_type, comment)
                 if ssh_key_installed:
                     msg += f"SSH key has been added to user {ssh_key_user}. "
                 
             # Grant sudo access
             if action_sudoers:
-                sudo_access_granted = self._grant_sudo_access(conn_obj, prompt, password, sudo_user)
+                sudo_access_granted = self._grant_sudo_access(conn_obj, prompt, sudo_user)
                 if sudo_access_granted:
                     msg += f"User {sudo_user} has been added to sudoers. "
 

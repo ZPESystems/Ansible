@@ -4,7 +4,9 @@
   collections:
     - zpe.nodegrid
   vars:
+    set_username: "<myusername>"
     set_password: "<mypassword>"
+    set_new_password: "<mypassword>"
     copy_ssh_key: "/home/ansible/.ssh/id_ed25519.pub"
     nodegrid_version: "6.0.0"
     iso_file: "/home/ansible/nodegrid-genericx86-64-20230209141008.iso"
@@ -12,14 +14,17 @@
 
   tasks:
 
-  #
-  # Phase 1: Change password and software upgrade
-  #
-
   - name: Change default admin password and install the ansible user ssh key
     zpe.nodegrid.setup:
-      password: "{{ set_password }}"
-      ssh_key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
+      login:
+        username: "{{ set_username }}"
+        password: "{{ set_password }}"
+      change_password:
+        new_password: "{{ set_new_password }}"
+      install_ssh_key:
+        key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
+      grant_sudo_access:
+        enable: True
 
   - name: Get Nodegrid facts
     zpe.nodegrid.facts:
@@ -42,26 +47,26 @@
       image_location: "local_system"
       filename: "{{ iso_file | basename }}"
       format_partitions_before_upgrade: "{{ 'yes' if format_partitions else 'no' }}"
-      # Put other software upgrade settings here
+      # if_downgrading: "restore_configuration_saved_on_version_upgrade"
     when: upgrade_required
 
   - name: Change default admin password and install the ansible user ssh key
     zpe.nodegrid.setup:
-      password: "{{ set_password }}"
-      ssh_key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
-    when: format_partitions
-
-  - name: Ping Nodegrid
-    zpe.nodegrid.ping_nodegrid:
-    when: not format_partitions
+      login:
+        username: "{{ set_username }}"
+        password: "{{ set_password }}"
+      change_password:
+        new_password: "{{ set_new_password }}"
+      install_ssh_key:
+        key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
+      grant_sudo_access:
+        enable: True
+    when: upgrade_required and format_partitions
 
   - name: Get Nodegrid facts
     zpe.nodegrid.facts:
+    when: upgrade_required
 
   - name: Check the version
     fail: msg="Invalid Nodegrid OS version"
     when: upgrade_required and ansible_facts['about']['version'] is version(nodegrid_version, '!=')
-
-  #
-  # Phase 2: Change settings
-  #

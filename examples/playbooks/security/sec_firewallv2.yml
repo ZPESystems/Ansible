@@ -1,0 +1,127 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars:
+
+  tasks:
+    - name: Flush INPUT
+      tags:
+        - flush-INPUT
+      block:
+      - name: Flush chain INPUT
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: flush
+    - name: Flush FORWARD
+      tags:
+        - flush-FORWARD
+      block:
+      - name: Flush chain FORWARD
+        zpe.nodegrid.firewallv2:
+          chain: FORWARD
+          action: flush
+    - name: Configure Firewall, INPUT chain
+      tags:
+        - INPUT
+      block:
+      - name: Apply INPUT Policy
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          policy: ACCEPT
+      - name: Define Rule 0
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert # insert, append, modify, flush
+          state: present # present, absent
+          target: ACCEPT # ACCEPT, DROP, LOG, REJECT, RETURN
+          rule_number: 0
+          input_interface: lo
+          description: DEFAULT_RULE_DO_NOT_REMOVE
+      - name: Define Rule 1
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 1
+          protocol: tcp
+          destination_port: 22
+          source_net4: ""
+          destination_net4: ""
+          description: 'NODEGRID_SSH'
+      - name: Define Rule 2
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 2
+          protocol: tcp
+          destination_port: 9300
+          description: 'NODEGRID_SEARCH_9300'
+      - name: Define Rule 3
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 3
+          protocol: tcp
+          destination_port: 9966
+          description: 'NODEGRID_CLUSTER_9966'
+      - name: Define Rule 4
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 4
+          protocol: tcp
+          destination_port: 443
+          description: 'NODEGRID_HTTPS'
+      - name: Define Rule 5
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 5
+          protocol: udp
+          destination_udp_port: 161
+          description: 'NODEGRID_SNMP'
+      - name: Define Rule 6
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 6
+          protocol: udp
+          destination_udp_port: 51820
+          description: 'NODEGRID_WIREGUARD'
+      - name: Define Rule 7
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: insert
+          state: present
+          target: DROP
+          rule_number: 7
+          description: 'DROP_ALL'
+    - name: Configure Firewall, FORWARD chain
+      tags:
+        - FORWARD
+      block:
+      - name: Apply FORWARD Policy
+        zpe.nodegrid.firewallv2:
+          chain: FORWARD
+          policy: ACCEPT
+      - name: Define Rule 0
+        zpe.nodegrid.firewallv2:
+          chain: FORWARD
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 0
+          input_interface: lo
+          description: DEFAULT_RULE_DO_NOT_REMOVE

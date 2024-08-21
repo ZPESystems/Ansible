@@ -1,0 +1,23 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars:
+    file_path: "/path/to/cmd_file.txt"
+
+  tasks:
+    - name: Load cli commands from file
+      set_fact:
+        cmds_list: "{{ lookup('file', file_path) | zpe.nodegrid.to_cmd }}"
+
+    - name: Execute cli commands
+      zpe.nodegrid.nodegrid_cmds:
+         cmds:  "{{ cmds_list }}"
+      register: output
+
+    - name: Display Result
+      debug:
+        msg: "{{ item.stdout_lines }}"
+      with_items: "{{ output.cmds_output }}"
+      loop_control:
+        label: "{{ item.command }}"

@@ -25,6 +25,8 @@ GRANT_SUDO_ACCESS = 'grant_sudo_access'
 GRANT_SUDO_ACCESS_USER = 'user'
 GRANT_SUDO_ACCESS_ENABLE = 'enable'
 
+SSH_ERR_MSG = "Unable to establish SSH connection to the device."
+
 class ResultFailedException(Exception):
     "Raised when a failed happens"
 
@@ -65,15 +67,15 @@ class ActionModule(ActionBase):
         )
         return result
     
-    def _expect_for(self, conn_obj, expectation_list=[], timeout=10):
+    def _expect_for(self, conn_obj, expectation_list=[], timeout=10, msg=""):
         expectation_list.append(pexpect.TIMEOUT)
         expectation_list.append(pexpect.EOF)
         list_len = len(expectation_list)
         ret = conn_obj.expect_exact(expectation_list, timeout=timeout)
         if ret == (list_len-2):  # pexpect.TIMEOUT
-            raise ResultFailedException(f"Failure pexpect.TIMEOUT")
+            raise ResultFailedException(f"Failure (TIMEOUT): {msg}")
         if ret == (list_len-1):  # pexpect.EOF
-            raise ResultFailedException(f"Failure pexpect.EOF")
+            raise ResultFailedException(f"Failure (EOF): {msg}")
         return ret
 
     def _login(self, conn_obj, password, new_password):
@@ -94,7 +96,7 @@ class ActionModule(ActionBase):
                 ':~# ',
                 'Permission denied (publickey,keyboard-interactive).'
             ]
-            ret = self._expect_for(conn_obj, expectation_list)
+            ret = self._expect_for(conn_obj, expectation_list, msg=(SSH_ERR_MSG if cnt == 0 else ''))
 
             # BAD PASSWORD:
             if ret == 0:  

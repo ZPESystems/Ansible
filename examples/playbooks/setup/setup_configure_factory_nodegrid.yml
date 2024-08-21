@@ -1,28 +1,35 @@
 - hosts: all
   name: Configure ZPE Out Of Box - Factory Default
-  gather_facts: false
+  gather_facts: False
   collections:
     - zpe.nodegrid
   vars:
-    set_username: "<myusername>"
-    set_password: "<mypassword>"
-    set_new_password: "<mypassword>"
-    copy_ssh_key: "/home/ansible/.ssh/id_ed25519.pub"
-    nodegrid_version: "6.0.0"
-    iso_file: "/home/ansible/nodegrid-genericx86-64-20230209141008.iso"
-    format_partitions: true
+    username: "<myusername>"
+    password: "<mypassword>"
+    new_password: "<mypassword>"
+    ssh_public_key_file: "/home/ansible/.ssh/id_ed25519.pub"
+    nodegrid_version: "6.0.0"   # Version of the new Nodegrid image
+    format_partitions: False
+    image_location:
+      local_computer: 
+        path: "/tmp/Nodegrid_Platform_v6.0.12_20240723.iso"
+    # image_location:
+    #   remote_server:
+    #     url: "ftp://203.0.113.0/Nodegrid_Platform_v6.0.12_20240723.iso"
+    #     username: "<myusername>"
+    #     password: "<mypassword>"
 
   tasks:
 
   - name: Change default admin password and install the ansible user ssh key
     zpe.nodegrid.setup:
       login:
-        username: "{{ set_username }}"
-        password: "{{ set_password }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
       change_password:
-        new_password: "{{ set_new_password }}"
+        new_password: "{{ new_password }}"
       install_ssh_key:
-        key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
+        key: "{{ lookup('ansible.builtin.file', ssh_public_key_file) }}"
       grant_sudo_access:
         enable: True
 
@@ -31,42 +38,58 @@
 
   - name: Check version
     set_fact:
-      upgrade_required: "{{ ansible_facts['about']['version'] is version(nodegrid_version, '!=') }}"
+      upgrade_required: "{{ nodegrid_version == '' or ansible_facts['about']['version'] is version(nodegrid_version, '!=') }}"
 
   - name: Copy iso image if the version is different
-    copy:
-      src: "{{ iso_file }}"
-      dest: /var/sw
-      owner: ansible
-      group: ansible
-      mode: '0644'
     when: upgrade_required
+    block:
+      - name: Copy from the control node
+        when: image_location['local_computer'] is defined
+        copy:
+          src: "{{ image_location['local_computer']['path'] }}"
+          dest: /var/sw
+          owner: ansible
+          group: ansible
+          mode: '0644'
+      - name: Download using ftp
+        when: image_location['remote_server'] is defined
+        get_url:
+          url: "{{ image_location['remote_server']['url'] }}"
+          dest: /var/sw
+          mode: '0644'
+          username: "{{ image_location['remote_server']['username'] }}"
+          password: "{{ image_location['remote_server']['password'] }}"
+
+  - name: Set iso_file
+    when: upgrade_required
+    set_fact:
+      iso_file: "{{ image_location['remote_server']['url'] if image_location['remote_server'] is defined else image_location['local_computer']['path'] }}"
 
   - name: Software upgrade if the version is different
+    when: upgrade_required
     zpe.nodegrid.software_upgrade:
       image_location: "local_system"
       filename: "{{ iso_file | basename }}"
       format_partitions_before_upgrade: "{{ 'yes' if format_partitions else 'no' }}"
       # if_downgrading: "restore_configuration_saved_on_version_upgrade"
-    when: upgrade_required
 
   - name: Change default admin password and install the ansible user ssh key
+    when: upgrade_required and format_partitions
     zpe.nodegrid.setup:
       login:
-        username: "{{ set_username }}"
-        password: "{{ set_password }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
       change_password:
-        new_password: "{{ set_new_password }}"
+        new_password: "{{ new_password }}"
       install_ssh_key:
-        key: "{{ lookup('ansible.builtin.file', copy_ssh_key) }}"
+        key: "{{ lookup('ansible.builtin.file', ssh_public_key_file) }}"
       grant_sudo_access:
         enable: True
-    when: upgrade_required and format_partitions
 
   - name: Get Nodegrid facts
-    zpe.nodegrid.facts:
     when: upgrade_required
+    zpe.nodegrid.facts:
 
   - name: Check the version
+    when: upgrade_required and nodegrid_version != '' and ansible_facts['about']['version'] is version(nodegrid_version, '!=')
     fail: msg="Invalid Nodegrid OS version"
-    when: upgrade_required and ansible_facts['about']['version'] is version(nodegrid_version, '!=')

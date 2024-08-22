@@ -67,7 +67,7 @@
 
   - name: Software upgrade if the version is different
     when: upgrade_required
-    zpe.nodegrid.software_upgrade:
+    zpe.nodegrid.upgrade:
       image_location: "local_system"
       filename: "{{ iso_file | basename }}"
       format_partitions_before_upgrade: "{{ 'yes' if format_partitions else 'no' }}"

@@ -105,7 +105,9 @@ class ActionModule(ActionBase):
         conn_obj.sendline("upgrade")
         expectation_list = ['reboot NOW!', '/]# ', '}]# ', ':~$ ', ':~# ']
         try:
-            self._expect_for(conn_obj, expectation_list, timeout=30)
+            ret = self._expect_for(conn_obj, expectation_list, timeout=60)
+            if ret > 1:
+                display.vvv(f"ret: {expectation_list[ret]}")
         except Exception as e:
             display.vvv(str(e))
 
@@ -178,7 +180,7 @@ class ActionModule(ActionBase):
                     return self._result_failed("Host didn't reboot")
                 
             # Wait for the device to be accessible after the software upgrade
-            st = self._ping_icmp(host, retries=150, wait_secs=5)
+            st = self._ping_icmp(host, retries=720, wait_secs=5)
             if not st:
                 return self._result_failed("Host didn't response")
 

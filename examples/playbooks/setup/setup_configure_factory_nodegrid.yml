@@ -40,10 +40,10 @@
     set_fact:
       upgrade_required: "{{ nodegrid_version == '' or ansible_facts['about']['version'] is version(nodegrid_version, '!=') }}"
 
-  - name: Copy iso image if the version is different
+  - name: Copy iso
     when: upgrade_required
     block:
-      - name: Copy from the control node
+      - name: Copy iso from the control node
         when: image_location['local_computer'] is defined
         copy:
           src: "{{ image_location['local_computer']['path'] }}"
@@ -51,7 +51,7 @@
           owner: ansible
           group: ansible
           mode: '0644'
-      - name: Download using ftp
+      - name: Download iso
         when: image_location['remote_server'] is defined
         get_url:
           url: "{{ image_location['remote_server']['url'] }}"
@@ -65,9 +65,9 @@
     set_fact:
       iso_file: "{{ image_location['remote_server']['url'] if image_location['remote_server'] is defined else image_location['local_computer']['path'] }}"
 
-  - name: Software upgrade if the version is different
+  - name: Software upgrade
     when: upgrade_required
-    zpe.nodegrid.software_upgrade:
+    zpe.nodegrid.upgrade:
       image_location: "local_system"
       filename: "{{ iso_file | basename }}"
       format_partitions_before_upgrade: "{{ 'yes' if format_partitions else 'no' }}"

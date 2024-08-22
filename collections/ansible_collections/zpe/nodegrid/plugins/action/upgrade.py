@@ -197,7 +197,7 @@ class ActionModule(ActionBase):
             duration = end_time - start_time
             minutes = int(duration // 60)
             seconds = duration % 60
-            message = f"The upgrade took {minutes} and {seconds:.2f} seconds to execute."
+            message = f"The upgrade took {minutes} minutes and {seconds} seconds to execute."
             display.vvv(message)
 
             sleep(10)

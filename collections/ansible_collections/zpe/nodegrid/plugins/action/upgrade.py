@@ -9,6 +9,7 @@ import pexpect
 
 import requests
 import urllib3
+import time
 
 display = Display()
 
@@ -60,7 +61,7 @@ class ActionModule(ActionBase):
             '/]# ',
             'Password: ',
         ]
-        ret = self._expect_for(conn_obj, expectation_list, msg=SSH_ERR_MSG)
+        ret = self._expect_for(conn_obj, expectation_list, timeout=60, msg=SSH_ERR_MSG)
         if ret != 0:  
             display.vvv(f"Connection failure: {expectation_list[ret]}")
             raise ResultFailedException("Connection failure")
@@ -162,14 +163,15 @@ class ActionModule(ActionBase):
         display.vvv(f"{cmd}")
 
         try:
-            conn_obj = pexpect.spawn(cmd, encoding="utf-8")
-
             # Connect
+            conn_obj = pexpect.spawn(cmd, encoding="utf-8")
             self._connect(conn_obj)
 
             # Send upgrade commands
             result = self._upgrade(conn_obj, action_module_args)
             display.vvv(str(result))
+
+            start_time = time.time()
         
             # Wait for the device to be inaccessible due to the software upgrade
             cnt = 0
@@ -190,8 +192,16 @@ class ActionModule(ActionBase):
             while not self._webwerver_is_ready(host):
                 sleep(10)
 
+            # Calc the duration
+            end_time = time.time()
+            duration = end_time - start_time
+            minutes = int(duration // 60)
+            seconds = duration % 60
+            message = f"The upgrade took {minutes} and {seconds:.2f} seconds to execute."
+            display.vvv(message)
+
             sleep(10)
-            return self._result_changed()
+            return self._result_changed(msg=message)
 
         except Exception as e:
             return self._result_failed(str(e))

@@ -74,7 +74,7 @@
       # if_downgrading: "restore_configuration_saved_on_version_upgrade"
 
   - name: Change default admin password and install the ansible user ssh key
-    when: upgrade_required and format_partitions
+    when: upgrade_required
     zpe.nodegrid.setup:
       login:
         username: "{{ username }}"

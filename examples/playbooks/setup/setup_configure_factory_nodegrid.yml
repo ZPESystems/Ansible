@@ -35,6 +35,10 @@
 
   - name: Get Nodegrid facts
     zpe.nodegrid.facts:
+    retries: 2
+    delay: 5
+    register: result
+    until: not result.failed
 
   - name: Check version
     set_fact:
@@ -89,6 +93,10 @@
   - name: Get Nodegrid facts
     when: upgrade_required
     zpe.nodegrid.facts:
+    retries: 2
+    delay: 5
+    register: result
+    until: not result.failed
 
   - name: Check the version
     when: upgrade_required and nodegrid_version != '' and ansible_facts['about']['version'] is version(nodegrid_version, '!=')

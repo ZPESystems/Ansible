@@ -353,7 +353,7 @@ class ActionModule(ActionBase):
                     ssh_key_value = split_key[1]
                     comment = ""
                 #If three where provided, it should be type, ssh_key and comment
-                elif len(split_key) == 3:
+                elif len(split_key) >= 3:
                     ssh_key_type = split_key[0]
                     ssh_key_value = split_key[1]
                     comment = split_key[2]

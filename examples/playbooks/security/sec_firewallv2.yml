@@ -5,22 +5,41 @@
   vars:
 
   tasks:
-    - name: Flush INPUT
+    - name: Flush INPUT chain
       tags:
         - flush-INPUT
-      block:
-      - name: Flush chain INPUT
-        zpe.nodegrid.firewallv2:
-          chain: INPUT
-          action: flush
-    - name: Flush FORWARD
+      zpe.nodegrid.firewallv2:
+        chain: INPUT
+        flush: yes
+    - name: Flush FORWARD chain
       tags:
         - flush-FORWARD
-      block:
-      - name: Flush chain FORWARD
-        zpe.nodegrid.firewallv2:
-          chain: FORWARD
-          action: flush
+      zpe.nodegrid.firewallv2:
+        chain: FORWARD
+        flush: yes
+    - name: Flush OUTPUT chain
+      tags:
+        - flush-OUTPUT
+      zpe.nodegrid.firewallv2:
+        chain: OUTPUT
+        flush: yes
+
+    - name: Create Chain DOCKER
+      zpe.nodegrid.firewallv2:
+        chain: DOCKER
+        chain_management: yes
+    
+          #    - name: Delete Chain DOCKER
+          #      zpe.nodegrid.firewallv2:
+          #        chain: DOCKER
+          #        state: absent
+          #        chain_management: yes
+
+    - name: Flush chain DOCKER
+      zpe.nodegrid.firewallv2:
+        chain: DOCKER
+        flush: yes
+
     - name: Configure Firewall, INPUT chain
       tags:
         - INPUT
@@ -32,9 +51,9 @@
       - name: Define Rule 0
         zpe.nodegrid.firewallv2:
           chain: INPUT
-          action: insert # insert, append, modify, flush
+          action: insert # insert, append, modify
           state: present # present, absent
-          target: ACCEPT # ACCEPT, DROP, LOG, REJECT, RETURN
+          target: ACCEPT
           rule_number: 0
           input_interface: lo
           description: DEFAULT_RULE_DO_NOT_REMOVE
@@ -100,13 +119,40 @@
           protocol: udp
           destination_udp_port: 51820
           description: 'NODEGRID_WIREGUARD'
-      - name: Define Rule 7
+      - name: Append a rule (if it does not exists) into the INPUT chain with target DOCKER
+        zpe.nodegrid.firewallv2:
+          action: append
+          chain: INPUT
+          input_interface: eth0
+          source_net4: 192.168.1.0/24
+          target: DOCKER
+          description: DOCKER_RULE
+      - name: Block specific IP
         zpe.nodegrid.firewallv2:
           chain: INPUT
-          action: insert
+          action: append
+          source_net4: 8.8.8.8
+          target: DROP
+      - name: Allow new incoming SYN packets on TCP port 22 (SSH)
+        tags: 
+          - testing
+        zpe.nodegrid.firewallv2:
+          debug: yes
+          chain: INPUT
+          action: append
+          destination_port: 22
+          tcp_flag_syn: set
+          enable_state_match: yes
+          new: yes
+          target: ACCEPT
+          description: "Accept new SSH connections"
+          protocol: tcp
+      - name: Define Last Rule
+        zpe.nodegrid.firewallv2:
+          chain: INPUT
+          action: append
           state: present
           target: DROP
-          rule_number: 7
           description: 'DROP_ALL'
     - name: Configure Firewall, FORWARD chain
       tags:
@@ -125,3 +171,21 @@
           rule_number: 0
           input_interface: lo
           description: DEFAULT_RULE_DO_NOT_REMOVE
+    - name: Configure Firewall, user defined LIBVIRT chain
+      tags:
+        - LIBVIRT
+      block:
+      - name: Create the LIBVIRT chain
+        zpe.nodegrid.firewallv2:
+          chain: LIBVIRT
+          state: present
+          chain_management: yes
+      - name: Define Rule 0
+        zpe.nodegrid.firewallv2:
+          chain: LIBVIRT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 0
+          input_interface: eth0
+          description: eth0_rule

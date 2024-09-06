@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# Copyright: (c) 2023, ZPE Systems <zpesystems.com>
+# Copyright: (c) 2024, ZPE Systems <zpesystems.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
@@ -14,8 +14,8 @@ author:
 - Diego Montero (@zpe-diegom)
 
 description:
-- M(firewall) is used to set up, maintain, and inspect the firewall rules in a Nodegrid device. It only considers the following firewall iptables chains:
-   INPUT, FORWARD, OUTPUT 
+- M(firewall) is used to set up, maintain, and inspect the firewall rules in a Nodegrid device.
+  It only considers the following firewall iptables chains: INPUT, FORWARD, OUTPUT.
 
 atributes:
     check_mode:
@@ -26,323 +26,348 @@ atributes:
         platforms: Nodegrid
 
 notes:
-    - This module handles individual rules. 
+    - This module handles individual Nodegrid firewall rules for the following chains: INPUT, OUTPUT, FORWARD.
 
 options:
   action:
     description:
-      - Specifies the action to be performed for a rule into a chain
-      - Only applicable for chain rules, not for chain policy
+      - Set the action to be performed for a rule into a chain.
+      - Valid options include: append, insert, modify
+      - Only applicable for chain rules, not for chain policy.
     type: str
-    choices: [append, insert, modify]
-    default: append
   state:
     description:
-      - Whether the rule should be absent or present
-      - Only applicable for chain rules, not for chain policy
+      - Whether the chain or the rule should be absent or present.
     type: str
     choices: [ present, absent ]
     default: present
-  flush:
-    description:
-      - Flushes all the rules from the specified chain 
-      - A chain selectio is required
-    type: bool
-    default: false
   chain:
     description:
-      - Specifies the chain to be configured 
+      - Specify the firewall chain to be configured.
+      - It could be any of the built-in chains: V(INPUT), V(OUTPUT), V(FORWARD).
+      - It could be any user-defined chain.
     type: str
-    choices: [INPUT, OUTPUT, FORWARD]
+  chain_management:
+    description:
+      - If V(true) and O(state) is V(present), the chain will be created if needed.
+        Any other defined parameter will be ignored.
+      - If V(true) and O(state) is V(absent), the chain will be deleted if the only
+        other parameter passed are O(chain).
+    type: bool
+    default: false  
   policy:
     description:
-      - Specifies the chain policy to be configured 
+      - Set policy for the chain.
+      - Only built-in chains can have policies (i.e., INPUT, OUTPUT, FORWARD).
+      - This parameter requires the O(chain) parameter.
+      - If you specify this parameter, all other parameters will be ignored.
+      - This parameter is used to set the default policy for the given O(chain).
     type: str
-    choices: [ACCEPT, DROP]
+    choices: [ ACCEPT, DROP ]
+  flush:
+    description:
+      - Flushes all the rules from the specified chain.
+      - This parameter requires the O(chain) parameter.
+      - If you specify this parameter, all other parameters will be ignored.
+    type: bool
+    default: false
   target:
     description:
-      - Specifies the chain policy to be configured 
+      - Set the chain rule target. 
+      - It includes the following options: ACCEPT, DROP, LOG, REJECT, RETURN 
+      - It can be any user-defined chain.
     type: str
-    choices: [ACCEPT, DROP, LOG, REJECT, RETURN]
-    defautl: ACCEPT
   rule_number:
     description:
-      - Specifies the rule number in the chain
-      - Number greater or equal to 0.
+      - Set the rule number in the chain. This number defines the rule's relative position and its precedence (lower number implies higher precedence).
+      - This parameter requires the O(action) set to V(insert).
+      - Number must be greater or equal to 0.
     type: str
-    defautl: ''
+    default: ''
   description:
     description:
-      - Defines the rule description
+      - Set the rule description.
     type: str
-    defautl: ''
+    default: ''
   source_net4:
     description:
-      - IPv4 source network
+      - Set the IPv4 source network.
     type: str
-    defautl: ''
+    default: ''
   destination_net4:
     description:
-      - IPv4 destination network
+      - Set the IPv4 destination network.
     type: str
-    defautl: ''
+    default: ''
   source_mac_address:
     description:
-      - source MAC address
+      - Set the source MAC address.
     type: str
-    defautl: ''
+    default: ''
   protocol:
     description:
-      - Specifies the rule protocol 
+      - Set the protocol of the rule or of the packet to check.
+      - The specified protocol can be one of V(tcp), V(udp), V(icmp), V(numeric).
     type: str
-    choices: [numeric, icmp, tcp, udp]
+    choices: [ numeric, icmp, tcp, udp ]
     default: numeric
   protocol_number:
     description:
-      - Specifies the rule protocol based on an integer
-      - enabled when protocol=numeric
+      - Set the rule protocol based on an number.
+      - This parameter requires the O(protocol) set to V(numeric).
+      - Protocol numbers for reference C(/etc/protocols).
     type: srt
     default: ''
   source_port:
     description:
-      - Specifies tcp source port
-      - enabled when protocol=tcp
+      - Specify the TCP source port.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
     default: ''
   destination_port:
     description:
-      - Specifies tcp destination port
-      - enabled when protocol=tcp
+      - Specifies TCP destination port.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
     default: ''
   tcp_flag_syn:
     description:
-      - tcp flags
-      - enabled when protocol=tcp
+      - Set the TCP SYN flags.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
-    choices: [any, set, unset]
+    choices: [ any, set, unset ]
     default: any
   tcp_flag_ack:
     description:
-      - tcp flags
-      - enabled when protocol=tcp
+      - Set the TCP ACK flags.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
-    choices: [any, set, unset]
+    choices: [ any, set, unset ]
     default: any
   tcp_flag_fin:
     description:
-      - tcp flags
-      - enabled when protocol=tcp
+      - Set the TCP FIN flags.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
-    choices: [any, set, unset]
+    choices: [ any, set, unset ]
     default: any
   tcp_flag_rst:
     description:
-      - tcp flags
-      - enabled when protocol=tcp
+      - Set the TCP RST flags.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
-    choices: [any, set, unset]
+    choices: [ any, set, unset ]
     default: any
   tcp_flag_urg:
     description:
-      - tcp flags
-      - enabled when protocol=tcp
+      - Set the TCP URG flags.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
-    choices: [any, set, unset]
+    choices: [ any, set, unset ]
     default: any
   tcp_flag_psh:
     description:
-      - tcp flags
-      - enabled when protocol=tcp
+      - Set the TCP PSH flags.
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
-    choices: [any, set, unset]
+    choices: [ any, set, unset ]
     default: any
   source_udp_port:
     description:
-      - Specifies udp source port
-      - enabled when protocol=udp
+      - Specify the UDP source port.
+      - This parameter requires the O(protocol) set to V(udp).
     type: srt
     default: ''
   destination_udp_port:
     description:
-      - Specifies udp destination port
-      - enabled when protocol=udp
+      - Specify the UDP destination port.
+      - This parameter requires the O(protocol) set to V(udp).
     type: srt
     default: ''
   icmp_type:
     description:
-      - Specifies icmp type of message
-      - enabled when protocol=icmp
+      - Set the ICMP type of message.
+      - This parameter requires the O(protocol) set to V(icmp).
     type: srt
-    choices: [tos_host_redirect, tos_host_unreachable, tos_network_redirect, tos_network_unreachable, address_mask_reply, address_mask_request, any, communication_prohibited, destination_unreachable, echo_reply, echo_request, fragmentation_needed, host_precedence_violation, host_prohibited, host_redirect, host_unknown, host_unreachable, bad_ip_header, network_prohibited, network_redirect, network_unknown, network_unreachable, parameter_problem, port_unreachable, precedence_cutoff, protocol_unreachable, redirect, required_option_missing, router_advertisement, router_solicitation, source_quench, source_route_failed, time_exceeded, timestamp_reply, timestamp_request, ttl_zero_during_reassembly, ttl_zero_during_transit]
+    choices: [ tos_host_redirect, tos_host_unreachable, tos_network_redirect, tos_network_unreachable, address_mask_reply, address_mask_request, any, communication_prohibited, destination_unreachable, echo_reply, echo_request, fragmentation_needed, host_precedence_violation, host_prohibited, host_redirect, host_unknown, host_unreachable, bad_ip_header, network_prohibited, network_redirect, network_unknown, network_unreachable, parameter_problem, port_unreachable, precedence_cutoff, protocol_unreachable, redirect, required_option_missing, router_advertisement, router_solicitation, source_quench, source_route_failed, time_exceeded, timestamp_reply, timestamp_request, ttl_zero_during_reassembly, ttl_zero_during_transit ]
     default: 'any'
   input_interface:
     description:
-      - Defines the Input Interface
+      - Name of an interface via which a packet was received (only for packets
+        entering the V(INPUT), V(FORWARD) and V(PREROUTING) chains).
+      - If this option is omitted, any interface name will match.
     type: srt
     default: ''
   output_interface:
     description:
-      - Defines the Output Interface
+      - Name of an interface via which a packet is going to be sent (for
+        packets entering the V(FORWARD), V(OUTPUT) and V(POSTROUTING) chains).
+      - If this option is omitted, any interface name will match.
     type: srt
     default: ''
   fragments:
     description:
-      - IP fragments criteria
+      - This means that the rule only refers to second and further fragments of fragmented packets.
+      - Since there is no way to tell the source or destination ports of such
+        a packet (or ICMP type), such a packet will not match any rules which specify them.
     type: srt
-    choices: [all_packets_and_fragments, unfragmented_packets_and_1st_packets, 2nd_and_further_packets]
+    choices: [ all_packets_and_fragments, unfragmented_packets_and_1st_packets, 2nd_and_further_packets ]
     default: all_packets_and_fragments
   reverse_match_for_source_ip_mask:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(source_net4).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reverse_match_for_destination_ip_mask:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(destination_net4).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reverse_match_for_source_mac_address:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(source_mac_address).
     type: srt
-    choices: [yes, no]
-    default: no
-  reverse_match_for_source_port:
-    description:
-      - reverse criteria option
-    type: srt
-    choices: [yes, no]
-    default: no
-  reverse_match_for_destination_port:
-    description:
-      - reverse criteria option
-    type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reverse_match_for_protocol:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(protocol).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
+    default: no
+  reverse_match_for_source_port:
+    description:
+      - Reverse criteria option for O(source_port).
+      - This parameter requires the O(protocol) set to V(tcp).
+    type: srt
+    choices: [ yes, no ]
+    default: no
+  reverse_match_for_destination_port:
+    description:
+      - Reverse criteria option for O(destination_port).
+      - This parameter requires the O(protocol) set to V(tcp).
+    type: srt
+    choices: [ yes, no ]
     default: no
   reverse_match_for_tcp_flags:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(tcp_flags).
+      - This parameter requires the O(protocol) set to V(tcp).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reverse_match_for_icmp_type:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(icmp_type).
+      - This parameter requires the O(protocol) set to V(icmp).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reverse_match_for_input_interface:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(input_interface).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reverse_match_for_output_interface:
     description:
-      - reverse criteria option
+      - Reverse criteria option for O(output_interface).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   enable_state_match:
     description:
-      - enable socket state match
+      - Enable Socket State match.
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   new:
     description:
-      - enable socket state match
-      - enabled when enable_state_match=yes
+      - Enable socket state match for new sockets.
+      - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   established:
     description:
-      - enable socket state match
-      - enabled when enable_state_match=yes
+      - Enable socket state match for established sockets.
+      - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   related:
     description:
-      - enable socket state match
-      - enabled when enable_state_match=yes
+      - Enable socket state match for related sockets.
+      - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   invalid:
     description:
-      - enable socket state match
-      - enabled when enable_state_match=yes
+      - Enable socket state match for invalid sockets.
+      - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reverse_state_match:
     description:
-      - enable socket state match
-      - reverse criteria option
-      - enabled when enable_state_match=yes
+      - Reverse criteria option for O(enable_state_match) and related parameters.
+      - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   reject_with:
     description:
-      - reject message
+      - Reject message.
     type: srt
-    choices: [administratively_prohibited, host_prohibited, host_unreacheable, network_prohibited, network_unreacheable, port_unreacheable, protocol_unreacheable, tcp_reset]
+    choices: [ administratively_prohibited, host_prohibited, host_unreacheable, network_prohibited, network_unreacheable, port_unreacheable, protocol_unreacheable, tcp_reset ]
     default: port_unreacheable
   log_level:
     description:
-      - defines log level
+      - Logging level according to the syslogd-defined priorities.
     type: srt
-    choices: [alert, critical, debug, emergency, error, info, notice, warning]
+    choices: [ alert, critical, debug, emergency, error, info, notice, warning]
     default: debug
   log_prefix:
     description:
-      - defines log prefix information
+      - Specifies a log text prefix for the rule.
     type: srt
     default: ''
   log_tcp_sequence_numbers:
     description:
-      - log the tcp sequence numbers
+      - Log the TCP sequence numbers.
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   log_options_from_the_tcp_packet_header:
     description:
-      - log the options from the tcp packet header
+      - Log the options from the TCP packet header.
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   log_options_from_the_ip_packet_header:
     description:
-      - log the options from the ip packet header
+      - Log the options from the IP packet header.
     type: srt
-    choices: [yes, no]
+    choices: [ yes, no ]
     default: no
   debug:
     description:
-      - debug mode. Shows the executed commands on the output
+      - Debug mode. Shows the executed commands on the output.
     type: bool
     default: false
   timeout:
     description:
-      - Timeout time for cli commands execution
+      - Timeout time for cli commands when executed.
     type: int
     default: 30
 '''
 
 EXAMPLES = r'''
 
+# 
 - name: Set Policy ACCEPT to the INPUT chain
   zpe.nodegrid.firewallv2:
     chain: INPUT
@@ -353,21 +378,110 @@ EXAMPLES = r'''
     chain: FORWARD
     policy: DROP
 
-- name: Append a rule into the INPUT chain
+- name: Flush INPUT chain
+  zpe.nodegrid.firewallv2:
+    chain: INPUT
+    flush: yes
+
+- name: Flush FORWARD chain
+  zpe.nodegrid.firewallv2:
+    chain: FORWARD
+    flush: yes
+
+- name: Flush OUTPUT chain
+  zpe.nodegrid.firewallv2:
+    chain: OUTPUT
+    flush: yes
+
+- name: Create Chain DOCKER
+  zpe.nodegrid.firewallv2:
+    chain: DOCKER
+    chain_management: yes
+
+- name: Delete Chain DOCKER
+  zpe.nodegrid.firewallv2:
+    chain: DOCKER
+    state: absent
+    chain_management: yes
+
+- name: Flush chain DOCKER
+  zpe.nodegrid.firewallv2:
+    chain: DOCKER
+    flush: yes
+
+- name: Append a rule (if it does not exists) into the INPUT chain
   zpe.nodegrid.firewallv2:
     action: append
     state: present
     chain: INPUT
     input_interface: eth0
-    description: DEFAULT_RULE_DO_NOT_REMOVE
+    description: DEFAULT_RULE
 
-- name: Delete the first rule that matches the config in the INPUT chain
+- name: Delete the first rule that 'exact' matches the config in the INPUT chain
   zpe.nodegrid.firewallv2:
     action: append
     state: absent
     chain: INPUT
     input_interface: eth0
-    description: DEFAULT_RULE_DO_NOT_REMOVE
+    description: DEFAULT_RULE
+
+- name: Define an INPUT Rule (if it does not exist) with rule_number = 0
+  zpe.nodegrid.firewallv2:
+    chain: INPUT
+    action: insert # insert, append, modify
+    state: present # present, absent
+    target: ACCEPT
+    rule_number: 0
+    input_interface: lo
+    description: lo_RULE
+
+- name: Modify INPUT Rule with rule_number = 0
+  zpe.nodegrid.firewallv2:
+    chain: INPUT
+    action: modify
+    state: present
+    target: DROP
+    rule_number: 0
+    input_interface: lo
+    description: lo_RULE_MODIFIED
+
+- name: Delete INPUT Rule (if it exist and with exact match) with rule_number = 0
+  zpe.nodegrid.firewallv2:
+    chain: INPUT
+    action: insert # insert, append
+    state: absent
+    target: ACCEPT
+    rule_number: 0
+    input_interface: lo
+    description: lo_RULE
+
+- name: Append a rule (if it does not exists) into the INPUT chain with target DOCKER
+  zpe.nodegrid.firewallv2:
+    action: append
+    state: present
+    chain: INPUT
+    input_interface: eth0
+    source_net4: 192.168.1.0/24
+    target: DOCKER
+    description: DOCKER_RULE
+
+- name: Block specific IP
+  zpe.nodegrid.firewallv2:
+    chain: INPUT
+    source_net4: 8.8.8.8
+    target: DROP
+
+- name: Allow new incoming SYN packets on TCP port 22 (SSH)
+  zpe.nodegrid.firewallv2:
+    chain: INPUT
+    action: append
+    protocol: tcp
+    destination_port: 22
+    tcp_flag_syn: set
+    enable_state_match: yes
+    new: yes
+    target: ACCEPT
+    comment: Accept new SSH connections
 '''
 
 RETURN = r'''
@@ -378,7 +492,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, dict_diff
 
 import os
+from collections import OrderedDict
 
+BUILTIN_CHAINS = ["INPUT", "FORWARD", "OUTPUT"]
+TARGET_DEFAULTS = ["ACCEPT", "DROP", "LOG", "REJECT", "RETURN"]
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -386,6 +503,41 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
+
+
+def get_chains_present(table, timeout=30) -> dict:
+    cmd_cli = get_cli(timeout=timeout)
+    #build cmd
+    cmd = {
+        'cmd' : f"show /settings/{table}/chains"
+    }
+    cmd_result = execute_cmd(cmd_cli, cmd)
+    data = dict(error=False, chains=[], user_chains=[], msg='')
+    if cmd_result['error']:
+        return dict(error=True, msg=f"Cannot get present chains in firewall. Error: {cmd_result['error']}")
+    else:
+        for item in cmd_result['json']:
+            for chain in item['data']:
+                if 'chain' in chain.keys():
+                    data['chains'].append(chain['chain'])
+                    if not chain['chain'] in BUILTIN_CHAINS:
+                        data['user_chains'].append(chain['chain'])
+    close_cli(cmd_cli)
+    return data
+
+
+def create_chain(table, chain):
+    cmds = []
+    cmds.append(dict(cmd=f"add /settings/{table}/chains/"))
+    cmds.append(dict(cmd=f"set chain={chain}"))
+    return cmds
+
+
+def delete_chain(table, chain):
+    cmds = []
+    cmds.append(dict(cmd=f"delete /settings/{table}/chains/ {chain}", confirm=True))
+    return cmds
+
 
 def get_chain_policy(table, chain, timeout=30) -> dict:
     cmd_cli = get_cli(timeout=timeout)
@@ -403,8 +555,10 @@ def get_chain_policy(table, chain, timeout=30) -> dict:
     close_cli(cmd_cli)
     return dict(error=False, chain=chain, policy=data[chain])
 
+
 def set_chain_policy(table, chain, policy) -> dict:
     return dict(cmd = f"set /settings/{table}/policy/ {chain}={policy}")
+
 
 def _get_rule(table, chain, rule_number, cmd_cli) -> dict:
     #build cmd
@@ -417,6 +571,7 @@ def _get_rule(table, chain, rule_number, cmd_cli) -> dict:
         return dict(error=True, msg=f"Error getting rule number {rule_number} in chain {chain}. Error: {cmd_result['stdout']}")
     else:
        return cmd_result['json'][0]['data']
+
 
 def get_rules_present(table, chain, timeout=30) -> dict:
     cmd_cli = get_cli(timeout=timeout)
@@ -437,9 +592,24 @@ def get_rules_present(table, chain, timeout=30) -> dict:
     close_cli(cmd_cli)
     return data
 
-def create_rule(params):
-    keys_to_exclude = ['action', 'state', 'chain', 'policy', 'debug']
-    return {key:value for key, value in params.items() if key not in keys_to_exclude }
+
+def resort_rule(rule: dict, sort_list: list):
+    new_rule = OrderedDict()
+    for key in sort_list:
+        if key in rule.keys():
+            new_rule[key] = rule[key]
+            rule.pop(key)
+    new_rule = {**new_rule, **rule}
+    return new_rule
+
+
+def create_rule(params, chain, sort_list):
+    if chain in BUILTIN_CHAINS:
+        keys_to_exclude = ['action', 'state', 'chain', 'policy', 'debug', 'chain_management']
+    else:
+        keys_to_exclude = ['action', 'state', 'chain', 'policy', 'debug', 'chain_management', 'reverse_match_for_source_mac_address']
+    rule = {key:value for key, value in params.items() if key not in keys_to_exclude }
+    return resort_rule(rule, sort_list)
 
 
 def check_rule_present(rules, new_rule, is_insert):
@@ -460,9 +630,9 @@ def insert_rule(table, chain, new_rule):
             'numeric': ['protocol_number'],
             'tcp': ['source_port', 'destination_port', 'tcp_flag_syn', 'tcp_flag_ack', 'tcp_flag_fin', 'tcp_flag_rst', 'tcp_flag_urg', 'tcp_flag_psh'],
             'udp': ['source_udp_port', 'destination_udp_port'],
-            'icmp': ['icmp_type'],
-            'enable_state_match': ['new', 'established', 'related', 'invalid', 'reverse_state_match'],
-        }
+            'icmp': ['icmp_type']
+        },
+        'enable_state_match': ['new', 'established', 'related', 'invalid', 'reverse_state_match'],
     }
 
     rename_settings = {
@@ -471,8 +641,12 @@ def insert_rule(table, chain, new_rule):
     }
 
     for dependency in dependencies:
-        for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule['protocol']]}:
-            for setting in dependencies[dependency][dep_rem]:
+        if isinstance(dependencies[dependency], dict):
+            for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule[dependency]]}:
+                for setting in dependencies[dependency][dep_rem]:
+                    new_rule.pop(setting)
+        elif isinstance(dependencies[dependency], list) and new_rule[dependency].lower() == "no":
+            for setting in dependencies[dependency]:
                 new_rule.pop(setting)
 
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/"))
@@ -480,10 +654,11 @@ def insert_rule(table, chain, new_rule):
     for setting in new_rule:
         if new_rule[setting] and len(str(new_rule[setting]).strip()) > 0:
             if setting in rename_settings:
-                cmds.append(dict(cmd=f"set {rename_settings[setting]}={new_rule[setting]}"))
+                cmds.append(dict(cmd=f"set {rename_settings[setting]}={new_rule[setting].replace(' ','_')}"))
             else:
-                cmds.append(dict(cmd=f"set {setting}={new_rule[setting]}"))
+                cmds.append(dict(cmd=f"set {setting}={new_rule[setting].replace(' ','_')}"))
     return new_rule, cmds
+
 
 def append_rule(table, chain, new_rule):
     cmds = []
@@ -493,9 +668,9 @@ def append_rule(table, chain, new_rule):
             'numeric': ['protocol_number'],
             'tcp': ['source_port', 'destination_port', 'tcp_flag_syn', 'tcp_flag_ack', 'tcp_flag_fin', 'tcp_flag_rst', 'tcp_flag_urg', 'tcp_flag_psh'],
             'udp': ['source_udp_port', 'destination_udp_port'],
-            'icmp': ['icmp_type'],
-            'enable_state_match': ['new', 'established', 'related', 'invalid', 'reverse_state_match'],
-        }
+            'icmp': ['icmp_type']
+        },
+        'enable_state_match': ['new', 'established', 'related', 'invalid', 'reverse_state_match'],
     }
 
     rename_settings = {
@@ -504,19 +679,25 @@ def append_rule(table, chain, new_rule):
     }
 
     for dependency in dependencies:
-        for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule['protocol']]}:
-            for setting in dependencies[dependency][dep_rem]:
+        if isinstance(dependencies[dependency], dict):
+            for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule[dependency]]}:
+                for setting in dependencies[dependency][dep_rem]:
+                    new_rule.pop(setting)
+        elif isinstance(dependencies[dependency], list) and new_rule[dependency].lower() == "no":
+            for setting in dependencies[dependency]:
                 new_rule.pop(setting)
+
 
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/"))
     cmds.append(dict(cmd="add"))
     for setting in new_rule:
         if new_rule[setting] and len(str(new_rule[setting]).strip()) > 0:
             if setting in rename_settings:
-                cmds.append(dict(cmd=f"set {rename_settings[setting]}={new_rule[setting]}"))
+                cmds.append(dict(cmd=f"set {rename_settings[setting]}={new_rule[setting].replace(' ','_')}"))
             else:
-                cmds.append(dict(cmd=f"set {setting}={new_rule[setting]}"))
+                cmds.append(dict(cmd=f"set {setting}={new_rule[setting].replace(' ','_')}"))
     return new_rule, cmds
+
 
 def update_rule(table, chain, rule, new_rule):
     cmds = []
@@ -530,7 +711,7 @@ def update_rule(table, chain, rule, new_rule):
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/{new_rule['rule_number']}"))
     for setting in diff_state:
         if len(str(diff_state[setting]).strip()) > 0:
-            cmds.append(dict(cmd=f"set {setting}={diff_state[setting]}"))
+            cmds.append(dict(cmd=f"set {setting}={diff_state[setting].replace(' ','_')}"))
     return diff_state, cmds
 
     
@@ -540,22 +721,25 @@ def delete_rule(table, chain, rule):
     cmds.append(dict(cmd=f"delete {rule['rule_number']}"))
     return cmds
 
+
 def flush_rules(table, chain):
     cmds = []
     cmds.append(dict(cmd=f"delete /settings/{table}/chains/{chain} -", confirm=True))
     return cmds
 
+
 def run_module():
     # define available arguments/parameters a user can pass to the module
-    module_args = dict(
-        action=dict(type='str', default='append', choices=['append', 'insert', 'modify']),
+    module_args = OrderedDict(
+        action=dict(type='str'),
         debug=dict(type='bool', default=False),
         timeout=dict(type=int, default=30),
         flush=dict(type='bool', default=False),
         state=dict(type='str', default='present', choices=['absent', 'present']),
-        chain=dict(type='str', choices=['INPUT', 'OUTPUT', 'FORWARD']),
+        chain=dict(type='str'),
+        chain_management=dict(type='bool', default=False),
         policy=dict(type='str', choices=['ACCEPT', 'DROP']),
-        target=dict(type='str', default='ACCEPT', choices=['ACCEPT', 'DROP', 'LOG', 'REJECT', 'RETURN']),
+        target=dict(type='str'),
         rule_number=dict(type='str', default=''),
         description=dict(type='str', default=''),
         source_net4=dict(type='str', default=''),
@@ -603,7 +787,7 @@ def run_module():
         log_pefix=dict(type='str', default=""),
         log_tcp_sequence_numbers=dict(type='str', default='no', choices=['yes', 'no']),
         log_options_from_the_tcp_packet_header=dict(type='str', default='no', choices=['yes', 'no']),
-        log_options_from_the_ip_packet_header=dict(type='str', default='no', choices=['yes', 'no'])
+        log_options_from_the_ip_packet_header=dict(type='str', default='no', choices=['yes', 'no']),
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -649,7 +833,18 @@ def run_module():
 
      # Check if chain option is required
     if result['chain'] is None:
-        module.fail_json(msg="A Chain parameter must be specified Values: INPUT, OUTPUT, FORWARD.")
+        module.fail_json(msg="A Chain parameter must be specified. Firewall built-in values include: INPUT, OUTPUT, FORWARD.")
+
+    # Check chain
+    chain_management = module.params['chain_management']
+    get_chains = get_chains_present(table=table)
+    if get_chains['error']:
+        module.fail_json(msg=f"Error on getting the list of present chains. Error: {get_chains[msg]}")
+    chains = get_chains["chains"]
+    user_chains = get_chains["user_chains"]
+    chain_is_present = True if result['chain'] in chains else False
+    if not result['chain'] in chains and not chain_management:
+            module.fail_json(msg=f"Chain '{result['chain']}' does not exist. To create it, set the parameter 'chain_management' to yes")
 
     # Check action 'insert'
     if module.params['action'] == 'insert' and not module.params["rule_number"].isdigit():
@@ -659,18 +854,20 @@ def run_module():
         module.fail_json(msg="Action 'modify' requires a 'rule_number', which must be an integer greater or equal to 0.")
     # Check action 'append'
     if module.params['action'] == 'append' and module.params['rule_number'].strip() != "":
-        module.fail_json(msg="Action 'append' does not requires a 'rule_number'. It is required to be removed")
+        module.fail_json(msg="Action 'append' does not requires a 'rule_number'.")
 
     # Build out commands
     cmds = []
-    diff_state = {}
+    diff_state = dict()
     flush = module.params['flush']
+    should_be_present = (result['state'] == 'present')
     
-
     # Set the policy
     if module.params['policy']:
-        if result['state'] == 'absent':
+        if result['state'] == 'absent' and result['chain'] in BUILTIN_CHAINS:
             module.fail_json(msg=f"Chain {module.params['chain']} cannot be deleted!")
+        if not result['chain'] in BUILTIN_CHAINS:
+            module.fail_json(msg=f"A policy cannot be set for chain {module.params['chain']}")
         current_policy = get_chain_policy(table=table, chain=module.params['chain'])
         if current_policy.get('error', False):
             module.fail_json(msg=current_policy.get('msg'))
@@ -682,14 +879,34 @@ def run_module():
     elif flush:
         cmds.extend(flush_rules(table=table, chain=module.params['chain']))
         diff_state = cmds[-1]['cmd']
+    elif chain_management:
+        if not chain_is_present and should_be_present:
+            cmds.extend(create_chain(table=table, chain=module.params['chain']))
+        elif chain_is_present and not should_be_present:
+            cmds.extend(delete_chain(table=table, chain=module.params['chain']))
     else:
+        if not module.params['action']:
+            if not module.params['chain'] in chains and should_be_present:
+                module.fail_json(msg=f"Chain '{module.params['chain']}' does not exits. To create a chain, set the parameter 'chain_management' to yes")
+            if module.params['chain'] in chains and not should_be_present:
+                module.fail_json(msg=f"Chain '{module.params['chain']}' cannot be deleted. To delete a chain, set the parameter 'chain_management' to yes")
+
+        if not module.params['action'] in ['append', 'insert', 'modify']:
+            module.fail_json(msg=f"Rule action '{module.params['action']}' incorrect. Valid options are: append, insert, modify.")
+        if not module.params['chain'] in chains:
+            module.fail_json(msg=f"Chain '{module.params['chain']}' does not exits. Current chains are: {chains}. To create a chain, set the parameter 'chain_management' to yes")
+
+        if module.params['target'] is None:
+            module.params['target'] = "ACCEPT"
+        elif not module.params['target'] in TARGET_DEFAULTS + [i for i in user_chains if i != module.params['chain']]:
+            module.fail_json(msg=f"Rule target '{module.params['target']}' incorrect. Valid values include: {TARGET_DEFAULTS + [i for i in user_chains if i != module.params['chain']]}")
+
         insert = (module.params['action'] == 'insert')
         modify = (module.params['action'] == 'modify')
         rules_present = get_rules_present(table=table, chain=module.params['chain'], timeout=timeout)
         if rules_present.get('error', False):
-            module.fail_json(msg=rules_present.get('msg'))
-            
-        parsed_rule = create_rule(params=module.params)
+            module.fail_json(msg=rules_present.get('msg'))        
+        parsed_rule = create_rule(params=module.params, chain=module.params['chain'], sort_list=[key for key in module_args])
 
         # If insert: check if rule_number is within range
         if insert and int(parsed_rule['rule_number']) > len(rules_present['rules']):
@@ -721,7 +938,7 @@ def run_module():
             else:
                 diff_state, cmds = append_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
         else:
-            cmds.extend(delete_rule(table=table, chain=module.params['chain'], rule=rule_present))
+            cmds.extend(delete_rule(table=table, chain=module.params['chain'], rule=parsed_rule))
             diff_state = cmds[-1]['cmd']
 
     if module.check_mode:
@@ -772,8 +989,6 @@ def run_module():
         result['message'] = str(exc)
     finally:
         close_cli(cmd_cli)
-
-
     
     if result['failed']:
         module.fail_json(msg=result['message'], **result)
@@ -781,6 +996,7 @@ def run_module():
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results
     module.exit_json(**result)
+
 
 def main():
     run_module()

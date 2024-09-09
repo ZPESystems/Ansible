@@ -26,7 +26,7 @@ atributes:
         platforms: Nodegrid
 
 notes:
-    - This module handles individual Nodegrid firewall rules for the following chains: INPUT, OUTPUT, FORWARD.
+    - This module handles individual Nodegrid firewall rules for the following chains: INPUT, OUTPUT, FORWARD, and user-defined.
 
 options:
   action:
@@ -279,41 +279,45 @@ options:
     default: no
   enable_state_match:
     description:
-      - Enable Socket State match.
+      - Enable connection tracking based on the following connection states: NEW, ESTABLISHED, RELATED, INVALID.
+      - When O(enable_state_match) is set to V(yes), at least one of the parametes O(new), O(established), O(related), O(invalid)
+        is required to be set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   new:
     description:
-      - Enable socket state match for new sockets.
+      - Enable tracking a packet that has started a ne connectionm, or otherwise associated with a connection 
+        which has not seen packets in both directions.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   established:
     description:
-      - Enable socket state match for established sockets.
+      - Enable tracking packets that are associated wi a known connection that has seen packets in both directions.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   related:
     description:
-      - Enable socket state match for related sockets.
+      - Enable tracking a packet that is starting a new connection, but is associated win an existing connection, such 
+        as an FTP data transfer, or an ICMP error.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   invalid:
     description:
-      - Enable socket state match for invalid sockets.
+      - Enable tracking packets not associated with no known connections.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   reverse_state_match:
     description:
-      - Reverse criteria option for O(enable_state_match) and related parameters.
+      - Reverse criteria option for O(enable_state_match) and related state parameters.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]

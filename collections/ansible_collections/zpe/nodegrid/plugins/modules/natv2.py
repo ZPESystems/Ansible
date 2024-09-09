@@ -25,7 +25,7 @@ atributes:
         platforms: Nodegrid
 
 notes:
-    - This module handles individual Nodegrid NAT rules for the following chains: PREROUTING, INPUT, OUTPUT, POSTROUTING.
+    - This module handles individual Nodegrid NAT rules for the following chains: PREROUTING, INPUT, OUTPUT, POSTROUTING, and user-defined.
 
 options:
   action:
@@ -45,13 +45,21 @@ options:
   chain:
     description:
       - Specify the firewall chain to be configured.
-      - This could be: V(INPUT), V(OUTPUT), V(FORWARD).
+      - It could be any of the built-in chains: V(INPUT), V(OUTPUT), V(PREROUTING), V(POSTROUTING).
+      - It could be any user-defined chain.
     type: str
-    choices: [ INPUT, OUTPUT, FORWARD ]
+  chain_management:
+    description:
+      - If V(true) and O(state) is V(present), the chain will be created if needed.
+        Any other defined parameter will be ignored.
+      - If V(true) and O(state) is V(absent), the chain will be deleted if the only
+        other parameter passed are O(chain).
+    type: bool
+    default: false  
   policy:
     description:
       - Set policy for the chain.
-      - Only built-in chains can have policies (i.e., INPUT, OUTPUT, FORWARD).
+      - Only built-in chains can have policies (i.e., INPUT, OUTPUT, PREROUTING, POSTROUTING).
       - This parameter requires the O(chain) parameter.
       - If you specify this parameter, all other parameters will be ignored.
       - This parameter is used to set the default policy for the given O(chain).
@@ -66,10 +74,14 @@ options:
     default: false
   target:
     description:
-      - Set the chain rule target. 
+      - Set the chain rule target.
+      - For the built-in chains, the targets are:
+        - PREROUTING: ACCEPT, DNAT, LOG, REDIRECT, RETURN.
+        - INPUT: ACCEPT, LOG, RETURN, SNAT.
+        - OUTPUT: ACCEPT, DNAT, LOG, REDIRECT, RETURN.
+        - POSTROUTING: ACCEPT, LOG, MASQUERADE, RETURN, SNAT.
+      - It can be any user-defined chain.
     type: str
-    choices: [ ACCEPT, DROP, LOG, REJECT, RETURN ]
-    defautl: ACCEPT
   rule_number:
     description:
       - Set the rule number in the chain. This number defines the rule's relative position and its precedence (lower number implies higher precedence).
@@ -187,14 +199,14 @@ options:
   input_interface:
     description:
       - Name of an interface via which a packet was received (only for packets
-        entering the V(INPUT), V(FORWARD) and V(PREROUTING) chains).
+        entering the V(INPUT) and V(PREROUTING) chains or a user-defined chain).
       - If this option is omitted, any interface name will match.
     type: srt
     default: ''
   output_interface:
     description:
       - Name of an interface via which a packet is going to be sent (for
-        packets entering the V(FORWARD), V(OUTPUT) and V(POSTROUTING) chains).
+        packets entering the V(OUTPUT), and V(POSTROUTING) chains or a user-defined chain).
       - If this option is omitted, any interface name will match.
     type: srt
     default: ''
@@ -272,41 +284,59 @@ options:
     default: no
   enable_state_match:
     description:
-      - Enable Socket State match.
+      - Enable connection tracking based on the following connection states: NEW, ESTABLISHED, RELATED, INVALID, SNAT, DNAT.
+      - When O(enable_state_match) is set to V(yes), at least one of the parametes O(new), O(established), O(related), O(invalid), O(snat), O(dnat)
+        is required to be set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   new:
     description:
-      - Enable socket state match for new sockets.
+      - Enable tracking a packet that has started a ne connectionm, or otherwise associated with a connection 
+        which has not seen packets in both directions.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   established:
     description:
-      - Enable socket state match for established sockets.
+      - Enable tracking packets that are associated wi a known connection that has seen packets in both directions.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   related:
     description:
-      - Enable socket state match for related sockets.
+      - Enable tracking a packet that is starting a new connection, but is associated win an existing connection, such 
+        as an FTP data transfer, or an ICMP error.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   invalid:
     description:
-      - Enable socket state match for invalid sockets.
+      - Enable tracking packets not associated with no known connections.
+      - This parameter requires the O(enable_state_match) set to V(yes).
+    type: srt
+    choices: [ yes, no ]
+    default: no
+  snat:
+    description:
+      - Enable tracking connections that need SRC NAT in the original direction.
+      - This parameter requires the O(enable_state_match) set to V(yes).
+    type: srt
+    choices: [ yes, no ]
+    default: no
+  dnat:
+    description:
+      - Enable tracking connections that need DST NAT in the original direction.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
     default: no
   reverse_state_match:
     description:
-      - Reverse criteria option for O(enable_state_match) and related parameters.
+      - Reverse criteria option for O(enable_state_match) and related state parameters.
       - This parameter requires the O(enable_state_match) set to V(yes).
     type: srt
     choices: [ yes, no ]
@@ -360,76 +390,106 @@ options:
 
 EXAMPLES = r'''
 
-- name: Set Policy ACCEPT to the INPUT chain
-  zpe.nodegrid.firewallv2:
+- name: Flush INPUT chain
+  zpe.nodegrid.natv2:
     chain: INPUT
-    policy: ACCEPT
-
-- name: Set Policy DROP to the FORWARD chain
-  zpe.nodegrid.firewallv2:
-    chain: FORWARD
-    policy: DROP
-
-- name: Flush chain INPUT
-  zpe.nodegrid.firewallv2:
-    chain: INPUT
-    action: flush
-
-- name: Flush chain FORWARD
-  zpe.nodegrid.firewallv2:
-    chain: FORWARD
-    action: flush
-
-- name: Flush chain OUTPUT
+    flush: yes
+- name: Flush OUTPUT chain
   zpe.nodegrid.firewallv2:
     chain: OUTPUT
-    action: flush
-
-- name: Append a rule (if it does not exists) into the INPUT chain
+    flush: yes
+- name: Flush PREROUTING chain
   zpe.nodegrid.firewallv2:
-    action: append
-    state: present
-    chain: INPUT
-    input_interface: eth0
-    description: DEFAULT_RULE
+    chain: PREROUTING
+    flush: yes
 
-- name: Delete the first rule that 'exact' matches the config in the INPUT chain
-  zpe.nodegrid.firewallv2:
-    action: append
+- name: Create Chain DOCKER
+  zpe.nodegrid.natv2:
+    chain: DOCKER
+    chain_management: yes
+
+- name: Delete Chain DOCKER
+  zpe.nodegrid.natv2:
+    chain: DOCKER
     state: absent
-    chain: INPUT
-    input_interface: eth0
-    description: DEFAULT_RULE
+    chain_management: yes
 
-- name: Define an INPUT Rule (if it does not exist) with rule_number = 0
-  zpe.nodegrid.firewallv2:
-    chain: INPUT
-    action: insert # insert, append, modify, flush
-    state: present # present, absent
-    target: ACCEPT # ACCEPT, DROP, LOG, REJECT, RETURN
-    rule_number: 0
-    input_interface: lo
-    description: lo_RULE
+- name: Flush chain DOCKER
+  zpe.nodegrid.natv2:
+    chain: DOCKER
+    flush: yes
 
-- name:Modify INPUT Rule with rule_number = 0
-  zpe.nodegrid.firewallv2:
-    chain: INPUT
-    action: modify
-    state: present
-    target: DROP
-    rule_number: 0
-    input_interface: lo
-    description: lo_RULE_MODIFIED
-
-- name: Delete INPUT Rule (if it exist and with exact match) with rule_number = 0
-  zpe.nodegrid.firewallv2:
-    chain: INPUT
-    action: insert # insert, append
-    state: absent
-    target: ACCEPT
-    rule_number: 0
-    input_interface: lo
-    description: lo_RULE
+- name: Configure NAT, INPUT chain
+  block:
+  - name: Apply INPUT Policy
+    zpe.nodegrid.natv2:
+      chain: INPUT
+      policy: ACCEPT
+  - name: Define Rule 0
+    zpe.nodegrid.natv2:
+      debug: yes
+      state: present # present, absent
+      chain: input
+      action: insert # insert, append, modify
+      target: ACCEPT
+      rule_number: 0
+      input_interface: lo
+      enable_state_match: yes
+      new: yes
+      snat: no
+      reverse_state_match: yes
+      description: RULE_0
+- name: Configure NAT, user defined LIBVIRT chain
+  block:
+  - name: Create the LIBVIRT chain
+    zpe.nodegrid.natv2:
+      chain: LIBVIRT
+      state: present
+      chain_management: yes
+  - name: Define Rule 0
+    zpe.nodegrid.natv2:
+      chain: LIBVIRT
+      action: insert
+      state: present
+      target: ACCEPT
+      rule_number: 0
+      input_interface: eth0
+      description: eth0_rule
+- name: Configure NAT, PREROUTING chain
+  block:
+  - name: Apply PREROUTING Policy
+    zpe.nodegrid.natv2:
+      chain: PREROUTING
+      policy: ACCEPT
+  - name: Append a rule
+    zpe.nodegrid.natv2:
+      state: present # present, absent
+      chain: prerouting
+      action: insert # insert, append, modify
+      target: ACCEPT
+      rule_number: 0
+      input_interface: eth0
+      enable_state_match: yes
+      new: yes
+      related: yes
+      reverse_state_match: no
+      description: RULE_0_PREROUTING
+- name: Configure NAT, POSTROUTING chain
+  block:
+  - name: Apply POSTROUTING Policy
+    zpe.nodegrid.natv2:
+      chain: POSTROUTING
+      policy: ACCEPT
+  - name: Append a rule
+    zpe.nodegrid.natv2:
+      state: present # present, absent
+      chain: prerouting
+      action: append # insert, append, modify
+      target: MASQUERADE
+      output_interface: eth0
+      enable_state_match: yes
+      snat: yes
+      description: RULE_0_POSTROUTING
 
 '''
 

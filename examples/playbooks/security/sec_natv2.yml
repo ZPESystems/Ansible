@@ -80,3 +80,42 @@
           rule_number: 0
           input_interface: eth0
           description: eth0_rule
+    - name: Configure NAT, PREROUTING chain
+      tags:
+        - PREROUTING
+      block:
+      - name: Apply PREROUTING Policy
+        zpe.nodegrid.natv2:
+          chain: PREROUTING
+          policy: ACCEPT
+      - name: Append a rule
+        zpe.nodegrid.natv2:
+          state: present # present, absent
+          chain: prerouting
+          action: insert # insert, append, modify
+          target: ACCEPT
+          rule_number: 0
+          input_interface: eth0
+          enable_state_match: yes
+          new: yes
+          related: yes
+          reverse_state_match: no
+          description: RULE_0_PREROUTING
+    - name: Configure NAT, POSTROUTING chain
+      tags:
+        - POSTROUTING
+      block:
+      - name: Apply POSTROUTING Policy
+        zpe.nodegrid.natv2:
+          chain: POSTROUTING
+          policy: ACCEPT
+      - name: Append a rule
+        zpe.nodegrid.natv2:
+          state: present # present, absent
+          chain: prerouting
+          action: append # insert, append, modify
+          target: MASQUERADE
+          output_interface: eth0
+          enable_state_match: yes
+          snat: yes
+          description: RULE_0_POSTROUTING

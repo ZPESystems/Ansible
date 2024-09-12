@@ -149,7 +149,7 @@
 
         - name: copy playbooks to /etc/ansible/playbooks
           copy:
-            src: ./examples/
+            src: ./examples/playbooks/
             dest: /etc/ansible/playbooks/examples/
 
         - name: check if hosts.yml exists in /etc/ansible/inventories

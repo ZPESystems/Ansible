@@ -7,8 +7,8 @@
   - name: Add local account
     zpe.nodegrid.security:
         local_account:
-          username: "leonardo"
-          password: "nodegrid2023"
+          username: "<myusername>"
+          password: "<mypassword>"
           account_type: "regular_account"
           password_change_at_login: "no"
           user_group: "admin"

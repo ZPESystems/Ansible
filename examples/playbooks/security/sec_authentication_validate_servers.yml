@@ -54,21 +54,6 @@
         apply_2-factor_auth_for_admin_and_root_users: "no"
 
   tasks:
-  - name: Authentication setup
-    zpe.nodegrid.security:
-        authentication:
-          console:
-            admin_and_root_fallback_to_local_on_console: "yes"
-          default_group: 
-            default_group_for_remote_users: "user"
-          realms:
-            enable_authentication_server_selection_based_on_realms: "yes"
-
-  - name: Authentication Add Servers
-    zpe.nodegrid.security:
-        authentication:
-          servers: "{{ servers }}"
-  
   - name: Validate Authentication Servers
     zpe.nodegrid.security:
         authentication_validate_servers:

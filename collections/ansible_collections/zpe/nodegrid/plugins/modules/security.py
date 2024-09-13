@@ -134,17 +134,28 @@ def run_option_authentication(option, run_opt):
 
             if isinstance(value,list):
                 field_name = 'number'
-                for server in value:
-                    if field_name not in server.keys():
+                for server in sorted(value, key=lambda x: x.get(field_name, float('inf'))):
+                    if 'method' in server.keys() and server['method'].lower() == "local":
+                        server.pop('method')
+                        server.pop(field_name) if field_name in server.keys() else None
+                        if len(value) == 1:
+                            settings_list.extend( format_settings(f"{cli_path}/{key}/1",server))
+                        continue
+                    elif field_name not in server.keys():
                         return result_failed(f"Field '{field_name}' is required, server is: {server}")
-                    server_key = server.pop(field_name)
-                    authentication_server = read_table_row(servers_table[1], 0, f"{server_key}")
-                    if authentication_server and authentication_server[1].lower() != "local":
-                        read_option = read_path_option(f"{cli_path}/{key}/{server_key}", "method")
+                    else:
+                        server_key = server.pop(field_name)
+                        authentication_server = read_table_row(servers_table[1], 0, f"{server_key}")
+                    if authentication_server:
+                        try:
+                            read_option = read_path_option(f"{cli_path}/{key}/{server_key}", "method")
+                        except Exception as e:
+                            return result_failed(f"Failed to get option 'method' from path '{cli_path}/{key}/{server_key}'. Error: {e}")
+
                         if read_option[0].lower() == 'error':
                             return result_failed(f"Failed to get option 'method' from path '{cli_path}/{key}/{server_key}'. Error: {read_option[1]}")
 
-                        if read_option[1]['value'] in ['kerberos', 'ldap_or_ad', 'radius', 'tacacs+']:
+                        if read_option[1]['value'] == server['method']: #in ['kerberos', 'ldap_or_ad', 'radius', 'tacacs+']:
                             settings_list.extend( format_settings(f"{cli_path}/{key}/{server_key}",server) )
                         else:
                             temp_key += 1
@@ -163,95 +174,63 @@ def run_option_authentication(option, run_opt):
     return run_option_no_diff(option, run_opt)
     # return {'failed': False, 'changed': False, 'settings_list': settings_list}
 
-# TODO
-# This function 'run_option_authentication_import' will not be neded! Pending to be deleted
-def run_option_authentication_import(data):
-    try:
-        cli_path = f"{data['option']['cli_path']}/servers/"
-        exported_settings = data['exported_settings']
-        diff = data['diff']
-        use_config_start = data['use_config_start']
-        timeout = data['run_opt']['timeout']
+def run_option_authentication_validate_servers(option, run_opt):
+    suboptions = option['suboptions']
+    cli_path = option['cli_path']
+    
+    result = dict(
+        changed=False,
+        failed=False,
+        message=''
+    )
 
-        # Count number of servers
-        servers = set()
-        for setting in exported_settings:
-            if setting.startswith(cli_path):
-                parts = setting.split()
-                if parts:
-                    servers.add(parts[0].split('/')[-1])
-        number_of_servers = len(servers)
+    for key, value in suboptions.items():
+        # servers
+        if key in ['servers']:
+            # Servers table header
+            #  index  method  remote server  status   fallback
+            servers_table = read_table("/settings/authentication/servers/")
+            if servers_table[0].lower() == 'error':
+                return result_failed(f"Failed to get authentication servers table on cli: 'show /settings/authentication/servers'. Error: {servers_table[1]}")
 
-        # Create a dict with servers
-        servers_dict = {}
-        for setting in diff:
-            if setting.startswith(cli_path):
-                parts = setting.split(' ', 1)    # split string by the first space
-                if len(parts) == 2:
-                    server_number = parts[0].split('/')[-1]
-                    if server_number not in servers_dict:
-                        servers_dict[server_number] = []
-                    servers_dict[server_number].append(parts[1])
-        ordered_servers_dict = dict(sorted(servers_dict.items(), key=lambda item: int(item[0])))
+            servers_nodegrid = sum(server[1].lower() != "local" for server in servers_table[1]['rows'])
+            server_index = 0
 
-        # Build out commands
-        cmds = []
-        error_list = []
-        for server_num_str, settings in ordered_servers_dict.items():
-            server_number = int(server_num_str)
-            if server_number < number_of_servers or len(ordered_servers_dict) == number_of_servers:
-                # edit
-                cmds.append({'cmd': f"cd {cli_path}{server_number}"})
-            elif server_number == number_of_servers:
-                # add
-                number_of_servers += 1
-                cmds.append({'cmd': f"add {cli_path}"})            
+            
+            if isinstance(value,list):
+                servers_config = sum(server.get('method', '').lower() != "local" for server in value)
+                if servers_nodegrid != servers_config:
+                    return result_failed(f"Authentication Servers have not been properly configured. Servers on nodegrid = {servers_nodegrid}, Servers on ansible configuration= {servers_config}")
+                for server in sorted(value, key=lambda x: x.get('number', float('inf'))):
+                    if server.get('method', "").lower() == "local":
+                        continue
+                    try:
+                        server_key = servers_table[1]['rows'][server_index][0] 
+                        read_option = read_path_option(f"{cli_path}/{server_key}", "method")
+                    except Exception as e:
+                        return result_failed(f"Failed to get option 'method' from path '{cli_path}/{server_key}'. Error: {e}")
+
+                    if read_option[0].lower() == 'error':
+                        return result_failed(f"Failed to get option 'method' from path '{cli_path}/{server_key}'. Error: {read_option[1]}")
+
+                    if read_option[1]['value'].lower() == server.get('method',"").lower(): 
+                        server_index += 1
+                    else:
+                        return result_failed(f"Authentication Servers have not been properly configured. Server index: {server_key} method {read_option[1]['value'].lower()} does not match with server: {server}")
             else:
-                error_list.append(f'Invalid server number: ${server_number}')
-                
-            # Write all settings on a single command line
-            cmd_line = 'set'
-            for setting in settings:
-                cmd_line += f" {setting}"
-            cmds.append({'cmd': cmd_line})
-            cmds.append({'cmd': "commit"})
-        
-        if use_config_start:
-            cmds.insert(0, {'cmd': "config_start"})
-            cmds.append({'cmd': "config_confirm"})
+                return result_failed(f"Authentication Servers have to be provided as a list")
+        else:
+            return result_failed(f"Authentication 'servers' section is not defined!")
 
-        # Excute commands
-        output_dict = { }
-        if len(error_list) == 0:
-            cmd_results = []
-            cmd_cli = get_cli(timeout=timeout)
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd)
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                if cmd_result['error']:
-                    #if use_config_start:
-                    #    execute_cmd(cmd_cli, {'cmd': 'config_revert'})
-                    error_list.append(str(cmd_result))
-                    break
-            output_dict["cmd_results"] = cmd_results
-            close_cli(cmd_cli)
-    except Exception as exc:
-        error_list.append(str(exc))
-
-    output_dict["error_list"] = error_list
-    if len(error_list) == 0:
-        output_dict["import_status"] = 'succeeded'
-    else:
-        output_dict["import_status"] = 'failed'
-
-    return output_dict
+    result['message'] = "Authentication Servers have been properly configured!"
+    return result
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         local_account=dict(type='dict', required=False),
         authentication=dict(type='dict', required=False),
+        authentication_validate_servers=dict(type='dict', required=False),
         authorization=dict(type='dict', required=False),
         password_rules=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
@@ -303,6 +282,12 @@ def run_module():
             'suboptions': module.params['authentication'],
             'cli_path': '/settings/authentication', 
             'func': run_option_authentication
+        },
+        {
+            'name': 'authentication_validate_servers',
+            'suboptions': module.params['authentication_validate_servers'],
+            'cli_path': '/settings/authentication/servers', 
+            'func': run_option_authentication_validate_servers
         },
     ]
 

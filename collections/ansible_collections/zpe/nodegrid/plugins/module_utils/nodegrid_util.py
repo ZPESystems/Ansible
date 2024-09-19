@@ -643,7 +643,7 @@ def read_table_row(table, col_index, col_value):
             return row
     return None
 
-def read_path_option(cli_path, option):
+def read_path_option(cli_path, option, separators=[":","="]):
     cmd = f"show {cli_path} {option}"
     cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
     cmd_cli.setwinsize(500, 10000)
@@ -665,8 +665,9 @@ def read_path_option(cli_path, option):
 
         for line in output.splitlines()[1:-1]:
             if len(line) > 0:
-                row = line.split("=")
-                if len(row) > 0:
-                    result["value"] = row[1].strip()
+                for separator in separators:
+                    row = line.split(separator)
+                    if len(row) > 1:
+                        result["value"] = row[1].strip()
 
     return "successful", result

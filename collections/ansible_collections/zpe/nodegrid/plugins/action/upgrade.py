@@ -75,7 +75,7 @@ class ActionModule(ActionBase):
         display.vvv('cli')
         conn_obj.sendline("cli")
         expectation_list = ['/]# ', ':~$ ', ':~# ']
-        ret = self._expect_for(conn_obj, expectation_list)
+        ret = self._expect_for(conn_obj, expectation_list, timeout=60)
         if ret != 0:  
             display.vvv(f"cli failure: {expectation_list[ret]}")
             raise ResultFailedException("cli failure")

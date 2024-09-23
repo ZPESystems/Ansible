@@ -42,7 +42,7 @@ class ActionModule(ActionBase):
         )
         return result
     
-    def _expect_for(self, conn_obj, expectation_list=[], timeout=10, msg=""):
+    def _expect_for(self, conn_obj, expectation_list=[], timeout=60, msg=""):
         expectation_list.append(pexpect.TIMEOUT)
         expectation_list.append(pexpect.EOF)
         list_len = len(expectation_list)
@@ -61,7 +61,7 @@ class ActionModule(ActionBase):
             '/]# ',
             'Password: ',
         ]
-        ret = self._expect_for(conn_obj, expectation_list, timeout=60, msg=SSH_ERR_MSG)
+        ret = self._expect_for(conn_obj, expectation_list, msg=SSH_ERR_MSG)
         if ret != 0:  
             display.vvv(f"Connection failure: {expectation_list[ret]}")
             raise ResultFailedException("Connection failure")
@@ -75,7 +75,7 @@ class ActionModule(ActionBase):
         display.vvv('cli')
         conn_obj.sendline("cli")
         expectation_list = ['/]# ', ':~$ ', ':~# ']
-        ret = self._expect_for(conn_obj, expectation_list, timeout=60)
+        ret = self._expect_for(conn_obj, expectation_list)
         if ret != 0:  
             display.vvv(f"cli failure: {expectation_list[ret]}")
             raise ResultFailedException("cli failure")

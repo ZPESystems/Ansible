@@ -96,13 +96,13 @@ def run_module():
     module_args = dict(
         read_options = dict(type='dict', required=False),
         read_table = dict(type='dict', required=False),
-        timeout=dict(type=int, default=30)
+        timeout=dict(type=int, default=60)
     )
 
 #    # define available arguments/parameters a user can pass to the module
 #    module_args = dict(
 #        path=dict(type=str, required=True),
-#        timeout=dict(type=int, default=30)
+#        timeout=dict(type=int, default=60)
 #    )
 
     # seed the result dict in the object

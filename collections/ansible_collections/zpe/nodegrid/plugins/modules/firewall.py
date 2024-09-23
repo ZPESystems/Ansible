@@ -69,7 +69,7 @@ def _get_rule( endpoint: str,rule_number: str, cmd_cli: dict) -> dict:
        data = cmd_result['json'][0]['data']
     return data
 
-def get_policy( endpoint: str , timeout: int = 30 ) -> dict:
+def get_policy( endpoint: str , timeout: int = 60 ) -> dict:
     cmd_cli = get_cli(timeout=timeout)
 
     #build cmd
@@ -106,7 +106,7 @@ def run_module():
     module_args = dict(
         ipv4_nat=dict(type='dict', required=False),
         ipv4_firewall=dict(type='dict', required=False),
-        timeout=dict(type=int, default=30),
+        timeout=dict(type=int, default=60),
         debug=dict(type='bool', default=False)
     )
 
@@ -136,7 +136,7 @@ def run_module():
         try:
             timeout = int(module.params['timeout'])
         except:
-            timeout = 30
+            timeout = 60
     # Lets get the current status and check if it must be changed
     res, err_msg, nodegrid_os = check_os_version_support()
     if res == 'error' or res == 'unsupported':

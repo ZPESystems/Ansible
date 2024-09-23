@@ -234,7 +234,7 @@ def run_module():
         authorization=dict(type='dict', required=False),
         password_rules=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type=int, default=30)
+        timeout=dict(type=int, default=60)
     )
 
     # seed the result dict in the object

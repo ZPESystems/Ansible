@@ -39,7 +39,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         cmds=dict(type='list', required=True),
-        timeout=dict(type=int, default=30)
+        timeout=dict(type=int, default=60)
     )
 
     # seed the result dict in the object
@@ -85,7 +85,7 @@ def run_module():
         try:
             timeout = int(module.params['timeout'])
         except:
-            timeout = 30
+            timeout = 60
     try:
         cmd_cli = get_cli(timeout=timeout)
         for cmd in module.params['cmds']:

@@ -67,7 +67,7 @@ def run_option_device(option, run_opt):
                 cmd_results = list()
                 cmd_result = dict()
                 try:
-                    cmd_cli = get_cli(timeout=30)
+                    cmd_cli = get_cli(timeout=60)
                     for cmd in cmds:
                         cmd_result = execute_cmd(cmd_cli, cmd)
                         if cmd_result['error']:

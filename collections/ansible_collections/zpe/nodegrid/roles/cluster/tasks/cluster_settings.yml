@@ -1,32 +1,34 @@
 - name: configure cluster
+  tags: always
   zpe.nodegrid.cluster:
-        settings:
-          enable_cluster: "{{cluster_settings_enable_cluster}}"
-          cluster_name: "{{cluster_settings_name}}"
-          type: "{{cluster_settings_type}}"
-          allow_enrollment: "{{cluster_settings_allow_enrollment}}"
-          cluster_mode: "{{cluster_settings_mode}}"
-          polling_rate: "{{cluster_settings_polling_rate}}"
-          psk: "{{cluster_settings_psk}}"
-          enable_clustering_access: "{{cluster_settings_enable_clustering_access}}"
-          auto_enroll: "{{cluster_settings_auto_enroll}}"
-          enable_peer_management: "{{cluster_settings_enable_peer_management}}"
-          enable_license_pool: "{{cluster_settings_enable_license_pool}}"
+    settings:
+      enable_cluster: "{{ cluster_settings_enable_cluster }}"
+      cluster_name: "{{ cluster_settings_name }}"
+      type: "{{ cluster_settings_type }}"
+      allow_enrollment: "{{ cluster_settings_allow_enrollment }}"
+      cluster_mode: "{{ cluster_settings_mode }}"
+      polling_rate: "{{ cluster_settings_polling_rate }}"
+      psk: "{{ cluster_settings_psk }}"
+      enable_clustering_access: "{{ cluster_settings_enable_clustering_access }}"
+      auto_enroll: "{{ cluster_settings_auto_enroll }}"
+      enable_peer_management: "{{ cluster_settings_enable_peer_management }}"
+      enable_license_pool: "{{ cluster_settings_enable_license_pool }}"
   when: cluster_settings_type is defined and "coordinator" is in cluster_settings_type
 
 - name: configure cluster peer
+  tags: always
   zpe.nodegrid.cluster:
-        settings:
-          enable_cluster: "{{cluster_settings_enable_cluster}}"
-          cluster_name: "{{cluster_settings_name}}"
-          type: "{{cluster_settings_type}}"
-          allow_enrollment: "{{cluster_settings_allow_enrollment}}"
-          cluster_mode: "{{cluster_settings_mode}}"
-          coordinator_address: "{{cluster_coordinator_address}}"
-          polling_rate: "{{cluster_settings_polling_rate}}"
-          psk: "{{cluster_settings_psk}}"
-          enable_clustering_access: "{{cluster_settings_enable_clustering_access}}"
-          auto_enroll: "{{cluster_settings_auto_enroll}}"
-          enable_peer_management: "{{cluster_settings_enable_peer_management}}"
-          enable_license_pool: "{{cluster_settings_enable_license_pool}}"
+    settings:
+      enable_cluster: "{{ cluster_settings_enable_cluster }}"
+      cluster_name: "{{ cluster_settings_name }}"
+      type: "{{ cluster_settings_type }}"
+      allow_enrollment: "{{ cluster_settings_allow_enrollment }}"
+      cluster_mode: "{{ cluster_settings_mode }}"
+      coordinator_address: "{{ cluster_coordinator_address }}"
+      polling_rate: "{{ cluster_settings_polling_rate }}"
+      psk: "{{ cluster_settings_psk }}"
+      enable_clustering_access: "{{ cluster_settings_enable_clustering_access }}"
+      auto_enroll: "{{ cluster_settings_auto_enroll }}"
+      enable_peer_management: "{{ cluster_settings_enable_peer_management }}"
+      enable_license_pool: "{{ cluster_settings_enable_license_pool }}"
   when: cluster_settings_type is defined and "peer" is in cluster_settings_type

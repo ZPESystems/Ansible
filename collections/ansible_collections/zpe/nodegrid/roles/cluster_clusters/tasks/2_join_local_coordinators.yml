@@ -1,23 +1,26 @@
-        - name: check if Local Cluster exist
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: "show /settings/cluster/cluster_clusters/{{ cluster.remote_cluster_name }}"
-          ignore_errors: True
-          register: ng_cluster
+- name: check if Local Cluster exist
+  tags: always
+  zpe.nodegrid.nodegrid_cmds:
+    cmds:
+      - cmd: "show /settings/cluster/cluster_clusters/{{ cluster.remote_cluster_name }}"
+  ignore_errors: True
+  register: ng_cluster
 
-        - name: Join the Remote Cluster
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'cd /settings/cluster/cluster_clusters/'
-              - cmd: 'join'
-              - cmd: "set remote_cluster_name={{ cluster.remote_cluster_name }}"
-              - cmd: "set coordinator_address={{ cluster.remote_coordinator_address.split('/') | first }}"
-              - cmd: "set psk={{ cluster.remote_psk }}"
-              - cmd: 'commit'
-          when: ng_cluster.failed
+- name: Join the Remote Cluster
+  tags: always
+  zpe.nodegrid.nodegrid_cmds:
+    cmds:
+      - cmd: 'cd /settings/cluster/cluster_clusters/'
+      - cmd: 'join'
+      - cmd: "set remote_cluster_name={{ cluster.remote_cluster_name }}"
+      - cmd: "set coordinator_address={{ cluster.remote_coordinator_address.split('/') | first }}"
+      - cmd: "set psk={{ cluster.remote_psk }}"
+      - cmd: 'commit'
+  when: ng_cluster.failed
 
-#        - name: Join the Remote Cluster # This is currently not support
-#          zpe.nodegrid.nodegrid_cmds:
-#            cmds:
-#              - cmd: 'cd /settings/cluster/cluster_clusters/'
-#          when: ng_cluster.failed == False
+- name: Join the Remote Cluster # This is currently not support
+  tags: always
+  zpe.nodegrid.nodegrid_cmds:
+    cmds:
+      - cmd: 'cd /settings/cluster/cluster_clusters/'
+  when: ng_cluster.failed == False

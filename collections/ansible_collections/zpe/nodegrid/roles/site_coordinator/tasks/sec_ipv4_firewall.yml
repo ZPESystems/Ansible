@@ -1,4 +1,5 @@
 - name: 620_settings_devices.yml
+  tags: always
   zpe.nodegrid.import_settings:
         cmds:
           - "/settings/ipv4_firewall/chains/INPUT/0 target=ACCEPT"

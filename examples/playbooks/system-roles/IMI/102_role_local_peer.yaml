@@ -12,6 +12,17 @@
   tasks:
     - name: Gather Facts
       zpe.nodegrid.facts:
+      tags:
+        - always
+        - auditing
+        - authentication
+        - cluster
+        - firewall
+        - network_connections
+        - network_settings
+        - services
+        - snmp_settings
+        - system_preferences
 
     - name: Configure a Nodegrid as Local Peer
       block:

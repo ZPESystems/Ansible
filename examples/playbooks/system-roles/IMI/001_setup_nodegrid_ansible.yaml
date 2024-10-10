@@ -52,7 +52,7 @@
      block:
      - name: Install a ssh_key for a user
        no_log: True
-       zpe.nodegrid.setup:
+       zpe.nodegrid.nodegrid_setup:
           login:
             username: "{{ nodegrid_user }}"
             password: "{{ current_password }}"
@@ -73,4 +73,4 @@
        vars:
          ansible_user: "{{ ssh_key_user }}"
        ansible.builtin.shell:
-         cmd: "echo -e 'set number\nset tabstop=2 softtabstop=2 shiftwidth=2\nset number ruler\nset autoindent smartindent\nsyntax enable\nfiletype plugin indent on' > /home/ansible/.vimrc"
+         cmd: "echo -e 'set number\nset tabstop=2 softtabstop=2 shiftwidth=2\nset number ruler\nset autoindent smartindent\nsyntax enable\nfiletype plugin indent on\nset backspace=indent,eol,start' > /home/ansible/.vimrc"

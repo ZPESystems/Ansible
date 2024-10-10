@@ -56,7 +56,7 @@
      block:
      - name: Install a ssh_key for a user
        no_log: True
-       zpe.nodegrid.setup:
+       zpe.nodegrid.nodegrid_setup:
           login:
             username: "{{ nodegrid_user }}"
             password: "{{ current_password }}"

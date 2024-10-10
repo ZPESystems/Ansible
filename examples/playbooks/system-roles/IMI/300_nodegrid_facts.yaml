@@ -4,9 +4,6 @@
     - zpe.nodegrid
 
   tasks:
-    - name: Get Facts from Nodegrid
-      zpe.nodegrid.facts:
-
-    - name: output
+    - name: Ansible and Nodegrid Facts
       debug:
         var: ansible_facts

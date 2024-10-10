@@ -1,6 +1,6 @@
 - hosts: all
   name: Configure ZPE Out Of Box - Factory Default
-  gather_facts: False
+  gather_facts: true
   collections:
     - zpe.nodegrid
   vars:
@@ -22,7 +22,7 @@
   tasks:
 
   - name: Change default admin password and install the ansible user ssh key
-    zpe.nodegrid.setup:
+    zpe.nodegrid.nodegrid_setup:
       login:
         username: "{{ username }}"
         password: "{{ password }}"
@@ -42,7 +42,7 @@
 
   - name: Check version
     set_fact:
-      upgrade_required: "{{ nodegrid_version == '' or ansible_facts['about']['version'] is version(nodegrid_version, '!=') }}"
+      upgrade_required: "{{ nodegrid_version == '' or ansible_facts['nodegrid_about']['version'] is version(nodegrid_version, '!=') }}"
 
   - name: Copy iso
     when: upgrade_required
@@ -79,7 +79,7 @@
 
   - name: Change default admin password and install the ansible user ssh key
     when: upgrade_required
-    zpe.nodegrid.setup:
+    zpe.nodegrid.nodegrid_setup:
       login:
         username: "{{ username }}"
         password: "{{ password }}"
@@ -99,5 +99,5 @@
     until: not result.failed
 
   - name: Check the version
-    when: upgrade_required and nodegrid_version != '' and ansible_facts['about']['version'] is version(nodegrid_version, '!=')
+    when: upgrade_required and nodegrid_version != '' and ansible_facts['nodegrid_about']['version'] is version(nodegrid_version, '!=')
     fail: msg="Invalid Nodegrid OS version"

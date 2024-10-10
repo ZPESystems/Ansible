@@ -70,4 +70,5 @@
   tags: always
   import_tasks: devices_serial_ports.yml
   vars:
-    serial_ports: "{{ansible_facts['serial_connections_nsr']}}"
+    serial_ports: "{{ansible_facts['nodegrid_serial_connections_nsr']}}"
+  when: ansible_facts['nodegrid_serial_connections_nsr'] is defined

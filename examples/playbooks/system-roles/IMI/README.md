@@ -160,12 +160,12 @@ drwxrwxr-x 3 ansible admin 1024 May 13 10:30 system-roles
 
 - To copy the required playbooks for this example to the playbook folder, use the following command.
 ```shell
-cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansible/playbooks/
+cp /etc/ansible/playbooks/examples/system-roles/IMI/*.yaml /etc/ansible/playbooks/
 ```
 
 - *Example*:
 ```shell
-ansible@nodegrid:/etc/ansible/playbooks$ cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansible/playbooks/
+ansible@nodegrid:/etc/ansible/playbooks$ cp /etc/ansible/playbooks/examples/system-roles/IMI/*.yaml /etc/ansible/playbooks/
 ansible@nodegrid:/etc/ansible/playbooks$ ls -l
 total 20
 -rwxr-xr-x 1 ansible ansible 1580 May 13 10:42 001_setup_nodegrid_ansible.yaml
@@ -207,7 +207,7 @@ TASK [output] ******************************************************************
 ok: [localhost] => {
     "output": {
         "ansible_facts": {
-            "about": {
+            "nodegrid_about": {
                 "bogomips": "6787.24",
                 "boot_mode": "Legacy",
                 "cpu": "QEMU Virtual CPU version 2.5+",

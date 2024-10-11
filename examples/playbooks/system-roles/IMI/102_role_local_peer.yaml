@@ -7,6 +7,7 @@
   name: Configure a Nodegrid as Local Peer
   gather_facts: true
   collections:
+    - ansible.builtin
     - zpe.nodegrid
 
   tasks:

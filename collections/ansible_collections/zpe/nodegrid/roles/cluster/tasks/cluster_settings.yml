@@ -1,4 +1,4 @@
-- name: configure cluster
+- name: configure cluster coordinator
   tags: always
   zpe.nodegrid.cluster:
     settings:

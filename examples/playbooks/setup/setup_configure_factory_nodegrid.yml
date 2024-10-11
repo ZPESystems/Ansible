@@ -2,6 +2,7 @@
   name: Configure ZPE Out Of Box - Factory Default
   gather_facts: true
   collections:
+    - ansible.builtin
     - zpe.nodegrid
   vars:
     username: "<myusername>"

@@ -132,14 +132,15 @@ admin@nodegrid:/var/local/file_manager/admin_group/Ansible-main$
 sudo su - ansible
 ```
 
-- Navigate to the system ansible folder
+- Navigate to the system ansible folder and display the example playbooks
 ```bash
 cd /etc/ansible/playbooks/
+ls -l examples
 ```
-- Display example playbooks
+
 ```bash
 ansible@nodegrid:~$ cd /etc/ansible/playbooks/
-ansible@nodegrid:/etc/ansible/playbooks$ ls -l examples/playbooks/
+ansible@nodegrid:/etc/ansible/playbooks$ ls -l examples
 total 7
 drwxrwxr-x 2 ansible admin 1024 May 13 10:30 managed_devices
 drwxrwxr-x 2 ansible admin 1024 May 13 10:30 network
@@ -549,12 +550,9 @@ nodegrid_iso_target_version: "5.8.16"
 # Default System Settings: (CHANGE - TO DESIRED VALUES)  
 sys_show_hostname_on_webui_header: "yes"  
 sys_idle_timeout: 3600  
-sys_banner: '''  
-WARNING: This private system is provided for authorized use only and it may be monitored for all lawful purposes to ensure its use. All information  
-including personal information, placed on or sent over this system may be  
-monitored and recorded. Use of this system, authorized or unauthorized,  
-constitutes consent to monitoring your session. Unauthorized use may subject you to criminal prosecution. Evidence of any such unauthorized  
-use may be used for administrative, criminal and/or legal actions. '''  
+sys_banner: "
+WARNING: This private system is provided for authorized use only and it may be monitored for all lawful purposes to ensure its use. All information including personal information, placed on or sent over this system may be monitored and recorded. Use of this system, authorized or unauthorized, constitutes consent to monitoring your session. Unauthorized use may subject you to criminal prosecution. Evidence of any such unauthorized use may be used for administrative, criminal and/or legal actions.
+"
   
 # Default System Date and Time: (CHANGE - TO DESIRED VALUES)  
 sys_date_and_time_date_and_time: "network_time_protocol"  

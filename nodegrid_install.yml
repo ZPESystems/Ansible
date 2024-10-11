@@ -124,17 +124,28 @@
           when: ttp_var_result.stdout == ""
 
         - name: check if ansible.cfg exists
+          tags: ansible_config
           stat:
             path: "/etc/ansible/ansible.cfg"
           register: ansible_cfg
 
+        - name: backup current ansible.cfg if it already exists
+          tags: ansible_config
+          copy:
+            src: /etc/ansible/ansible.cfg
+            dest: /etc/ansible/ansible.cfg.backup
+            owner: ansible
+            group: ansible
+            remote_src: true
+          when: ansible_cfg.stat.exists
+
         - name: update ansible.cfg
+          tags: ansible_config
           copy:
             src: ./installation/nodegrid_ansible.cfg.j2
             dest: /etc/ansible/ansible.cfg
             owner: ansible
             group: ansible
-          when: not ansible_cfg.stat.exists
 
         - name: create symbolic link in file_manager
           ansible.builtin.file:

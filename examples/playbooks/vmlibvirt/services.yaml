@@ -3,20 +3,24 @@
   vars:
     _services_options: "enable_detection_of_usb_devices enable_rpc enable_grpc enable_ftp_service enable_snmp_service enable_telnet_service_to_nodegrid enable_telnet_service_to_managed_devices enable_icmp_echo_reply enable_icmp_secure_redirects enable_usb_over_ip enable_search_engine enable_dashboards enable_telegraf enable_services_status_page enable_reboot_on_services_status_page enable_vmware_manager enable_docker enable_qemu|kvm cluster_tcp_port auto_cluster_enroll search_engine_tcp_port enable_search_engine_high_level_cipher_suite enable_vm_serial_access vm_serial_port vmotion_timeout enable_zero_touch_provisioning enable_bluetooth bluetooth_display_name bluetooth_discoverable_mode enable_pxe device_access_per_user_group_authorization enable_autodiscovery dhcp_lease_per_autodiscovery_rules block_host_with_multiple_authentication_failures block_account_with_multiple_authentication_failures enable_console_access allow_root_console_access rescue_mode_require_authentication password_protected_boot boot_mode enable_secure_boot ssh_allow_root_access ssh_tcp_port ssh_ciphers ssh_macs ssh_kexalgorithms enable_http_access http_port enable_https_access https_port redirect_http_to_https enable_https_file_repository frr_enable_bgp frr_enable_ospfv2 frr_enable_ospfv3 frr_enable_rip frr_enable_vrrp tlsv1.3 tlsv1.2 tlsv1.1 tlsv1 cipher_suite_level"
   block:
-    - name: create list of commands
+    - name: create list of services commands
       vars:
         _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
       set_fact:
         commands: "{{ commands | default([]) + _cmd }}"
       loop: "{{ services | dict2items }}"
       when: "item.key in _services_options | split(' ') and item.value"
-    - name: show commands
+    - name: show services commands
       debug:
         msg: "{{ commands | join(' ; ') }}"
-    - name: execute commands
+    - name: execute services commands
       zpe.nodegrid.nodegrid_cmds: 
+        timeout: 120
         cmds:
           - cmd: 'cd /settings/services'
           - cmd: "{{ commands | join(' ; ') | trim }}"
           - cmd: 'commit'
       register: ng_commands_output
+- name: Clean commands list
+  set_fact:
+    commands: "{{ [] }}"

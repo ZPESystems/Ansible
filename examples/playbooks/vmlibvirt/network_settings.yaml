@@ -1,23 +1,29 @@
 - name: Configure Network Settings
-  tags: network-settings
+  tags: 
+    - always
+    - network-settings
   vars:
     _network_settings_options: "hostname domain_name dns_proxy enable_ipv4_ip_forward enable_ipv6_ip_forward ipv4_loopback ipv6_loopback reverse_path_filtering enable_multiple_routing_tables enable_network_failover primary_connection primary_connection_sim_card secondary_connection secondary_connection_sim_card trigger_failed_retries trigger_successful_retries_to_recover interval_between_retries enable_primary_failover_by_ip_address trigger trigger_ip_address enable_primary_failover_by_signal_strength primary_signal_strength_value enable_primary_failover_by_data_usage primary_data_usage_threshold primary_custom_data_usage_limit enable_primary_failover_by_schedule primary_schedule primary_time_to_failback enable_primary_sim_failback_by_schedule primary_sim_failback_schedule enable_third_level_network_failover tertiary_connection tertiary_connection_sim_card secondary_trigger_failed_retries secondary_trigger_successful_retries_to_recover secondary_interval_between_retries enable_secondary_failover_by_ip_address secondary_trigger secondary_trigger_ip_address enable_secondary_failover_by_signal_strength secondary_signal_strength_value enable_secondary_failover_by_data_usage secondary_data_usage_threshold secondary_custom_data_usage_limit enable_secondary_failover_by_schedule secondary_schedule secondary_time_to_failback enable_secondary_sim_failback_by_schedule secondary_sim_failback_schedule enable_dynamic_dns ddns_server_name ddns_server_tcp_port zone failover_hostname username algorithm key_size enable_bluetooth_network" 
       #    network_settings: "{{  }}"
   block:
-    - name: create list of commands
+    - name: create list of network_settings commands
       vars:
         _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
       set_fact:
         commands: "{{ commands | default([]) + _cmd }}"
       loop: "{{ network_settings | dict2items }}"
       when: "item.key in _network_settings_options | split(' ') and item.value"
-    - name: show commands
+    - name: show network_settings commands
       debug:
         msg: "{{ commands | join(' ; ') }}"
-    - name: execute commands
+    - name: execute network_settings commands
       zpe.nodegrid.nodegrid_cmds: 
+        timeout: 120
         cmds:
           - cmd: 'cd /settings/network_settings'
           - cmd: "{{ commands | join(' ; ') | trim }}"
           - cmd: 'commit'
       register: ng_commands_output
+- name: Clean commands list
+  set_fact:
+    commands: "{{ [] }}"

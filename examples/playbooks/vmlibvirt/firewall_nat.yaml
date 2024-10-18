@@ -12,7 +12,7 @@
       OUTPUT:
         _update: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_output_interface fragments reverse_match_for_protocol log_level reverse_match_for_source_ip|mask log_options_from_the_ip_packet_header reverse_match_for_source_port log_options_from_the_tcp_packet_header reverse_match_for_tcp_flags log_prefix rule_number log_tcp_sequence_numbers source_net4 output_interface target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
   block:
-    - name: (Update) create list of commands
+    - name: (Update Firewall NAT) create list of commands
       vars:
         _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
       set_fact:
@@ -20,18 +20,18 @@
       loop: "{{ nat_rule | dict2items }}"
       when: "item.key in (_nat[nat_chain]._update | split(' ')) and item.value"
     
-    - name: (Update) show commands
+    - name: (Update Firewall NAT) show commands
       debug:
         msg: "{{ commands | join(' ; ') }}"
     
-    - name: (Update) execute commands
+    - name: (Update Firewall NAT) execute commands
       zpe.nodegrid.nodegrid_cmds: 
         cmds:
           - cmd: 'cd /settings/ipv4_nat/chains/{{ nat_chain }}/{{ nat_rule.rule_number }}'
           - cmd: "{{ commands | join(' ; ') | trim }}"
           - cmd: 'commit'
       register: ng_commands_output
-    - name: (Update) Show commands ng_commands_output
+    - name: (Update Firewall NAT) Show commands ng_commands_output
       debug:
         msg: "{{ ng_commands_output }}"
 
@@ -49,7 +49,7 @@
       OUTPUT:
         add: "description reverse_match_for_destination_port destination_net4 reverse_match_for_icmp_type enable_state_match reverse_match_for_output_interface fragments reverse_match_for_protocol log_level reverse_match_for_source_ip|mask log_options_from_the_ip_packet_header reverse_match_for_source_port log_options_from_the_tcp_packet_header reverse_match_for_tcp_flags log_prefix rule_number log_tcp_sequence_numbers source_net4 output_interface target protocol to_destination protocol_number to_source reverse_match_for_destination_ip|mask"
   block:
-    - name: (Add) create list of commands
+    - name: (Add Firewall NAT) create list of commands
       vars:
         _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
       set_fact:
@@ -57,11 +57,11 @@
       loop: "{{ nat_rule | dict2items }}"
       when: "item.key in _nat[nat_chain].add | split(' ') and item.value"
     
-    - name: (Add) show commands
+    - name: (Add Firewall NAT) show commands
       debug:
         msg: "{{ commands | join(' ; ') }}"
     
-    - name: (Add) execute commands
+    - name: (Add Firewall NAT) execute commands
       zpe.nodegrid.nodegrid_cmds: 
         cmds:
           - cmd: 'cd /settings/ipv4_nat/chains/{{ nat_chain }}'
@@ -70,7 +70,7 @@
           - cmd: 'commit'
       register: ng_commands_output
     
-    - name: (Add) Show commands ng_commands_output
+    - name: (Add Firewall NAT) Show commands ng_commands_output
       debug:
         msg: "{{ ng_commands_output }}"
 

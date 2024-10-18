@@ -13,7 +13,7 @@
       ethernet: "ethernet_interface description connect_automatically set_as_primary_connection enable_lldp port_id port_description block_unsolicited_incoming_packets configure_hostname_through_dhcp ethernet_link_mode enable_ip_passthrough ethernet_connection mac_address port_intercepts ipv4_mode ipv4_address ipv4_bitmask ipv4_gateway ipv4_dns_server ipv4_dns_search ipv4_default_route_metric ipv4_ignore_obtained_default_gateway ipv4_ignore_obtained_dns_server ipv6_mode ipv6_address ipv6_prefix_length ipv6_gateway ipv6_dns_server ipv6_dns_search ipv6_default_route_metric ipv6_ignore_obtained_default_gateway ipv6_ignore_obtained_dns_server"
       mobile_broadband_gsm: "ethernet_interface description connect_automatically set_as_primary_connection enable_lldp port_id port_description block_unsolicited_incoming_packets configure_hostname_through_dhcp enable_connection_health_monitoring ensure_connection_is_up ip_address interval ipv4_mode ipv4_address ipv4_bitmask ipv4_gateway ipv4_dns_server ipv4_dns_search ipv4_default_route_metric ipv4_ignore_obtained_default_gateway ipv4_ignore_obtained_dns_server ipv6_mode ipv6_address ipv6_prefix_length ipv6_gateway ipv6_default_route_metric ipv6_ignore_obtained_default_gateway ipv6_ignore_obtained_dns_server sim-1_phone_number sim-1_apn_configuration sim-1_user_name sim-1_password sim-1_access_point_name sim-1_personal_identification_number sim-1_mtu sim-1_allowed_modes sim-1_preferred_mode enable_data_usage_monitoring sim-1_data_limit_value sim-1_data_warning sim-1_renew_day enable_ip_passthrough ethernet_connection ethernet_connection options: BACKPLANE0, BACKPLANE1, ETH0 mac_address port_intercepts enable_global_positioning_system polling_time gps_antenna enable_second_sim_card active_sim_card sim-2_phone_number sim-2_apn_configuration sim-2_user_name sim-2_password sim-2_access_point_name sim-2_personal_identification_number sim-2_mtu sim-2_allowed_modes sim-2_preferred_mode sim-2_enable_data_usage_monitoring sim-2_data_limit_value sim-2_data_warning sim-2_renew_day"
   block:
-    - name: (Update) create list of commands
+    - name: (Update Connection) create list of commands
       vars:
         _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
       set_fact:
@@ -23,7 +23,7 @@
     - name: (Update) show commands
       debug:
         msg: "{{ commands | join(' ; ') }}"
-    - name: (Update) execute commands
+    - name: (Update Connection) execute commands
       zpe.nodegrid.nodegrid_cmds: 
         cmds:
           - cmd: 'cd /settings/network_connections/{{ connection.name }}'
@@ -43,7 +43,7 @@
       ethernet: "name type ethernet_interface description connect_automatically set_as_primary_connection enable_lldp port_id port_description block_unsolicited_incoming_packets configure_hostname_through_dhcp ethernet_link_mode enable_ip_passthrough ethernet_connection mac_address port_intercepts ipv4_mode ipv4_address ipv4_bitmask ipv4_gateway ipv4_dns_server ipv4_dns_search ipv4_default_route_metric ipv4_ignore_obtained_default_gateway ipv4_ignore_obtained_dns_server ipv6_mode ipv6_address ipv6_prefix_length ipv6_gateway ipv6_dns_server ipv6_dns_search ipv6_default_route_metric ipv6_ignore_obtained_default_gateway ipv6_ignore_obtained_dns_server"
       mobile_broadband_gsm: "name type ethernet_interface description connect_automatically set_as_primary_connection enable_lldp port_id port_description block_unsolicited_incoming_packets configure_hostname_through_dhcp enable_connection_health_monitoring ensure_connection_is_up ip_address interval ipv4_mode ipv4_address ipv4_bitmask ipv4_gateway ipv4_dns_server ipv4_dns_search ipv4_default_route_metric ipv4_ignore_obtained_default_gateway ipv4_ignore_obtained_dns_server ipv6_mode ipv6_address ipv6_prefix_length ipv6_gateway ipv6_default_route_metric ipv6_ignore_obtained_default_gateway ipv6_ignore_obtained_dns_server sim-1_phone_number sim-1_apn_configuration sim-1_user_name sim-1_password sim-1_access_point_name sim-1_personal_identification_number sim-1_mtu sim-1_allowed_modes sim-1_preferred_mode enable_data_usage_monitoring sim-1_data_limit_value sim-1_data_warning sim-1_renew_day enable_ip_passthrough ethernet_connection ethernet_connection options: BACKPLANE0, BACKPLANE1, ETH0 mac_address port_intercepts enable_global_positioning_system polling_time gps_antenna enable_second_sim_card active_sim_card sim-2_phone_number sim-2_apn_configuration sim-2_user_name sim-2_password sim-2_access_point_name sim-2_personal_identification_number sim-2_mtu sim-2_allowed_modes sim-2_preferred_mode sim-2_enable_data_usage_monitoring sim-2_data_limit_value sim-2_data_warning sim-2_renew_day"
   block:
-    - name: (Add) create list of commands
+    - name: (Add Connection) create list of commands
       vars:
         _cmd: "{{ ['set ' + item.key|string + '=' + item.value|string|replace(' ','_') ] }}"
         #_cmd: "{{ [{'cmd': 'set ' + item.key|string + '=' + item.value|string}] }}"
@@ -52,11 +52,11 @@
       loop: "{{ connection | dict2items }}"
       when: "item.key in _connection_types[connection.type] | split(' ') and item.value"
     
-    - name: (Add) show commands
+    - name: (Add Connection) show commands
       debug:
         msg: "{{ commands | join(' ; ') }}"
     
-    - name: (Add) execute commands
+    - name: (Add Connection) execute commands
       zpe.nodegrid.nodegrid_cmds: 
         cmds:
           - cmd: 'cd /settings/network_connections/'
@@ -65,10 +65,10 @@
           - cmd: 'commit'
       register: ng_commands_output
     
-    - name: (Add) Show commands ng_commands_output
+    - name: (Add Connection) Show commands ng_commands_output
       debug:
         msg: "{{ ng_commands_output }}"
 
-- name: Clean commands list
+- name: Clean Connection commands list
   set_fact:
     commands: "{{ [] }}"

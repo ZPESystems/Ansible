@@ -156,6 +156,7 @@ def import_settings(settings, use_config_start=True):
         dict: Import settings result
     """
     import_p_timeout = _get_import_process_timeout(("\n").join(settings))
+    output_buffer_flush_timeout = 5
     cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
@@ -168,6 +169,9 @@ def import_settings(settings, use_config_start=True):
     cmd_cli.expect_exact('finish.')
     for item in settings:
         cmd_cli.sendline(item)
+        # Read the line was just sent by expecting a newline, because a big
+        # import_settings input can cause sendline to hang
+        cmd_cli.expect('\n', timeout=output_buffer_flush_timeout)
     cmd_cli.sendcontrol('d')
     cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
     output = cmd_cli.before

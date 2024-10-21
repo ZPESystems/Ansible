@@ -58,7 +58,7 @@
 
     - name: Change default admin password and install the ansible user ssh key
       no_log: True
-      zpe.nodegrid.nodegrid_setup:
+      zpe.nodegrid.setup:
         login:
           username: "{{ nodegrid_user }}"
           password: "{{ current_password }}"

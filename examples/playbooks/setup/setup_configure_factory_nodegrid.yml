@@ -23,7 +23,7 @@
   tasks:
 
   - name: Change default admin password and install the ansible user ssh key
-    zpe.nodegrid.nodegrid_setup:
+    zpe.nodegrid.setup:
       login:
         username: "{{ username }}"
         password: "{{ password }}"
@@ -88,7 +88,7 @@
 
   - name: Change default admin password and install the ansible user ssh key
     when: upgrade_required
-    zpe.nodegrid.nodegrid_setup:
+    zpe.nodegrid.setup:
       login:
         username: "{{ username }}"
         password: "{{ password }}"

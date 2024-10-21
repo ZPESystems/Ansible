@@ -9,7 +9,7 @@ __metaclass__ = type
 
 DOCUMENTATION = r'''
 ---
-module: setup
+module: nodegrid_facts
 author: 
 - Diego Montero (@zpe-diegom)
 
@@ -31,7 +31,7 @@ atributes:
 notes:
     - It is required that the ansible.cfg variables to be set as follows:
       hash_behaviour = merge
-      facts_modules = zpe.nodegrid.setup,smart
+      facts_modules = zpe.nodegrid.nodegrid_facts,smart
 
 options:
     gather_timeout:
@@ -43,7 +43,7 @@ options:
 
 EXAMPLES = r'''
 # Display facts from a host.
-# ansible host -m zpe.nodegrid.setup
+# ansible host -m zpe.nodegrid.nodegrid_facts
 '''
 
 from ansible.module_utils.basic import AnsibleModule

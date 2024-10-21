@@ -67,7 +67,7 @@ class ActionModule(ActionBase):
         )
         return result
     
-    def _expect_for(self, conn_obj, expectation_list=[], timeout=10, msg=""):
+    def _expect_for(self, conn_obj, expectation_list=[], timeout=60, msg=""):
         expectation_list.append(pexpect.TIMEOUT)
         expectation_list.append(pexpect.EOF)
         list_len = len(expectation_list)
@@ -96,7 +96,7 @@ class ActionModule(ActionBase):
                 ':~# ',
                 'Permission denied (publickey,keyboard-interactive).'
             ]
-            ret = self._expect_for(conn_obj, expectation_list, timeout=60, msg=(SSH_ERR_MSG if cnt == 0 else ''))
+            ret = self._expect_for(conn_obj, expectation_list, msg=(SSH_ERR_MSG if cnt == 0 else ''))
 
             # BAD PASSWORD:
             if ret == 0:  

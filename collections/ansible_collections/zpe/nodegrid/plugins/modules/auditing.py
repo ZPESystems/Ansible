@@ -32,7 +32,7 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def get_auditing( endpoint: str , timeout: int = 30 ) -> dict:
+def get_auditing( endpoint: str , timeout: int = 60 ) -> dict:
     cmd_cli = get_cli(timeout=timeout)
 
     #build cmd
@@ -86,7 +86,7 @@ def run_module():
         destinations_syslog=dict(type='dict', required=False),
         destinations_snmp=dict(type='dict', required=False),
         destinations_email=dict(type='dict', required=False),
-        timeout=dict(type=int, default=30),
+        timeout=dict(type=int, default=60),
         debug=dict(type='bool', default=False)
     )
 
@@ -116,7 +116,7 @@ def run_module():
         try:
             timeout = int(module.params['timeout'])
         except:
-            timeout = 30
+            timeout = 60
     # Lets get the current status and check if it must be changed
     res, err_msg, nodegrid_os = check_os_version_support()
     if res == 'error' or res == 'unsupported':

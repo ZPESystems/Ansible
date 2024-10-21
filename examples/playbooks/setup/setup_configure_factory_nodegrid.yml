@@ -70,6 +70,14 @@
     set_fact:
       iso_file: "{{ image_location['remote_server']['url'] if image_location['remote_server'] is defined else image_location['local_computer']['path'] }}"
 
+  - name: Enable ICMP ping
+    when: upgrade_required
+    zpe.nodegrid.nodegrid_cmds:
+      cmds:
+        - cmd: 'cd /settings/services/'
+        - cmd: 'set enable_icmp_echo_reply=yes'
+        - cmd: 'commit'
+
   - name: Software upgrade
     when: upgrade_required
     zpe.nodegrid.upgrade:

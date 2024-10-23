@@ -265,7 +265,6 @@ class ActionModule(ActionBase):
         self._task_vars = task_vars
         self._playhost = task_vars.get("inventory_hostname")
         action_module_args = self._task.args.copy()
-        display.vvv(str(action_module_args))
 
         host = task_vars.get("ansible_host")
         ssh_port = task_vars.get("ansible_ssh_port", 22)

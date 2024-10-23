@@ -1,85 +1,95 @@
 # #####################################
 # Spoke - Create Spoke Wireguard VPN
 - name: Create Spoke Wireguard VPN
+  tags: always
   vars:
     _peer_name: "peer-{{ wg_tunnel.wireguard_hub }}"
   block:
-        - name: check if wireguard interface exists
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: "show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}"
-          ignore_errors: True
-          register: ng_wireguard_tunnels_output
+    - name: check if wireguard interface exists
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: "show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}"
+      ignore_errors: True
+      register: ng_wireguard_tunnels_output
 
-        - name: Add Spoke Wireguard VPN if it does not exist
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'cd /settings/wireguard/'
-              - cmd: 'add'
-              - cmd: 'set interface_name={{ wg_tunnel.wireguard_interface_name }}'
-              - cmd: 'set interface_type=client'
-              - cmd: 'set internal_address={{ wg_tunnel.wireguard_interface_address }}'
-              - cmd: 'commit'
-          when: ng_wireguard_tunnels_output.failed
+    - name: Add Spoke Wireguard VPN if it does not exist
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'cd /settings/wireguard/'
+          - cmd: 'add'
+          - cmd: 'set interface_name={{ wg_tunnel.wireguard_interface_name }}'
+          - cmd: 'set interface_type=client'
+          - cmd: 'set internal_address={{ wg_tunnel.wireguard_interface_address }}'
+          - cmd: 'commit'
+      when: ng_wireguard_tunnels_output.failed
 
-        - name: Update Spoke Wireguard VPN if it exists already
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/interfaces'
-              - cmd: 'set internal_address={{ wg_tunnel.wireguard_interface_address }}'
-              - cmd: 'commit'
-          when: ng_wireguard_tunnels_output.failed == False
+    - name: Update Spoke Wireguard VPN if it exists already
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/interfaces'
+          - cmd: 'set internal_address={{ wg_tunnel.wireguard_interface_address }}'
+          - cmd: 'commit'
+      when: ng_wireguard_tunnels_output.failed == False
 
-        - name: Get Spoke Wireguard Public Key
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-            - cmd: 'show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/interfaces/ public_key'
-          register: wg_public_key
+    - name: Get Spoke Wireguard Public Key
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+        - cmd: 'show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/interfaces/ public_key'
+      register: wg_public_key
 
-        - name: Set Peer Value
-          set_fact:
-            wireguard_interfaces_peer_tmp:
-              - 'peer_name': "{{ nodegrid_hostname }}"
-                'public_key' : "{{ wg_public_key.cmds_output[0]['stdout_lines'][1].split('= ')[1] }}"
-                'allowed_ips': "{{ wg_tunnel.wireguard_interface_address }}"
+    - name: Set Peer Value
+      tags: always
+      set_fact:
+        wireguard_interfaces_peer_tmp:
+          - 'peer_name': "{{ nodegrid_hostname }}"
+            'public_key' : "{{ wg_public_key.cmds_output[0]['stdout_lines'][1].split('= ')[1] }}"
+            'allowed_ips': "{{ wg_tunnel.wireguard_interface_address }}"
 
-        - name: Export Spoke Wireguard Public Key and assign to Hub
-          set_fact:
-            wireguard_interfaces_peers: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_interfaces_peers + wireguard_interfaces_peer_tmp }}"
-          delegate_to: "{{ wg_tunnel.wireguard_hub }}"
-          delegate_facts: true
+    - name: Export Spoke Wireguard Public Key and assign to Hub
+      tags: always
+      set_fact:
+        wireguard_interfaces_peers: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_interfaces_peers + wireguard_interfaces_peer_tmp }}"
+      delegate_to: "{{ wg_tunnel.wireguard_hub }}"
+      delegate_facts: true
 
-        - name: check if wireguard interface exists
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ _peer_name }}'
-          ignore_errors: True
-          register: ng_wireguard_peers_output
+    - name: check if wireguard interface exists
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ _peer_name }}'
+      ignore_errors: True
+      register: ng_wireguard_peers_output
 
-        - name: Spoke add spoke-hub peering if it does not exist
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers'
-              - cmd: 'add'
-              - cmd: 'set peer_name={{ _peer_name }}'
-              - cmd: 'set allowed_ips={{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_address}}'
-              - cmd: 'set public_key={{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}'
-              - cmd: 'set external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}:{{ hostvars[wg_tunnel.wireguard_hub].wireguard_udp_port }}'
-              - cmd: 'set keepalive=21'
-              - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
-              - cmd: 'commit'
-          when: ng_wireguard_peers_output.failed
+    - name: Spoke add spoke-hub peering if it does not exist
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers'
+          - cmd: 'add'
+          - cmd: 'set peer_name={{ _peer_name }}'
+          - cmd: 'set allowed_ips={{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_address}}'
+          - cmd: 'set public_key={{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}'
+          - cmd: 'set external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}:{{ hostvars[wg_tunnel.wireguard_hub].wireguard_udp_port }}'
+          - cmd: 'set keepalive=21'
+          - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
+          - cmd: 'commit'
+      when: ng_wireguard_peers_output.failed
 
-        - name: Spoke Update spoke-hub peering if it exists already
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ _peer_name }} '
-              - cmd: 'set allowed_ips={{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_address}}'
-              - cmd: 'set public_key={{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}'
-              - cmd: 'set external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}'
-              - cmd: 'set listening_port={{ hostvars[wg_tunnel.wireguard_hub].wireguard_udp_port }}'
-              - cmd: 'set keepalive=21'
-              - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
-              - cmd: 'commit'
-          loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
-          when: ng_wireguard_peers_output.failed == False
+    - name: Spoke Update spoke-hub peering if it exists already
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ _peer_name }} '
+          - cmd: 'set allowed_ips={{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_address}}'
+          - cmd: 'set public_key={{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}'
+          - cmd: 'set external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}'
+          - cmd: 'set listening_port={{ hostvars[wg_tunnel.wireguard_hub].wireguard_udp_port }}'
+          - cmd: 'set keepalive=21'
+          - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
+          - cmd: 'commit'
+      loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
+      when: ng_wireguard_peers_output.failed == False

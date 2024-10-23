@@ -12,14 +12,14 @@ case ${EVENT_NUMBER} in
 {% for wg_tunnel in wireguard_interfaces %}
       su ansible -c "unset SID DLITF_SID; cli -C -y set /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/peer-{{ wg_tunnel.wireguard_hub }}/ external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_backup }}"
       echo "Changed Wireguard Tunnel {{ wg_tunnel.wireguard_interface_name }} peer peer-{{ wg_tunnel.wireguard_hub }} to endpoint {{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_backup }}" >> ${LOG_FILE}
-      ;;
 {% endfor %}
+      ;;
    145)
 {% for wg_tunnel in wireguard_interfaces %}
       su ansible -c "unset SID DLITF_SID; cli -C -y set /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/peer-{{ wg_tunnel.wireguard_hub }}/ external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}"
       echo "Changed Wireguard Tunnel {{ wg_tunnel.wireguard_interface_name }} peer peer-{{ wg_tunnel.wireguard_hub }} to endpoint {{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}" >> ${LOG_FILE}
-      ;;
 {% endfor %}
+      ;;
    *)
       echo "Event number: ${EVENT_NUMBER} not handled by $0" >> ${LOG_FILE}
       ;;

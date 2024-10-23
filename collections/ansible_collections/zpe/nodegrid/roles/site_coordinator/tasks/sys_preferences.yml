@@ -1,4 +1,5 @@
 - name: Update System Preferences
+  tags: always
   zpe.nodegrid.system:
       preferences:
         show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"

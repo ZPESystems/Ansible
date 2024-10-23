@@ -132,14 +132,15 @@ admin@nodegrid:/var/local/file_manager/admin_group/Ansible-main$
 sudo su - ansible
 ```
 
-- Navigate to the system ansible folder
+- Navigate to the system ansible folder and display the example playbooks
 ```bash
 cd /etc/ansible/playbooks/
+ls -l examples
 ```
-- Display example playbooks
+
 ```bash
 ansible@nodegrid:~$ cd /etc/ansible/playbooks/
-ansible@nodegrid:/etc/ansible/playbooks$ ls -l examples/playbooks/
+ansible@nodegrid:/etc/ansible/playbooks$ ls -l examples
 total 7
 drwxrwxr-x 2 ansible admin 1024 May 13 10:30 managed_devices
 drwxrwxr-x 2 ansible admin 1024 May 13 10:30 network
@@ -160,12 +161,12 @@ drwxrwxr-x 3 ansible admin 1024 May 13 10:30 system-roles
 
 - To copy the required playbooks for this example to the playbook folder, use the following command.
 ```shell
-cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansible/playbooks/
+cp /etc/ansible/playbooks/examples/system-roles/IMI/*.yaml /etc/ansible/playbooks/
 ```
 
 - *Example*:
 ```shell
-ansible@nodegrid:/etc/ansible/playbooks$ cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansible/playbooks/
+ansible@nodegrid:/etc/ansible/playbooks$ cp /etc/ansible/playbooks/examples/system-roles/IMI/*.yaml /etc/ansible/playbooks/
 ansible@nodegrid:/etc/ansible/playbooks$ ls -l
 total 20
 -rwxr-xr-x 1 ansible ansible 1580 May 13 10:42 001_setup_nodegrid_ansible.yaml
@@ -207,7 +208,7 @@ TASK [output] ******************************************************************
 ok: [localhost] => {
     "output": {
         "ansible_facts": {
-            "about": {
+            "nodegrid_about": {
                 "bogomips": "6787.24",
                 "boot_mode": "Legacy",
                 "cpu": "QEMU Virtual CPU version 2.5+",
@@ -534,9 +535,9 @@ nodegrid_license_keys:
     
 # Local User Accounts: (REQUIRED - UPDATED PASSWORD)
 local_user_accounts:  
-  - username: "<myusername>"  
+  - username: admin  
     hash_format_password: "no"  
-    password: "<mypassword>"  
+    password: "ZPESystems2023!"  
     user_group: "admin"  
     
 # SECTION - CHANGE - CHANGES ARE RECOMMENDED BUT NOT REQUIRED
@@ -549,12 +550,9 @@ nodegrid_iso_target_version: "5.8.16"
 # Default System Settings: (CHANGE - TO DESIRED VALUES)  
 sys_show_hostname_on_webui_header: "yes"  
 sys_idle_timeout: 3600  
-sys_banner: '''  
-WARNING: This private system is provided for authorized use only and it may be monitored for all lawful purposes to ensure its use. All information  
-including personal information, placed on or sent over this system may be  
-monitored and recorded. Use of this system, authorized or unauthorized,  
-constitutes consent to monitoring your session. Unauthorized use may subject you to criminal prosecution. Evidence of any such unauthorized  
-use may be used for administrative, criminal and/or legal actions. '''  
+sys_banner: "
+WARNING: This private system is provided for authorized use only and it may be monitored for all lawful purposes to ensure its use. All information including personal information, placed on or sent over this system may be monitored and recorded. Use of this system, authorized or unauthorized, constitutes consent to monitoring your session. Unauthorized use may subject you to criminal prosecution. Evidence of any such unauthorized use may be used for administrative, criminal and/or legal actions.
+"
   
 # Default System Date and Time: (CHANGE - TO DESIRED VALUES)  
 sys_date_and_time_date_and_time: "network_time_protocol"  
@@ -652,77 +650,98 @@ ipv4_firewall:
     OUTPUT: ACCEPT
   chains:
     INPUT:
-        - target: ACCEPT
-          rule_number: 0
-          input_interface: lo
-          output_interface: any
-          description: DEFAULT_RULE_DO_NOT_REMOVE
-        - target: ACCEPT
-          rule_number: 1
-          protocol: tcp
-          destination_port: 22
-          source_net4: ""
-          destination_net4: ""
-          description: 'NODEGRID_SSH'        
-        - target: ACCEPT
-          rule_number: 2
-          protocol: tcp
-          source_net4: ""
-          destination_net4: ""
-          destination_port: 9300
-          description: 'NODEGRID_SEARCH_9300' 
-        - target: ACCEPT
-          rule_number: 3
-          protocol: tcp
-          destination_port: 9966
-          description: 'NODEGRID_CLUSTER_9966'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 4
-          protocol: tcp
-          destination_port: 443
-          description: 'NODEGRID_HTTPS'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 5
-          protocol: udp
-          destination_udp_port: 161
-          description: 'NODEGRID_SNMP'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 6
-          protocol: udp
-          destination_udp_port: 51820
-          description: 'NODEGRID_WIREGUARD'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 7
-          protocol: numeric
-          description: 'ACCEPT_WIREGUARD_TRAFFIC'
-          source_net4: "10.21.0.0/16"
-          destination_net4: "10.21.0.0/16"
-          enable_state_match: "no"
-        - target: ACCEPT
-          rule_number: 8
-          protocol: numeric
-          description: 'ACCEPT_RELATED_TRAFFIC'
-          enable_state_match: "yes"
-          new: "no"
-          established: "yes"
-          related: "yes"
-          invalid: "no"
-          reverse_state_match: "no"
-          source_net4: ""
-          destination_net4: ""
-        - target: DROP
-          rule_number: 9
-          protocol: numeric
-          description: 'DROP_ALL'
-          source_net4: ""
+      # - flush: yes
+      - action: insert
+        state: present
+        target: ACCEPT
+        rule_number: 0
+        input_interface: lo
+        output_interface: any
+        description: DEFAULT_RULE_DO_NOT_REMOVE
+      - action: insert
+        state: present
+        rule_number: 1
+        target: ACCEPT
+        protocol: tcp
+        destination_port: 22
+        source_net4: ""
+        destination_net4: ""
+        description: 'NODEGRID_SSH'        
+      - action: insert
+        state: present
+        rule_number: 2
+        target: ACCEPT
+        protocol: tcp
+        source_net4: ""
+        destination_net4: ""
+        destination_port: 9300
+        description: 'NODEGRID_SEARCH_9300' 
+      - action: insert
+        state: present
+        rule_number: 3
+        target: ACCEPT
+        protocol: tcp
+        destination_port: 9966
+        description: 'NODEGRID_CLUSTER_9966'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 4
+        target: ACCEPT
+        protocol: tcp
+        destination_port: 443
+        description: 'NODEGRID_HTTPS'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 5
+        target: ACCEPT
+        protocol: udp
+        destination_udp_port: 161
+        description: 'NODEGRID_SNMP'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 6
+        target: ACCEPT
+        protocol: udp
+        destination_udp_port: 51820
+        description: 'NODEGRID_WIREGUARD'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 7
+        target: ACCEPT
+        protocol: numeric
+        description: 'ACCEPT_WIREGUARD_TRAFFIC'
+        source_net4: "10.21.0.0/16"
+        destination_net4: "10.21.0.0/16"
+        enable_state_match: "no"
+      - action: insert
+        state: present
+        rule_number: 8
+        target: ACCEPT
+        protocol: numeric
+        description: 'ACCEPT_RELATED_TRAFFIC'
+        enable_state_match: "yes"
+        new: "no"
+        established: "yes"
+        related: "yes"
+        invalid: "no"
+        reverse_state_match: "no"
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 9
+        target: DROP
+        protocol: numeric
+        description: 'DROP_ALL'
+        source_net4: ""
 
 # SECTION - DO NOT CHANGE - THIS SECTION CONTAINS SETTING WHICH SHOULD NOT BE CHANGED
 # Generic Ansible Settings: (DO NOT CHANGE)
@@ -1111,14 +1130,34 @@ Example Output
 ansible@ny-sc1:/etc/ansible/playbooks$ ansible-playbook 001_setup_nodegrid_ansible.yaml --limit company
 Enter Username for the connection [admin]: 
 Provide a password for the user: 
+Provide local ssh key file path [~/.ssh/id_ed25519.pub]: 
+Add the Nodegrid user to sudoers (True | False)? [True]: 
 
-PLAY [Configure ZPE Out Of Box - Wireguard Spoke profile] ********************************************************************************************************************************************************************************************************************
+PLAY [Configure ZPE Out Of Box - Install a ssh public key into a Nodegrid user] ********************************************************************************************************************************************************************************************************************
 
 TASK [Read ssh_key] **********************************************************************************************************************************************************************************************************************************************************
 ok: [ny-sc1]
 ok: [la-lc1]
 ok: [la-lp1]
 ok: [dub-sc1]
+
+TASK [Read ssh_key] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
+
+TASK [Validate ssh_key] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
+
+TASK [Get ssh_key type] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
 
 TASK [Install a ssh_key for a user] ******************************************************************************************************************************************************************************************************************************************
 changed: [ny-sc1]
@@ -1131,6 +1170,12 @@ ok: [ny-sc1]
 ok: [la-lc1]
 ok: [dub-sc1]
 ok: [la-lp1]
+
+TASK [Create .vimrc config file] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
 
 PLAY RECAP *******************************************************************************************************************************************************************************************************************************************************************
 dub-sc1                    : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   

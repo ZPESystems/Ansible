@@ -1,4 +1,5 @@
 - name: Update System Banner
+  tags: always
   zpe.nodegrid.system:
       preferences:
         enable_banner: "yes"

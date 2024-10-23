@@ -1,12 +1,13 @@
-    - name: Apply Auditing Settings
-      zpe.nodegrid.auditing:
-         auditing_settings: "{{ auditing_settings }}"
-         events_zpe_cloud: "{{ events_zpe_cloud }}"
-         events_email: "{{ events_email }}"
-         events_file: "{{ events_file }}"
-         events_syslog: "{{ events_syslog }}"
-         events_snmp: "{{ events_snmp }}"
-         destinations_file: "{{ destinations_file }}"
-         destinations_syslog: "{{ destinations_syslog }}"
-         destinations_snmp: "{{ destinations_snmp }}"
-         destinations_email: "{{ destinations_email }}"
+- name: Apply Auditing Settings
+  tags: always
+  zpe.nodegrid.auditing:
+     auditing_settings: "{{ auditing_settings }}"
+     events_zpe_cloud: "{{ events_zpe_cloud }}"
+     events_email: "{{ events_email }}"
+     events_file: "{{ events_file }}"
+     events_syslog: "{{ events_syslog }}"
+     events_snmp: "{{ events_snmp }}"
+     destinations_file: "{{ destinations_file }}"
+     destinations_syslog: "{{ destinations_syslog }}"
+     destinations_snmp: "{{ destinations_snmp }}"
+     destinations_email: "{{ destinations_email }}"

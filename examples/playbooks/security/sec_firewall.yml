@@ -7,6 +7,7 @@
     - name: Apply Firewall Settings
       zpe.nodegrid.firewall:
          ipv4_nat:
+          clean_and_config: yes
           policy:
             PREROUTING: ACCEPT
             INPUT: ACCEPT
@@ -16,8 +17,13 @@
             PREROUTING: []
             INPUT: []
             OUTPUT: []
-            POSTROUTING: []
+            POSTROUTING: 
+              - target: MASQUERADE
+                rule_number: 1
+                description: "masquerade_all"
+                output_interface: eth0
          ipv4_firewall:
+           clean_and_config: yes
            policy:
              FORWARD: ACCEPT
              INPUT: ACCEPT

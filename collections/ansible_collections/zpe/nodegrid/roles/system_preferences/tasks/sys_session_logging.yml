@@ -1,5 +1,6 @@
 - name: Setup System Session Logging
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
-      - "/settings/system_logging enable_session_logging={{system_logging_enable_session_logging}}"
-      - "/settings/system_logging enable_session_logging_alerts={{system_logging_enable_session_logging_alerts}}"
+      - "/settings/system_logging enable_session_logging={{ system_logging_enable_session_logging }}"
+      - "/settings/system_logging enable_session_logging_alerts={{ system_logging_enable_session_logging_alerts }}"

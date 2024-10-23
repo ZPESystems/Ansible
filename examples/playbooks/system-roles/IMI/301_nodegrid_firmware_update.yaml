@@ -7,116 +7,114 @@
 # upgrade the units until the issues are addressed
 #
 
--  name: Nodegrid Software Upgrade Playbook
-   hosts: all
-   gather_facts: False
-   collections:
-     - zpe.nodegrid
-   vars:
-     nodegrid_iso_path: "{{ nodegrid_iso_location }}/{{ nodegrid_iso_file }}"
+- name: Nodegrid Software Upgrade Playbook
+  hosts: all
+  gather_facts: true
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+  vars:
+    nodegrid_iso_path: "{{ nodegrid_iso_location }}/{{ nodegrid_iso_file }}"
 
-   tasks:
-     - name: Get Nodegrid Facts
-       zpe.nodegrid.facts:
+  tasks:
+    - name: Check if update is required
+      assert:
+        that:
+            - nodegrid_iso_target_version == ansible_facts.nodegrid_about.version
+        success_msg: "Nodegrid Version match, no upgrade required"
+        fail_msg: "Nodegrid Version do not match, upgrade required"
+      ignore_errors: true
+      register: upgrade
 
-     - name: Check if update is required
-       assert:
-         that:
-             - nodegrid_iso_target_version == ansible_facts.about.version
-         success_msg: "Nodegrid Version match, no upgrade required"
-         fail_msg: "Nodegrid Version do not match, upgrade required"
-       ignore_errors: true
-       register: upgrade
+    - name: Check unit is ready for upgrade or flag
+      block:
+      - name: Copy ISO image from local image repository to remote ZPE Systems Nodegrid devices
+        copy:
+          src: "{{ nodegrid_iso_path }}"
+          dest: /var/sw/nodegrid.iso
 
-     - name: Check unit is ready for upgrade or flag
-       block:
-       - name: Copy ISO image from local image repository to remote ZPE Systems Nodegrid devices
-         copy:
-           src: "{{ nodegrid_iso_path }}"
-           dest: /var/sw/nodegrid.iso
+      - name: get disk space after image was copied
+        gather_facts:
 
-       - name: get disk space after image was copied
-         gather_facts:
+      - name: assert that there is enough free disk space in /var
+        assert:
+          that:
+           - "{{ item.mount == '/var' and ( item.size_available > 5767168000 ) }}"
+        with_items: "{{ ansible_mounts }}"
+        register: free_space_check
+        when: "item.mount == '/var'"
 
-       - name: assert that there is enough free disk space in /var
-         assert:
-           that:
-            - "{{ item.mount == '/var' and ( item.size_available > 5767168000 ) }}"
-         with_items: "{{ ansible_mounts }}"
-         register: free_space_check
-         when: "item.mount == '/var'"
+      - name: Clear up /var partition disk space usage by removing old files in /var/coredump
+        file:
+           path: /var/coredump/
+           state: absent
+        become: true
 
-       - name: Clear up /var partition disk space usage by removing old files in /var/coredump
-         file:
+      - name: recreate /var/coredump/
+        file:
             path: /var/coredump/
-            state: absent
-         become: true
+            state: directory
+            mode: '0755'
+        become: true
 
-       - name: recreate /var/coredump/
-         file:
-             path: /var/coredump/
-             state: directory
-             mode: '0755'
-         become: true
+      - name: check for disk errors
+        command: smartctl -a -q errorsonly /dev/sda
+        become: true
+        register: smartctl
+        ignore_errors: true
 
-       - name: check for disk errors
-         command: smartctl -a -q errorsonly /dev/sda
-         become: true
-         register: smartctl
-         ignore_errors: true
-
-#       - name: Check for badblocks
-#         command: badblocks -v "/dev/{{ item }}"
-#         become: true
-#         with_items: ["sda1","sda2","sda3","sda5","sda7","sda8"]
-#         register: badblocks
+#      - name: Check for badblocks
+#        command: badblocks -v "/dev/{{ item }}"
+#        become: true
+#        with_items: ["sda1","sda2","sda3","sda5","sda7","sda8"]
+#        register: badblocks
 #
-#       - name: assert that there are no badblocks
-#         assert:
-#           that:
-#             - "'Pass completed, 0 bad blocks found. (0/0/0 errors)' in item.stderr_lines"
-#         with_items: "{{ badblocks.results }}"
+#      - name: assert that there are no badblocks
+#        assert:
+#          that:
+#            - "'Pass completed, 0 bad blocks found. (0/0/0 errors)' in item.stderr_lines"
+#        with_items: "{{ badblocks.results }}"
 
-       - name: Check for ext4 error
-         command: "cat /sys/fs/ext4/{{ item }}/errors_count"
-         become: true
-         with_items: [ "sda5","sda8" ]
-         register: ext4_errors
+      - name: Check for ext4 error
+        command: "cat /sys/fs/ext4/{{ item }}/errors_count"
+        become: true
+        with_items: [ "sda5","sda8" ]
+        register: ext4_errors
 
-       - name: assert that there are no ext4_errors
-         assert:
-           that:
-            - "'0' == item.stdout"
-         with_items: "{{ ext4_errors.results }}"
+      - name: assert that there are no ext4_errors
+        assert:
+          that:
+           - "'0' == item.stdout"
+        with_items: "{{ ext4_errors.results }}"
 
-       - name: Check Version Before Upgrade
-         command: grep ^VERSION= /software
-         register: ng_version_before
+      - name: Check Version Before Upgrade
+        command: grep ^VERSION= /software
+        register: ng_version_before
 
-       - name: Execute firmware update
-         zpe.nodegrid.nodegrid_cmds:
-           cmds:
-             - cmd: 'software_upgrade'
-             - cmd: 'set image_location=local_system'
-             - cmd: 'set filename=nodegrid.iso'
-             - cmd: 'commit'
-         ignore_errors: true
+      - name: Execute firmware update
+        zpe.nodegrid.nodegrid_cmds:
+          cmds:
+            - cmd: 'software_upgrade'
+            - cmd: 'set image_location=local_system'
+            - cmd: 'set filename=nodegrid.iso'
+            - cmd: 'commit'
+        ignore_errors: true
 
-       - name: Wait a max of 15 mins for target connection to become reachable/usable after upgrade
-         wait_for_connection:
-           delay: 60
-           sleep: 30
-           timeout: 900
+      - name: Wait a max of 15 mins for target connection to become reachable/usable after upgrade
+        wait_for_connection:
+          delay: 60
+          sleep: 30
+          timeout: 900
 
-       - name: Get Updated Nodegrid Facts
-         zpe.nodegrid.facts:
-         retries: 3
-         delay: 60
+      - name: Get Updated Nodegrid Facts
+        zpe.nodegrid.facts:
+        retries: 3
+        delay: 60
 
-       - name: Check if update was successful
-         assert:
-           that:
-             - nodegrid_iso_target_version == ansible_facts.about.version
-           success_msg: "Nodegrid Version match, upgrade successful"
-           fail_msg: "Nodegrid Version do not match, upgrade failed"
-       when: upgrade.failed == true
+      - name: Check if update was successful
+        assert:
+          that:
+            - nodegrid_iso_target_version == ansible_facts.nodegrid_about.version
+          success_msg: "Nodegrid Version match, upgrade successful"
+          fail_msg: "Nodegrid Version do not match, upgrade failed"
+      when: upgrade.failed == true

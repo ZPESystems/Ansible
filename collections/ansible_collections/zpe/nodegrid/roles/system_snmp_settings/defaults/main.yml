@@ -1,1 +1,5 @@
 # System SNMP Settings
+snmp_rules: ""
+syscontact: "admin@nodegrid"
+syslocation: ""
+

@@ -231,7 +231,7 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
             # Add unidentified field or changed values
             # the import_settings fails if this field doesn't exist
-            if not any(line.strip() in s.strip() for s in exported_settings):
+            if not any(line.strip() == s.strip() for s in exported_settings):
                diff.append(line.strip())
 
     return diff

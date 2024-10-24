@@ -1,0 +1,11 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+    - name: Configure Switch Backplane
+      zpe.nodegrid.network_switch:
+        backplane:
+          backplane0_port_vlan_id: '1'

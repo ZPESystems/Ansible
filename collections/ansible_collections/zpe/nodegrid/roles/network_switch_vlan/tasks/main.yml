@@ -1,0 +1,3 @@
+- name: Setup Network Switch VLAN
+  import_tasks: network_switch_vlan.yml
+  tags: always

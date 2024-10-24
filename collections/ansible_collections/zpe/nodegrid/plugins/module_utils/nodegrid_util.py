@@ -398,7 +398,7 @@ def field_exist(suboptions, field_name):
         return True
     return False
 
-def run_option_adding_field_in_the_path(option, run_opt, field_name):
+def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_field_name=False):
     """Calls the function run_option adding the field name in the CLI path
 
     Args:
@@ -412,6 +412,8 @@ def run_option_adding_field_in_the_path(option, run_opt, field_name):
     suboptions = option['suboptions']
     if field_exist(suboptions, field_name):
         option['cli_path'] += f"/{suboptions[field_name]}"
+        if delete_field_name:
+            del option['suboptions'][field_name]
         return run_option(option, run_opt)
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}

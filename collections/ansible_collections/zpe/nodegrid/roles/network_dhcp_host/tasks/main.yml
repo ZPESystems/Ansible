@@ -1,0 +1,3 @@
+- name: Setup Network DHCP Host
+  import_tasks: network_dhcp_host.yml
+  tags: always

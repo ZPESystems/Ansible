@@ -1,0 +1,6 @@
+network_dhcp_range_subnet: ''
+network_dhcp_range_netmask: ''
+network_dhcp_range_prefix: ''
+network_dhcp_range_length: ''
+network_dhcp_range_ip_address_start: ''
+network_dhcp_range_ip_address_end: ''

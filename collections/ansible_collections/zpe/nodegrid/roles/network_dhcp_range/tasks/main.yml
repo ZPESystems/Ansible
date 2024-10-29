@@ -1,0 +1,3 @@
+- name: Setup Network DHCP Range
+  import_tasks: network_dhcp_range.yml
+  tags: always

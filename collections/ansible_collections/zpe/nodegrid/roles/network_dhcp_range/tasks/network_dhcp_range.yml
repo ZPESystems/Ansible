@@ -1,0 +1,10 @@
+- name: Add DHCP Range
+  with_items: "{{ network_dhcp_ranges }}" 
+  zpe.nodegrid.dhcp_server:
+    network_range:
+      subnet: "{{ item.subnet | default( network_dhcp_range_subnet ) }}"
+      netmask: "{{ item.netmask | default( network_dhcp_range_netmask ) }}"
+      prefix: "{{ item.prefix | default( network_dhcp_range_prefix ) }}"
+      length: "{{ item.length | default( network_dhcp_range_length ) }}"
+      ip_address_start: "{{ item.ip_address_start | default( network_dhcp_range_ip_address_start ) }}"
+      ip_address_end: "{{ item.lengip_address_endth | default( network_dhcp_range_ip_address_end ) }}"

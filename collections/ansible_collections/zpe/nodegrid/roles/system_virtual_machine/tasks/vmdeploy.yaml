@@ -1,0 +1,28 @@
+- name: Install python3 lxml module
+  tags: always
+  ansible.builtin.pip:
+    name: lxml
+      #- name: Install libvirt community
+      #  tags: always
+      #  ansible.builtin.shell:
+      #    cmd: ansible-galaxy collection install community.libvirt
+- name: VMs creation
+  tags: always
+  block:
+    - name: List only running VMs
+      community.libvirt.virt:
+        command: list_vms
+        state: running
+      register: running_vms
+    - name: Show running VMs
+      debug:
+        msg: "{{ running_vms }}"
+    - name: Create VM
+      vars:
+        _running_vms: "{{ running_vms.list_vms }}"
+      when: "'virtual_machines' in hostvars[inventory_hostname] and hostvars[inventory_hostname].virtual_machines and vm.name not in _running_vms"
+      include_tasks: create_vm.yaml
+      loop: "{{ hostvars[inventory_hostname].virtual_machines }}"
+      loop_control:
+        loop_var: vm
+

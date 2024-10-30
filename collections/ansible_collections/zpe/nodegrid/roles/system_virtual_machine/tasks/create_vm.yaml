@@ -1,0 +1,90 @@
+- name: VM Disks
+  when: "'disks' in vm"
+  tags: 
+    - always
+    - vm-disks
+  block:
+    - name: Download disk from URL 
+      ansible.builtin.get_url:
+        url: "{{ item.file_source }}"
+        dest: "{{ item.file }}"
+      loop: "{{ vm.disks | list }}"
+      when: item.type == "url"
+      become: true
+      become_user: root
+    
+    - name: Copy Control Node's local file disk (qcow2) to remote host
+      ansible.builtin.copy:
+        src: "{{ item.file_source }}"
+        dest: "{{ item.file }}"
+      loop: "{{ vm.disks | list }}"
+      when: item.type == "copy_file_to_remote"
+      become: true
+      become_user: root
+    
+    - name: Copy local file disk (qcow2)
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ item.file_source }}"
+        dest: "{{ item.file }}"
+      loop: "{{ vm.disks | list }}"
+      when: item.type == "copy_local_file"
+      become: true
+      become_user: root
+
+- name: Create cloud-init iso file
+  when:
+    - "'cloud_init' in vm"
+    - "vm.cloud_init"
+  tags:
+    - always
+    - cloud-init
+  block:
+    - name: copy cloud-init user-data
+      ansible.builtin.template:
+        src: cloudinit/user-data.j2
+        dest: /tmp/user-data
+    - name: copy cloud-init meta-data
+      ansible.builtin.template:
+        src: cloudinit/meta-data.j2
+        dest: /tmp/meta-data
+    - name: create the cloud-init iso
+      shell:
+        cmd: "genisoimage -output {{ vm.cloud_init.iso_file }} -input-charset utf-8 -volid cidata -joliet -rock /tmp/user-data /tmp/meta-data"
+      become: true
+      become_user: root
+    - name: Remove cloud-init config files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/user-data
+        - /tmp/meta-data
+
+- name: Create the VM 
+  tags: create-vm
+  block:
+    - name: Clear Bridge interfaces
+      set_fact:
+        bridge_interface: []
+    - name: Get Bridges interfaces
+      include_tasks: get_bridge_interface.yaml
+      loop: "{{ vm.network_bridges }}"
+      loop_control:
+        loop_var: connection
+      when: "'network_bridges' in vm and vm.network_bridges"
+    - name: show interfaces
+      debug:
+        msg: "{{ bridge_interface }}"
+ 
+    - name: Define the VM
+      community.libvirt.virt:
+        name: "{{ vm.name }}"
+        command: define
+        xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
+        uri: 'qemu:///system'
+    - name: Start the VM
+      community.libvirt.virt:
+        name: "{{ vm.name }}"
+        state: running
+        uri: 'qemu:///system'

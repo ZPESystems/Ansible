@@ -156,6 +156,7 @@ def import_settings(settings, use_config_start=True):
         dict: Import settings result
     """
     import_p_timeout = _get_import_process_timeout(("\n").join(settings))
+    output_buffer_flush_timeout = 5
     cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
@@ -168,6 +169,9 @@ def import_settings(settings, use_config_start=True):
     cmd_cli.expect_exact('finish.')
     for item in settings:
         cmd_cli.sendline(item)
+        # Read the line was just sent by expecting a newline, because a big
+        # import_settings input can cause sendline to hang
+        cmd_cli.expect('\n', timeout=output_buffer_flush_timeout)
     cmd_cli.sendcontrol('d')
     cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
     output = cmd_cli.before
@@ -227,7 +231,7 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
             # Add unidentified field or changed values
             # the import_settings fails if this field doesn't exist
-            if not any(line.strip() in s.strip() for s in exported_settings):
+            if not any(line.strip() == s.strip() for s in exported_settings):
                diff.append(line.strip())
 
     return diff
@@ -394,7 +398,7 @@ def field_exist(suboptions, field_name):
         return True
     return False
 
-def run_option_adding_field_in_the_path(option, run_opt, field_name):
+def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_field_name=False):
     """Calls the function run_option adding the field name in the CLI path
 
     Args:
@@ -408,6 +412,8 @@ def run_option_adding_field_in_the_path(option, run_opt, field_name):
     suboptions = option['suboptions']
     if field_exist(suboptions, field_name):
         option['cli_path'] += f"/{suboptions[field_name]}"
+        if delete_field_name:
+            del option['suboptions'][field_name]
         return run_option(option, run_opt)
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}

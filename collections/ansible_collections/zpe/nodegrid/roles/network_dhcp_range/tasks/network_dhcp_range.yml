@@ -7,4 +7,4 @@
       prefix: "{{ item.prefix | default( network_dhcp_range_prefix ) }}"
       length: "{{ item.length | default( network_dhcp_range_length ) }}"
       ip_address_start: "{{ item.ip_address_start | default( network_dhcp_range_ip_address_start ) }}"
-      ip_address_end: "{{ item.lengip_address_endth | default( network_dhcp_range_ip_address_end ) }}"
+      ip_address_end: "{{ item.ip_address_end | default( network_dhcp_range_ip_address_end ) }}"

@@ -1,0 +1,3 @@
+- name: Setup Network Switch Backplane
+  import_tasks: network_switch_backplane.yml
+  tags: always

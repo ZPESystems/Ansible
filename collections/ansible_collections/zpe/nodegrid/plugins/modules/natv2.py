@@ -483,7 +483,7 @@ EXAMPLES = r'''
   - name: Append a rule
     zpe.nodegrid.natv2:
       state: present # present, absent
-      chain: prerouting
+      chain: postrouting
       action: append # insert, append, modify
       target: MASQUERADE
       output_interface: eth0
@@ -711,7 +711,7 @@ def append_rule(table, chain, new_rule):
             'udp': ['source_udp_port', 'destination_udp_port'],
             'icmp': ['icmp_type']
         },
-        'enable_state_match': ['new', 'established', 'related', 'invalid', 'reverse_state_match'],
+        'enable_state_match': ['new', 'established', 'related', 'invalid', 'snat', 'dnat', 'reverse_state_match'],
     }
 
     chain_dependencies = {

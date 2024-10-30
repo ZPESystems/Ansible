@@ -112,7 +112,7 @@
       - name: Append a rule
         zpe.nodegrid.natv2:
           state: present # present, absent
-          chain: prerouting
+          chain: postrouting
           action: append # insert, append, modify
           target: MASQUERADE
           output_interface: eth0

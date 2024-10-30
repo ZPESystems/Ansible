@@ -122,11 +122,15 @@ ipv4_firewall:
   chains:
     INPUT:
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 0
           input_interface: lo
           output_interface: any
           description: DEFAULT_RULE_DO_NOT_REMOVE
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 1
           protocol: tcp
           destination_port: 22
@@ -134,6 +138,8 @@ ipv4_firewall:
           destination_net4: ""
           description: 'NODEGRID_SSH'
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 2
           protocol: tcp
           source_net4: ""
@@ -141,6 +147,8 @@ ipv4_firewall:
           destination_port: 9300
           description: 'NODEGRID_SEARCH_9300'
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 3
           protocol: tcp
           destination_port: 9966
@@ -148,6 +156,8 @@ ipv4_firewall:
           source_net4: ""
           destination_net4: ""
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 4
           protocol: tcp
           destination_port: 443
@@ -155,6 +165,8 @@ ipv4_firewall:
           source_net4: ""
           destination_net4: ""
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 5
           protocol: udp
           destination_udp_port: 161
@@ -162,6 +174,8 @@ ipv4_firewall:
           source_net4: ""
           destination_net4: ""
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 6
           protocol: udp
           destination_udp_port: 51820
@@ -169,6 +183,8 @@ ipv4_firewall:
           source_net4: ""
           destination_net4: ""
         - target: ACCEPT
+          action: insert
+          state: present
           rule_number: 7
           protocol: numeric
           description: 'ACCEPT_RELATED_TRAFFIC'
@@ -181,6 +197,8 @@ ipv4_firewall:
           source_net4: ""
           destination_net4: ""
         - target: DROP
+          action: insert
+          state: present
           rule_number: 8
           protocol: numeric
           description: 'DROP_ALL'

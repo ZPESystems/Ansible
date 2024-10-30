@@ -9,3 +9,4 @@
       zpe.nodegrid.network_switch:
         backplane:
           backplane0_port_vlan_id: '1'
+          backplane1_port_vlan_id: '1'

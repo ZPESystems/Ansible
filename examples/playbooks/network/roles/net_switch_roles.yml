@@ -15,10 +15,10 @@
       include_role:
         name: network_switch_backplane
       tags:
-        - dhcp_range
+        - net_switch_backplane
 
     - name: Setup Network Switch Interfaces
       include_role:
         name: network_switch_interfaces
       tags:
-        - dhcp_host
+        - net_switch_interfaces

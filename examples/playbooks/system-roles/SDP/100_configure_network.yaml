@@ -88,6 +88,8 @@
             name: network_switch_vlan
         
         - name: Configure Switch Backplane interfaces
-          zpe.nodegrid.network_switch:
-            backplane: "{{ switch.backplane }}"
+          vars:
+            network_switch_backplane: "{{ switch.backplane }}"
+          include_role:
+            name: network_switch_backplane
 

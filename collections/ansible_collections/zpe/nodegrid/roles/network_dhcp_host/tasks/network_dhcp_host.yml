@@ -1,0 +1,14 @@
+- name: Add DHCP Host
+  with_items: "{{ network_dhcp_host }}"
+  zpe.nodegrid.dhcp_server:
+    host:
+      subnet: "{{ item.subnet | default( network_dhcp_host_subnet ) }}"
+      netmask: "{{ item.netmask | default( network_dhcp_host_netmask ) }}"
+      prefix: "{{ item.prefix | default( network_dhcp_host_prefix ) }}"
+      length: "{{ item.length | default( network_dhcp_host_length ) }}"
+      hostname: '{{ item.hostname }}'
+      hw_address: '{{ item.hw_address | default( network_dhcp_host_hw_address ) }}'
+      ip_address: '{{ item.ip_address | default( network_dhcp_host_ip_address ) }}'
+      agent_circuit_id: '{{ item.agent_circuit_id | default( network_dhcp_host_agent_circuit_id ) }}'
+      assigned_hostname: '{{ item.assigned_hostname | default( network_dhcp_host_assigned_hostname ) }}'
+      duid: '{{ item.duid | default( network_dhcp_host_duid ) }}'

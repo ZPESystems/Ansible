@@ -1,0 +1,11 @@
+
+- name: Configure Switch Backplane
+  with_items: "{{ network_switch_backplane }}"
+  zpe.nodegrid.network_switch:
+    backplane:
+      backplane0_port_vlan_id: "{{ item.backplane0_port_vlan_id | default( network_switch_backplane_port_vlan_id ) }}"
+      backplane0_jumbo_frame: "{{ item.backplane0_jumbo_frame | default( network_switch_backplane_jumbo_frame ) }}"
+      backplane0_dhcp_snooping: "{{ item.backplane0_dhcp_snooping | default( network_switch_backplane_dhcp_snooping ) }}"
+      backplane1_port_vlan_id: "{{ item.backplane1_port_vlan_id | default( network_switch_backplane_port_vlan_id ) }}"
+      backplane1_jumbo_frame: "{{ item.backplane1_jumbo_frame | default( network_switch_backplane_jumbo_frame ) }}"
+      backplane1_dhcp_snooping: "{{ item.backplane1_dhcp_snooping | default( network_switch_backplane_dhcp_snooping ) }}"

@@ -1,0 +1,14 @@
+galaxy_info:
+  author: Leonardo Fernandes
+  description: Configure Nodegrid DHCP Host
+  company: ZPE
+  license: GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
+  min_ansible_version: 2.1
+
+  galaxy_tags: 
+    - ZPE
+    - Cluster
+    - Coordinator
+
+dependencies: []

@@ -1,0 +1,14 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+    - name: Configure Switch Interface
+      zpe.nodegrid.network_switch:
+        interfaces:
+          interface: 'netS1'
+          speed: 'auto'
+          port_vlan_id: '1'
+          description: ''

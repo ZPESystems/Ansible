@@ -212,6 +212,11 @@ def import_settings(settings, use_config_start=True):
     output_dict["error_list"] = error_list
     return output_dict
 
+def uncomment(line):
+    if len(line) > 0:
+        return line if line[0] != '#' else line[1:]
+    return None
+
 def settings_diff(exported_settings, new_settings, skip_keys):
     """Compares two sets of settings, returns what values were changed or were added
 
@@ -231,7 +236,7 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
             # Add unidentified field or changed values
             # the import_settings fails if this field doesn't exist
-            if not any(line.strip() in s.strip() for s in exported_settings):
+            if not any(line.strip() == uncomment(s.strip()) for s in exported_settings):
                diff.append(line.strip())
 
     return diff
@@ -398,7 +403,7 @@ def field_exist(suboptions, field_name):
         return True
     return False
 
-def run_option_adding_field_in_the_path(option, run_opt, field_name):
+def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_field_name=False):
     """Calls the function run_option adding the field name in the CLI path
 
     Args:
@@ -412,6 +417,8 @@ def run_option_adding_field_in_the_path(option, run_opt, field_name):
     suboptions = option['suboptions']
     if field_exist(suboptions, field_name):
         option['cli_path'] += f"/{suboptions[field_name]}"
+        if delete_field_name:
+            del option['suboptions'][field_name]
         return run_option(option, run_opt)
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}

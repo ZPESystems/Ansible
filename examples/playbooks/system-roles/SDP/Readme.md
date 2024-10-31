@@ -12,7 +12,7 @@ ZPE solutions have evolved from initially being focused on providing remote mana
 
 
 # ZPE Service Delivery Platform SDP
-The ZPE SDP solution focuses on providing DevOps teams an OOB platform to deploy specialized services for managing their infrastructure. This solution extends the remote management access capabilities to enhanced management operations by userd defined services that are deployed close to the managed devices. These services can be deployed on different ZPE devices either as a virtual machine or a container.
+The ZPE SDP solution focuses on providing DevOps teams an OOB platform to deploy specialized services for managing their infrastructure. This solution extends the remote management access capabilities to enhanced management operations by user defined services that are deployed close to the managed devices. These services can be deployed on different ZPE devices either as a virtual machine or a container.
 
 This document considers the case of deploying a service on a Nodegrid Device in the form of a virtual machine. The following requirements are taken into consideration:
 
@@ -22,9 +22,9 @@ This document considers the case of deploying a service on a Nodegrid Device in 
 
 ## SDP Example Use Case
 
-This section provides an overview of how a Virtualized Service can be deployed using ZPE Systems's Nodegrid solution. It utilizes the ZPE Systems Ansible Library to automate the setup and configuration process.
+This section provides an overview of how a Virtualized Service can be deployed using ZPE Systems' Nodegrid solution. It utilizes the ZPE Systems Ansible Library to automate the setup and configuration process.
 
-The example considers the following scenarion for the *Acme* company:
+The example considers the following scenario for the *Acme* company:
 
 - A ZPE GateSR device is used for OOB management, and it is required to deploy an specialized service on it.
 - The specialized service can be packaged and executed in a virtualized environment. For this example, a virtual machine is used.
@@ -49,7 +49,7 @@ Based on the GateSR capabilities, the following picture depicts the desired virt
 - A local VLAN (vlan_id 1). This is the default VLAN. It interconnects the netS6 interface (untagged)
 - A local VLAN (vlan_id 2). It interconnects the following interfaces: bacplane0.2 (VLAN interface), and netS1, netS2, netS3, netS4, netS5 (all untagged). 
 
-The folloing network bridges are considered:
+The following network bridges are considered:
 
 | Bridge Connection | Attached Interfaces |
 |:---|:---|
@@ -64,7 +64,7 @@ The folloing network bridges are considered:
 ![](figs/diagram.png)
 
 
-This guide assumes that the GateSR device is used as an Ansible host that will provision itself. The Guide assumes that only a minimal configuration was performed on the appliance and that the devices is provisioned with multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenarion considering LAN segmentations by using VLANs.
+This guide assumes that the GateSR device is used as an Ansible host that will provision itself. The Guide assumes that only a minimal configuration was performed on the appliance and that the devices is provisioned with multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
 
 
 ## Configuration Process to be followed
@@ -233,7 +233,7 @@ ok: [localhost] => {
 PLAY RECAP *************************************************************************************************************************************************************************************************************************************************************************
 localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0 
 ```
-- The Ansible Nodegrid Library has been successfully installed. The next step is to define the `inventory.yaml` file, which is a **strict requirement for the IMI building process**.
+- The Ansible Nodegrid Library has been successfully installed. The next step is to define the `inventory.yaml` file, which is a **strict requirement for the SDP use case**.
 
 ## Step 3: Build the Ansible Inventory
 ### Overview

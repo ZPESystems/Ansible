@@ -29,8 +29,27 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
+def result_failed(msg):
+    return {'failed': True, 'changed': False, 'msg': msg}
+
 def run_option_network_switch_interfaces(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'interface', delete_field_name=True)
+
+def run_option_network_switch_backplane(option, run_opt):
+    suboptions = option['suboptions']
+    cli_path = option['cli_path']
+
+    # Export current settings
+    state, exported_settings, exported_all_settings = export_settings(cli_path)
+    if "error" in state:
+        return result_failed(f"Failed exporting settings on {cli_path}. Error: {state[1]}")
+
+    # Remove invalid parameters
+    for key, value in suboptions.copy().items():
+        if not any(key in item for item in exported_settings):
+            del suboptions[key]
+
+    return run_option(option, run_opt)
 
 def run_option_network_switch_vlan(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'vlan')
@@ -76,7 +95,7 @@ def run_module():
             'name': 'backplane',
             'suboptions': module.params['backplane'],
             'cli_path': '/settings/switch_backplane',
-            'func': run_option
+            'func': run_option_network_switch_backplane
         },
         {
             'name': 'interfaces',
@@ -136,6 +155,8 @@ def run_module():
     result['message'] = 'No change required'
     for key in result['output'].keys():
         item = result['output'][key]
+        if 'warnings' in item:
+            result['warnings'] = item['warnings']
         if item['changed']:
             result['changed'] = True
             result['message'] = 'Import was successful'

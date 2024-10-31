@@ -1,5 +1,5 @@
 - name: Add DHCP Host
-  with_items: "{{ network_dhcp_hosts }}" 
+  with_items: "{{ network_dhcp_host }}"
   zpe.nodegrid.dhcp_server:
     host:
       subnet: "{{ item.subnet | default( network_dhcp_host_subnet ) }}"

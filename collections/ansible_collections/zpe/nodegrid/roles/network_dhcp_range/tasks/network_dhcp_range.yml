@@ -1,5 +1,5 @@
 - name: Add DHCP Range
-  with_items: "{{ network_dhcp_ranges }}" 
+  with_items: "{{ network_dhcp_range }}"
   zpe.nodegrid.dhcp_server:
     network_range:
       subnet: "{{ item.subnet | default( network_dhcp_range_subnet ) }}"

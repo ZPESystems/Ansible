@@ -211,7 +211,7 @@ ipv4_nat:
           source_net4: '192.168.11.0/24' 
           description: NAT_DHCP_NETWORK
 
-network_dhcp_servers:
+network_dhcp_server:
   - protocol: 'dhcp4'
     subnet: '192.168.11.0'
     netmask: '255.255.255.0'
@@ -221,7 +221,7 @@ network_dhcp_servers:
     lease_time: '86400'
     #wifi_controller_ip: '203.0.113.0'
 
-network_dhcp_ranges:
+network_dhcp_range:
   - subnet: '192.168.11.0'
     netmask: '255.255.255.0'
     ip_address_start: '192.168.11.10'

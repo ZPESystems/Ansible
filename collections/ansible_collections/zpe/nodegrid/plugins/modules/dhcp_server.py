@@ -132,6 +132,11 @@ def run_option_host(option, run_opt):
     if "error" in state:
         return result_failed(f"Failed exporting settings on {cli_path}. Error: {state[1]}")
 
+    # Remove invalid parameters
+    for key, value in suboptions.copy().items():
+        if not any(key in item for item in exported_settings):
+            del suboptions[key]
+
     settings_list = []
     opts = suboptions.copy()
 
@@ -145,7 +150,7 @@ def run_option_host(option, run_opt):
         if match:
             sequence_number, hostname, param_name, param_value = match.groups()
             if hostname == suboptions['hostname']:
-                if field_exist(opts, param_name):
+                if param_name in opts:
                     if opts[param_name] != param_value:
                         if index_cli_path is None:
                             index_cli_path = f"{cli_path}/{sequence_number}:[{hostname}]"
@@ -153,6 +158,8 @@ def run_option_host(option, run_opt):
                         changed = True
                     del opts[param_name]
             settings_list.append(line)
+        elif line[0] != '#':
+            result_failed(f"Invalid settings line: {line}")
 
     # Add the remaining options
     if len(opts):

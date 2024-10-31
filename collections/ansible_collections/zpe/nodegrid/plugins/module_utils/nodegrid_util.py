@@ -212,6 +212,11 @@ def import_settings(settings, use_config_start=True):
     output_dict["error_list"] = error_list
     return output_dict
 
+def uncomment(line):
+    if len(line) > 0:
+        return line if line[0] != '#' else line[1:]
+    return None
+
 def settings_diff(exported_settings, new_settings, skip_keys):
     """Compares two sets of settings, returns what values were changed or were added
 
@@ -231,7 +236,7 @@ def settings_diff(exported_settings, new_settings, skip_keys):
 
             # Add unidentified field or changed values
             # the import_settings fails if this field doesn't exist
-            if not any(line.strip() == s.strip() for s in exported_settings):
+            if not any(line.strip() == uncomment(s.strip()) for s in exported_settings):
                diff.append(line.strip())
 
     return diff

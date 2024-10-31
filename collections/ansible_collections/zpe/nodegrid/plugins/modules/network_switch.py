@@ -45,8 +45,7 @@ def run_option_network_switch_backplane(option, run_opt):
         return result_failed(f"Failed exporting settings on {cli_path}. Error: {state[1]}")
 
     # Remove invalid parameters
-    opt = suboptions.copy()
-    for key, value in opt.items():
+    for key, value in suboptions.copy().items():
         if not any(key in item for item in exported_settings):
             del suboptions[key]
 

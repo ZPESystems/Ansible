@@ -1,5 +1,5 @@
 
-- name: Configure Switch VLAN
+- name: Configure Switch Backplane
   with_items: "{{ network_switch_backplane }}"
   zpe.nodegrid.network_switch:
     backplane:

@@ -597,6 +597,56 @@ def run_option_no_diff(option, run_opt):
         result['message'] = 'No change required'
     return result
 
+def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_func, remove_invalid_setting=False):
+    suboptions = option['suboptions']
+    copied_options = suboptions.copy()
+
+    # Export current settings
+    state, exported_settings, exported_all_settings = export_settings(option['cli_path'])
+    if "error" in state:
+        return result_failed(f"Failed exporting settings on {option['cli_path']}. Error: {state[1]}")
+    
+    # Remove invalid settings
+    if remove_invalid_setting:
+        for key, value in copied_options.items():
+            if not any(key in item for item in exported_settings):
+                del copied_options[key]
+
+    # Update the current settings
+    data = settings_to_dict(exported_settings)
+    
+    last_path = None
+    changed = False
+    for path, current_options in data.items():
+        last_path = path
+        if compare_path_func(path):
+            for key, value in current_options.items():
+                if key in copied_options:
+                    if copied_options[key] != value:
+                        current_options[key] = copied_options[key]
+                        changed = True
+                    del copied_options[key]
+            # Add remaining fields
+            if not remove_invalid_setting:
+                for key, value in copied_options.items():
+                    current_options[key] = value
+                    changed = True
+            copied_options = None
+            break
+
+    # Add new settings
+    if copied_options is not None:
+        next_path = get_next_path_func(last_path)
+        if next_path is not None:
+            data[next_path] = copied_options
+            changed = True
+
+    if changed:
+        # Convert dict to  settings list keeping the settings order
+        option['settings'] = dict_to_settings(data)
+        return run_option_no_diff(option, run_opt)
+    return result_nochanged()
+
 def format_settings(path, in_dict):
     out_list = []
     if type(in_dict) is dict:
@@ -682,3 +732,30 @@ def read_path_option(cli_path, option, separators=[":","="]):
                         result["value"] = row[1].strip()
 
     return "successful", result
+
+def settings_to_dict(settings_string_list):
+    groups = {}         
+    for item in settings_string_list:
+        path, key_value = item.split(" ", 1)    # Split by the first space to get path and key=value
+        path = uncomment(path.strip())
+        # In Python 3.7 and later, dictionaries maintain the insertion order of items.
+        # When you iterate over a dictionary using .items(), the items will appear 
+        # in the same order they were added.
+        if path not in groups:
+            groups[path] = {}
+        key, value = key_value.strip().split('=',1)
+        groups[path][key] = value
+    return groups
+
+def dict_to_settings(settings_dict):
+    settings = []
+    for path, options in settings_dict.items():
+        for key, value in options.items():
+            settings.append(f"{path} {key}={value}")
+    return settings
+
+def result_failed(msg):
+    return {'failed': True, 'changed': False, 'msg': msg}
+
+def result_nochanged(msg = 'No change required'):
+    return {'failed': False, 'changed': False, 'msg': msg}

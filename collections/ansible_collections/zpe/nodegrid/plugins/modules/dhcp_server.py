@@ -18,7 +18,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, field_exist, export_settings, format_settings, run_option_no_diff
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, field_exist, export_settings, format_settings, run_option_no_diff, result_failed, result_nochanged, run_option_all_settings
 
 import os
 import re
@@ -29,12 +29,6 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
-
-def result_failed(msg):
-    return {'failed': True, 'changed': False, 'msg': msg}
-
-def result_nochanged():
-    return {'failed': False, 'changed': False, 'msg': 'No change required'}
 
 def remove_invalid_dhcp6_fields(suboptions):
     if 'prefix' in suboptions:
@@ -99,22 +93,25 @@ def run_option_network_range(option, run_opt):
 
     # Fields validation
     validate_fields_and_update_cli_path(option, 'network_range')
-    network_range_cli_path = option['cli_path']
+    range_path = option['cli_path']
     if field_exist(suboptions,'ip_address_start'):
-        network_range_cli_path += f"/{suboptions['ip_address_start']}"
+        range_path += f"/{suboptions['ip_address_start']}"
     else:
         missing_fields.append('ip_address_start')
     if field_exist(suboptions,'ip_address_end'):
-        network_range_cli_path += f"|{suboptions['ip_address_end']}"
+        range_path += f"|{suboptions['ip_address_end']}"
     else:
         missing_fields.append('ip_address_end')
     if len(missing_fields) > 0:
        return result_failed(f"Missing required field(s): {', '.join(missing_fields)}")
-    
-    # The DHCP range item path does not support export settings
-    # it must be set manually to the diff comparison
-    option['settings'] = format_settings(network_range_cli_path, suboptions)
-    return run_option(option, run_opt)
+
+    def compare_path(path):
+        return path == range_path
+
+    def get_next_path(last_path):
+        return range_path
+
+    return run_option_all_settings(option, run_opt, compare_path, get_next_path)
 
 def run_option_host(option, run_opt):
     suboptions = option['suboptions']
@@ -127,55 +124,19 @@ def run_option_host(option, run_opt):
     if not field_exist(suboptions, 'hostname'):
         return result_failed(f"Missing required field: hostname")
 
-    # Export current settings
-    state, exported_settings, exported_all_settings = export_settings(cli_path)
-    if "error" in state:
-        return result_failed(f"Failed exporting settings on {cli_path}. Error: {state[1]}")
-
-    # Remove invalid parameters
-    for key, value in suboptions.copy().items():
-        if not any(key in item for item in exported_settings):
-            del suboptions[key]
-
-    settings_list = []
-    opts = suboptions.copy()
-
-    # Replace values with the same hostname
-    sequence_number = 0
-    index_cli_path = None
-    changed = False
-    pattern = re.compile(r'/hosts/(\d+):\[(\w+)\]\s(\w+)=(.*)')
-    for line in exported_settings:
-        match = pattern.search(line)
+    pattern = re.compile(r'/hosts/(\d+):\[(\w+)\]')
+    def compare_path(path):
+        match = pattern.search(path)
         if match:
-            sequence_number, hostname, param_name, param_value = match.groups()
-            if hostname == suboptions['hostname']:
-                if param_name in opts:
-                    if opts[param_name] != param_value:
-                        if index_cli_path is None:
-                            index_cli_path = f"{cli_path}/{sequence_number}:[{hostname}]"
-                        line = f"{index_cli_path} {param_name}={opts[param_name]}"
-                        changed = True
-                    del opts[param_name]
-            settings_list.append(line)
-        elif line[0] != '#':
-            result_failed(f"Invalid settings line: {line}")
+            sequence_number, hostname = match.groups()
+            return hostname == suboptions['hostname']
+        else:
+            return True # Empty page returns /hosts/:[]
 
-    # Add the remaining options
-    if len(opts):
-        if index_cli_path is None:
-            index_cli_path = f"{cli_path}/{int(sequence_number)+1}:[{suboptions['hostname']}]"
-        settings_list.extend( format_settings(index_cli_path, opts) )
-        # Sort the list by index
-        option['settings'] = sorted(settings_list, key=lambda x: int(x.split('/hosts/')[1].split(':')[0]))
-        changed = True
-    else:
-        option['settings'] = settings_list
+    def get_next_path(last_path):
+        return f"{cli_path}/:[]"
 
-    if changed:
-        return run_option_no_diff(option, run_opt)
-    return result_nochanged()
-
+    return run_option_all_settings(option, run_opt, compare_path, get_next_path, remove_invalid_setting=True)
 
 def run_module():
     # define available arguments/parameters a user can pass to the module

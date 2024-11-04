@@ -613,7 +613,7 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
                 del copied_options[key]
 
     # Update the current settings
-    data = group_settings(exported_settings)
+    data = settings_to_dict(exported_settings)
     
     last_path = None
     changed = False
@@ -643,7 +643,7 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
 
     if changed:
         # Convert dict to  settings list keeping the settings order
-        option['settings'] = ungroup_settings(data)
+        option['settings'] = dict_to_settings(data)
         return run_option_no_diff(option, run_opt)
     return result_nochanged()
 
@@ -733,9 +733,9 @@ def read_path_option(cli_path, option, separators=[":","="]):
 
     return "successful", result
 
-def group_settings(data):
+def settings_to_dict(settings_string_list):
     groups = {}         
-    for item in data:
+    for item in settings_string_list:
         path, key_value = item.split(" ", 1)    # Split by the first space to get path and key=value
         path = uncomment(path.strip())
         # In Python 3.7 and later, dictionaries maintain the insertion order of items.
@@ -747,9 +747,9 @@ def group_settings(data):
         groups[path][key] = value
     return groups
 
-def ungroup_settings(data):
+def dict_to_settings(settings_dict):
     settings = []
-    for path, options in data.items():
+    for path, options in settings_dict.items():
         for key, value in options.items():
             settings.append(f"{path} {key}={value}")
     return settings

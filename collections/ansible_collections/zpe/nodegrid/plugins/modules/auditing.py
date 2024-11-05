@@ -336,9 +336,11 @@ def run_module():
             diff = []
             try:
                 for item in auditing_destinations_syslog:
-                    if auditing_destinations_syslog_current[item]:
+                    if item in auditing_destinations_syslog_current and auditing_destinations_syslog_current[item]:
                         if str(auditing_destinations_syslog[item]) != str(auditing_destinations_syslog_current[item]):
                             diff.append({item: auditing_destinations_syslog[item]})
+                    else:
+                        diff.append({item: auditing_destinations_syslog[item]})
             except Exception as e:
                 result['failed'] = True
                 result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
@@ -447,10 +449,14 @@ def run_module():
     # Build Commands for Auditing Destinations Syslog
     if len(diff_chains['destinations_syslog']) > 0:
         cmds.append({'cmd': f"cd /settings/auditing/destinations/syslog"})
+        cmd_line = []
         for rule in diff_chains['destinations_syslog']:
             for setting in rule:
-                cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
-                cmds.append(cmd)
+                cmd_line.append(f"{setting}='{rule[setting]}'")
+        # Add all fields in the same line because some fileds must be set in the
+        # same line (ipv4_remote_server and ipv4_address, ipv6_remote_server and ipv6_address)
+        cmd = {'cmd': f"set {' '.join(cmd_line)}"}
+        cmds.append(cmd)
         cmds.append({'cmd': "commit"})
 
     # Build Commands for Auditing Destinations SNMP

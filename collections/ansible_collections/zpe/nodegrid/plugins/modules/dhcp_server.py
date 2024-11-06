@@ -24,6 +24,11 @@ atributes:
     platforms: Nodegrid
 
 options:
+  skip_invalid_keys:
+    description: Skip invalid settings keys if they don't exist in the Nodegrid model/OS version
+    required: False
+    default: False
+    type: bool
   settings:
     description: Set of settings of one DHCP Server
     required: False
@@ -86,22 +91,22 @@ options:
     type: dict
     suboptions:
       subnet:
-        description: Subnet IPv4 Network Address. Required for IPv4 DHCP Server
+        description: Subnet IPv4 Network Address. Required only for IPv4 DHCP Server
         required: True
         default: ''
         type: str
       netmask:
-        description: IPv4 subnet mask number. Required for IPv4 DHCP Server
+        description: IPv4 subnet mask number. Required only for IPv4 DHCP Server
         required: True
         default: ''
         type: str
       prefix:
-        description: Prefix IPv6 Network Address. Required for IPv6 DHCP Server
+        description: Prefix IPv6 Network Address. Required only for IPv6 DHCP Server
         required: True
         default: ''
         type: str
       length:
-        description: IPv6 prefix lengh number. Required for IPv6 DHCP Server
+        description: IPv6 prefix lengh number. Required only for IPv6 DHCP Server
         required: True
         default: ''
         type: str
@@ -120,28 +125,53 @@ options:
     required: False
     type: dict
     suboptions:
+      subnet:
+        description: Subnet IPv4 Network Address. Required only for IPv4 DHCP Server
+        required: True
+        default: ''
+        type: str
+      netmask:
+        description: IPv4 subnet mask number. Required only for IPv4 DHCP Server
+        required: True
+        default: ''
+        type: str
+      prefix:
+        description: Prefix IPv6 Network Address. Required only for IPv6 DHCP Server
+        required: True
+        default: ''
+        type: str
+      length:
+        description: IPv6 prefix lengh number. Required only for IPv6 DHCP Server
+        required: True
+        default: ''
+        type: str
       hostname:
         description: Unique hostname
         required: True
         default: ''
         type: str
       hw_address:
-        description: MAC Address
+        description: MAC Address. Required only for IPv4 DHCP Server
         required: True
         default: ''
         type: str
       agent_circuit_id:
-        description: Agend Circuit ID
+        description: Agend Circuit ID. Required only for IPv4 DHCP Server
         required: True
         default: ''
         type: str
       assigned_hostname:
-        description: Assigned Hostname
+        description: Assigned Hostname. Required only for IPv4 DHCP Server
         required: False
         default: ''
         type: str
       ip_address:
         description: IP Address
+        required: True
+        default: ''
+        type: str
+      duid:
+        description: DUID. Required only for IPv6 DHCP Server
         required: True
         default: ''
         type: str

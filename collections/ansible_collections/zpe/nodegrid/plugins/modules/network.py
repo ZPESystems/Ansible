@@ -320,6 +320,22 @@ def run_option_network_connections(option, run_opt):
         if not "error" in state:
             if "ethernet_interface" in option['suboptions']:
                 del option['suboptions']['ethernet_interface']
+        
+        #
+        # Remove invalid parameters
+        #
+
+        # IP-passthrough
+        if field_exist(suboptions, 'enable_ip_passthrough'):
+            if suboptions['enable_ip_passthrough'].lower() == 'yes':
+                if not field_exist(suboptions, 'ethernet_connection'):
+                    return {'failed': True, 'changed': False, 'msg': f"Field 'ethernet_connection' is required when 'enable_ip_passthrough' is set to 'yes'."}
+            else:
+                itens_to_remove = ['ethernet_connection', 'mac_address', 'port_intercepts']
+                for item in itens_to_remove:
+                    if item in suboptions:
+                        del suboptions[item]
+
         return run_option_adding_field_in_the_path(option, run_opt, field_name)
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}

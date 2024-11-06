@@ -8,7 +8,7 @@ __metaclass__ = type
 
 DOCUMENTATION = r'''
 ---
-module: nodegrid dhcp_server
+module: nodegrid network_switch
 author:
   - Leonardo Fernandes (@zpe-leonardof)
 

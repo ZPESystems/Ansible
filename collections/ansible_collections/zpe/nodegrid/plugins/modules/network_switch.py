@@ -7,6 +7,119 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 DOCUMENTATION = r'''
+---
+module: nodegrid network_switch
+author:
+  - Leonardo Fernandes (@zpe-leonardof)
+
+description:
+  - The network_switch module is used to set up the Network Switch in a Nodegrid device.
+
+atributes:
+  check_mode:
+    support: full
+  diff_mode:
+    support: none
+  platform:
+    platforms: Nodegrid
+
+options:
+  skip_invalid_keys:
+    description: Skip invalid settings keys if they don't exist in the Nodegrid model/OS version
+    required: False
+    default: False
+    type: bool
+  interfaces:
+    description: Network Switch Interfaces
+    required: False
+    type: dict
+    suboptions:
+      interface:
+        description: Interface name
+        required: True
+        default: ''
+        type: str
+      status:
+        description: Status
+        required: False
+        choices: ['enabled','disabled']
+        default: 'enabled'
+        type: str
+      speed:
+        description: Speed
+        required: False
+        choices: ['100m','10m','1g','auto']
+        default: 'auto'
+        type: str
+      port_vlan_id:
+        description: Port VLAN ID
+        required: True
+        default: '1'
+        type: str
+      description:
+        description: Description
+        required: False
+        default: ''
+        type: str
+  backplane:
+    description: Network Switch Backplane
+    required: False
+    type: dict
+    suboptions:
+      backplane0_port_vlan_id:
+        description: Backplane0 Port VLAN ID
+        required: True
+        default: '1'
+        type: str
+      backplane0_jumbo_frame:
+        description: Backplane0 Jumbo Frame. Available for specific device models
+        required: False
+        choices: ['enabled','disabled']
+        default: 'enabled'
+        type: str
+      backplane0_dhcp_snooping:
+        description: Backplane0 DHCP snooping. Available for specific device models
+        required: False
+        choices: ['trusted','untrusted']
+        default: 'untrusted'
+        type: str
+      backplane1_port_vlan_id:
+        description: Backplane1 Port VLAN ID
+        required: True
+        default: '1'
+        type: str
+      backplane1_jumbo_frame:
+        description: Backplane1 Jumbo Frame. Available for specific device models
+        required: False
+        choices: ['enabled','disabled']
+        default: 'enabled'
+        type: str
+      backplane1_dhcp_snooping:
+        description: Backplane1 DHCP snooping. Available for specific device models
+        required: False
+        choices: ['trusted','untrusted']
+        default: 'untrusted'
+        type: str
+  vlan:
+    description: Network Switch VLAN
+    required: False
+    type: dict
+    suboptions:
+      vlan:
+        description: VLAN ID
+        required: True
+        default: ''
+        type: str
+      tagged_ports:
+        description: Tagged ports, comma separated
+        required: False
+        default: ''
+        type: str
+      untagged_ports:
+        description: Untagged ports, comma separated
+        required: False
+        default: ''
+        type: str
 '''
 
 EXAMPLES = r'''

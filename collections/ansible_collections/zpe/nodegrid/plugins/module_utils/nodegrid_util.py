@@ -410,6 +410,7 @@ def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_fiel
         option (dict): Option to apply
         run_opt (dict): Dictionary with extra import options 
         field_name (str): Field name to add in th CLI path
+        delete_field_name (bool): If True, the field_name will be deleted from the options
 
     Returns:
         dict: Result of import
@@ -434,7 +435,13 @@ def run_option(option, run_opt):
 
     Args:
         option (dict): Option to apply
+            - cli_path (str): CLI path to import the settings
+            - settings (list of str): Optional field, with a list of settings (path key=value). If undefined the list of settings will be created based on the option 'cli_path'
         run_opt (dict): Dictionary with extra import options 
+            - skip_invalid_keys (bool): If True, ivalid field will be removed
+            - check_mode (bool): If True, does not apply the diff
+            - use_config_start_global (bool): If True, use the CLI feature config_start/config_end to apply the all settings if no error happened
+            - no_diff (bool): If True, does not compare the new settings with the current, always apply the new ones
 
     Returns:
         dict: Result of import
@@ -444,6 +451,10 @@ def run_option(option, run_opt):
     skip_invalid_keys = run_opt['skip_invalid_keys']
     check_mode = run_opt['check_mode']
     use_config_start_global = run_opt['use_config_start_global']
+    if 'no_diff' in run_opt and run_opt['no_diff']:
+        no_diff = True
+    else:
+        no_diff = False
 
     result = dict(
         changed=False,
@@ -460,18 +471,21 @@ def run_option(option, run_opt):
     else:
         new_settings = format_settings(cli_path, suboptions)
 
-    # Lets export the settings to the cli path
-    state, exported_settings, exported_all_settings = export_settings(cli_path)
-    if "error" in state:
-        result['export_result'] = state[1]
+    if no_diff:
+        diff = new_settings
     else:
-        result['export_result'] = state
-        # Lets create a list of keys to skip
-        if skip_invalid_keys:
-            result['skip_keys'] = get_skip_keys(new_settings, exported_all_settings)
+        # Lets export the settings to the cli path
+        state, exported_settings, exported_all_settings = export_settings(cli_path)
+        if "error" in state:
+            result['export_result'] = state[1]
+        else:
+            result['export_result'] = state
+            # Lets create a list of keys to skip
+            if skip_invalid_keys:
+                result['skip_keys'] = get_skip_keys(new_settings, exported_all_settings)
 
-    # Lets compare the current config with the specified configuration
-    diff = settings_diff(exported_settings, new_settings, result['skip_keys'] )
+        # Lets compare the current config with the specified configuration
+        diff = settings_diff(exported_settings, new_settings, result['skip_keys'] )
 
     # The module supports diff mode, which will display the configuration
     # changes which will be performed on the connection
@@ -532,72 +546,25 @@ def run_option_no_diff(option, run_opt):
     Returns:
         dict: Result of import
     """
-    suboptions = option['suboptions']
-    cli_path = option['cli_path']
-    skip_invalid_keys = run_opt['skip_invalid_keys']
-    check_mode = run_opt['check_mode']
-    use_config_start_global = run_opt['use_config_start_global']
-
-    result = dict(
-        changed=False,
-        failed=False,
-        message='',
-        export_result='',
-        skip_keys = []
-    )
-
-    # Get or format settings
-    diff = []
-    if 'settings' in option:
-        diff = option['settings']
-    else:
-        diff = format_settings(cli_path, suboptions)
-
-    # The module supports diff mode, which will display the configuration
-    # changes which will be performed on the connection
-    prepared_output = str()
-    for item in diff:
-        prepared_output += item + "\r\n"
-    result['diff'] = prepared_output
-
-    # if the user is working with this module in only check mode we do not
-    # want to make any changes to the environment, just return the current
-    # state with no modifications
-    if check_mode:
-        result['changed'] = True
-        return result
-
-    # manipulate or modify the state as needed (this is going to be the
-    # part where your module will do what it needs to do)
-    if len(diff) > 0:
-        result['changed'] = True
-        if 'import_func' in option:
-            import_func = option['import_func']
-            import_result = import_func(data=dict(
-                option=option,
-                run_opt=run_opt,
-                exported_settings=exported_settings,
-                diff=diff,
-                use_config_start=use_config_start_global
-            ))
-        else:
-            import_result = import_settings(diff, use_config_start=use_config_start_global)
-
-        result['import_result'] = import_result
-        if import_result['import_status'] == 'succeeded':
-            result['message'] = 'Import was successful'
-        else:
-            if len(import_result['error_list']) > 0:
-                result['message'] = ', '.join(import_result['error_list'])
-            result['msg'] = 'Import failed'
-            result['failed'] = True
-            return result
-    else:
-        result['changed'] = False
-        result['message'] = 'No change required'
-    return result
+    run_opt['no_diff'] = True
+    return run_option(option, run_opt)
 
 def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_func, remove_invalid_setting=False):
+    """Applies the option on the Nodegrid
+
+    Applies the option on the Nodegrid following these steps:
+        1. Export the settings of the path
+        2. (Optional) Remove invalid settings
+        3. Update/Add the exported settings values with the new options values
+        4. Import new setttings on the Nodegrid
+
+    Args:
+        option (dict): Option to apply
+        run_opt (dict): Dictionary with extra import options
+
+    Returns:
+        dict: Result of import
+    """
     suboptions = option['suboptions']
     copied_options = suboptions.copy()
 
@@ -612,9 +579,8 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
             if not any(key in item for item in exported_settings):
                 del copied_options[key]
 
-    # Update the current settings
+    # Update the exported settings values
     data = settings_to_dict(exported_settings)
-    
     last_path = None
     changed = False
     for path, current_options in data.items():

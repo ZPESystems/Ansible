@@ -6,6 +6,24 @@
       #  tags: always
       #  ansible.builtin.shell:
       #    cmd: ansible-galaxy collection install community.libvirt
+- name: Create libvirt VMs path structure
+  become: yes
+  tags: 
+    - vm-directory
+    - always
+  block:
+  - name: Create VMs paths structure (images, images_cache, cloudinit)
+    ansible.builtin.file:
+      path: "{{item}}"
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+    loop:
+      - "{{ libvirt_resources_path }}"
+      - "{{ libvirt_resources_path }}/{{ images_cache }}"
+      - "{{ libvirt_resources_path }}/{{ images }}"
+      - "{{ libvirt_resources_path }}/{{ cloudinit }}"
 - name: VMs creation
   tags: always
   block:

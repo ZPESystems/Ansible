@@ -1,38 +1,47 @@
-- name: VM Disks
+- name: Copy Disks to images_cache
+  become: yes
   when: "'disks' in vm"
   tags: 
-    - always
     - vm-disks
+    - always
   block:
-    - name: Download disk from URL 
-      ansible.builtin.get_url:
-        url: "{{ item.file_source }}"
-        dest: "{{ item.file }}"
-      loop: "{{ vm.disks | list }}"
-      when: item.type == "url"
-      become: true
-      become_user: root
-    
-    - name: Copy Control Node's local file disk (qcow2) to remote host
-      ansible.builtin.copy:
-        src: "{{ item.file_source }}"
-        dest: "{{ item.file }}"
-      loop: "{{ vm.disks | list }}"
-      when: item.type == "copy_file_to_remote"
-      become: true
-      become_user: root
-    
-    - name: Copy local file disk (qcow2)
-      ansible.builtin.copy:
-        remote_src: true
-        src: "{{ item.file_source }}"
-        dest: "{{ item.file }}"
-      loop: "{{ vm.disks | list }}"
-      when: item.type == "copy_local_file"
-      become: true
-      become_user: root
+  - name: Download disk from URL 
+    ansible.builtin.get_url:
+      url: "{{ item.file_source }}"
+      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
+    loop: "{{ vm.disks | list }}"
+    register: URL
+    when: item.type == "url"
+  
+  - name: Copy local control node file disk (qcow2) to remote
+    ansible.builtin.copy:
+      src: "{{ item.file_source }}"
+      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
+    loop: "{{ vm.disks | list }}"
+    when: item.type == "copy_file_to_remote"
+  
+  - name: Copy local file disk (qcow2)
+    ansible.builtin.copy:
+      remote_src: true
+      src: "{{ item.file_source }}"
+      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
+    loop: "{{ vm.disks | list }}"
+    when: item.type == "copy_local_file"
 
+- name: Copy VM Disks from cache to images
+  become: yes
+  tags: 
+    - vm-disks
+    - always
+  ansible.builtin.copy:
+    src: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
+    dest: "{{ libvirt_resources_path }}/{{ images }}/{{ item.file_name }}"
+  loop: "{{ vm.disks | list }}"
+  when: "'disks' in vm"
+    
 - name: Create cloud-init iso file
+  become: yes
+  become_user: root
   when:
     - "'cloud_init' in vm"
     - "vm.cloud_init"
@@ -43,23 +52,21 @@
     - name: copy cloud-init user-data
       ansible.builtin.template:
         src: cloudinit/user-data.j2
-        dest: /tmp/user-data
+        dest: "{{ libvirt_resources_path }}/{{ cloudinit }}/user-data"
     - name: copy cloud-init meta-data
       ansible.builtin.template:
         src: cloudinit/meta-data.j2
-        dest: /tmp/meta-data
+        dest: "{{ libvirt_resources_path }}/{{ cloudinit }}/meta-data"
     - name: create the cloud-init iso
       shell:
-        cmd: "genisoimage -output {{ vm.cloud_init.iso_file }} -input-charset utf-8 -volid cidata -joliet -rock /tmp/user-data /tmp/meta-data"
-      become: true
-      become_user: root
+        cmd: "genisoimage -output {{ libvirt_resources_path }}/{{ cloudinit }}/{{ vm.cloud_init.iso_file }} -input-charset utf-8 -volid cidata -joliet -rock {{ libvirt_resources_path }}/{{ cloudinit }}/user-data {{ libvirt_resources_path }}/{{ cloudinit }}/meta-data"
     - name: Remove cloud-init config files
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop:
-        - /tmp/user-data
-        - /tmp/meta-data
+        - "{{ libvirt_resources_path }}/{{ cloudinit }}/user-data"
+        - "{{ libvirt_resources_path }}/{{ cloudinit }}/meta-data"
 
 - name: Create the VM 
   tags: create-vm

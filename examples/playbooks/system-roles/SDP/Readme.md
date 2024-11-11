@@ -487,7 +487,7 @@ nodegrid_domain_name: us.internal
 # Default Network Settings: (NO CHANGE REQUIRED)
 nodegrid_enable_ipv4_ip_forward: "yes"
 nodegrid_enable_ipv6_ip_forward: "no"
-nodegrid_reverse_path_filtering: "strict_mode"
+nodegrid_reverse_path_filtering: "disabled"
 nodegrid_enable_multiple_routing_tables: "yes"
 failover_enable_network_failover: "no"
 
@@ -587,12 +587,6 @@ ipv4_firewall:
           reverse_state_match: "no"
           source_net4: ""
           destination_net4: ""
-        - target: DROP
-          action: insert
-          rule_number: 8
-          protocol: numeric
-          description: 'DROP_ALL'
-          source_net4: ""
 
 # NAT Settings
 ipv4_nat:
@@ -605,10 +599,21 @@ ipv4_nat:
     POSTROUTING:
         - target: MASQUERADE
           action: append
+          source_net4: '192.168.10.0/24' 
+          description: NAT_DHCP_LAN_NETWORK
+        - target: MASQUERADE
+          action: append
           source_net4: '192.168.11.0/24' 
-          description: NAT_DHCP_NETWORK
+          description: NAT_DHCP_MGMT_NETWORK
 
 network_dhcp_server:
+  - protocol: 'dhcp4'
+    subnet: '192.168.10.0'
+    netmask: '255.255.255.0'
+    domain: 'sdp-domain'
+    domain_name_servers: '8.8.8.8'
+    router_ip: '192.168.10.1'
+    lease_time: '86400'
   - protocol: 'dhcp4'
     subnet: '192.168.11.0'
     netmask: '255.255.255.0'
@@ -616,9 +621,12 @@ network_dhcp_server:
     domain_name_servers: '8.8.8.8'
     router_ip: '192.168.11.1'
     lease_time: '86400'
-    #wifi_controller_ip: '203.0.113.0'
 
 network_dhcp_range:
+  - subnet: '192.168.10.0'
+    netmask: '255.255.255.0'
+    ip_address_start: '192.168.10.10'
+    ip_address_end: '192.168.10.100'
   - subnet: '192.168.11.0'
     netmask: '255.255.255.0'
     ip_address_start: '192.168.11.10'
@@ -630,6 +638,16 @@ network_dhcp_range:
 ansible_user: ansible
 ansible_ssh_private_key_file: /home/ansible/.ssh/id_ed25519
 ansible_python_interpreter: "/usr/bin/python3"
+
+# System Libvirt Virtual Machines info: (NO CHANGE REQUIRED)
+libvirt_resources_path: /run/media/sdb1/virtual_machines
+# libvirt_resources_path directory structure
+# |--- images_cache
+# |--- images
+# |--- cloudinit_iso
+images_cache: "images_cache"
+images: "images"
+cloudinit: "cloudinit"
 ```
 
 - To display and validate the defined group variables, display the host-specific settings of a group member, using the following command.
@@ -768,14 +786,14 @@ network_connections:
   configure_hostname_through_dhcp: "no"
   ethernet_link_mode: auto
   ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server:
-  ipv4_dns_search:
+  ipv4_dns_server: ""
+  ipv4_dns_search: ""
   ipv4_default_route_metric: 100
   ipv4_ignore_obtained_default_gateway: "no"
   ipv4_ignore_obtained_dns_server: "no"
   ipv6_mode: no_ipv6_address
-  ipv6_dns_server:
-  ipv6_dns_search:
+  ipv6_dns_server: ""
+  ipv6_dns_search: ""
   ipv6_default_route_metric: 100
   ipv6_ignore_obtained_default_gateway: "no"
   ipv6_ignore_obtained_dns_server: "no"
@@ -792,14 +810,14 @@ network_connections:
   configure_hostname_through_dhcp: "no"
   ethernet_link_mode: auto
   ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server:
-  ipv4_dns_search:
+  ipv4_dns_server: ""
+  ipv4_dns_search: ""
   ipv4_default_route_metric: 100
   ipv4_ignore_obtained_default_gateway: "no"
   ipv4_ignore_obtained_dns_server: "no"
   ipv6_mode: no_ipv6_address
-  ipv6_dns_server:
-  ipv6_dns_search:
+  ipv6_dns_server: ""
+  ipv6_dns_search: ""
   ipv6_default_route_metric: 100
   ipv6_ignore_obtained_default_gateway: "no"
   ipv6_ignore_obtained_dns_server: "no"
@@ -827,22 +845,25 @@ switch:
   
 
 virtual_machines:
-  - name: nexGenFW
+  - name: nextGenFW
     ram:  
       size: 2048 # size in MB
     cpu:
       count: 2
     disks:
         # VM disk file path on target device (used in the KVM domain)
-      - file: /var/lib/libvirt/images/vmansible.qcow2 
+      - file_name: nextGenFWdisk1.qcow2 
         # VM disk file source (e.g., URL or file path in the target node or control node)
         file_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/files/nextGenFWdisk.qcow2 
-        # Defines how to get the disk:
+        # VM file disk name on the cache directory
+        file_cache_name: nextGenFWdisk.qcow2
+        # VM file disk copy method: defines how to get the disk
         #  - local_file: it does not copy any disk file. It assumes that the 'file' path exists.
         #  - url: URL to download the qcow2 file and saves it to the 'file' path
         #  - copy_local_file: copies the file 'file_source' to the 'file' path (both paths are in the target node)
         #  - copy_file_to_remote: copies the local file 'file_source' to the target node path 'file'
         type: copy_local_file
+
     network_bridges:
       - MGMT0
       - WAN0
@@ -850,8 +871,9 @@ virtual_machines:
       - LAN0
     cloud_init:
       ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
-      iso_file: /var/lib/libvirt/images/seed1.iso
+      iso_file: nextGenFWinit.iso
 ```
+
 - Now that all required variables for the GateSR are defined, we can validate that the inventory is working before continuing:
 ```bash
 ansible-inventory --host ng-gatesr1
@@ -907,7 +929,7 @@ PLAY RECAP *********************************************************************
 ng-gatesr1                     : ok=26   changed=18   unreachable=0    failed=0    skipped=4    rescued=0    ignored=0
 ```
 
-- The network configuration is not in place.
+- The network configuration is now in place.
 
 ### Setup the VM
 - Install Ansible community libvirt
@@ -924,7 +946,24 @@ cd /etc/ansible/playbooks/
 ```
 ansible-playbook 200_create_virtual_machines.yaml --limit ng-gatesr1
 ```
+- The VM resources (disks, cloudinit isos) shall be stored at:
+```
+ansible@ng-gatesr1:~$ ls -lh /run/media/sdb1/virtual_machines/*
+/run/media/sdb1/virtual_machines/cloudinit:
+total 728K
+-rw-r--r-- 1 qemu qemu 364K Nov 11 01:04 seed1.iso
+-rw-r--r-- 1 qemu qemu 364K Nov 11 01:26 seed2.iso
 
+/run/media/sdb1/virtual_machines/images:
+total 1.3G
+-rw-r--r-- 1 qemu qemu 429M Nov 11 01:41 debian.qcow2
+-rw-r--r-- 1 qemu qemu 859M Nov 11 01:41 vmansible.qcow2
+
+/run/media/sdb1/virtual_machines/images_cache:
+total 1.1G
+-rw-r--r-- 1 root root 412M Nov 11 01:25 debian-sid-generic-amd64-daily.qcow2
+-rw-r--r-- 1 root root 706M Oct 10 01:08 nextGenFWdisk.qcow2
+```
 - The VM is now deployed and running on the GateSR.
 
 # Final Result

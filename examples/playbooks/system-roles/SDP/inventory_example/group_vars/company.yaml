@@ -90,7 +90,7 @@ nodegrid_domain_name: us.internal
 # Default Network Settings: (NO CHANGE REQUIRED)
 nodegrid_enable_ipv4_ip_forward: "yes"
 nodegrid_enable_ipv6_ip_forward: "no"
-nodegrid_reverse_path_filtering: "strict_mode"
+nodegrid_reverse_path_filtering: "disabled"
 nodegrid_enable_multiple_routing_tables: "yes"
 failover_enable_network_failover: "no"
 
@@ -190,12 +190,6 @@ ipv4_firewall:
           reverse_state_match: "no"
           source_net4: ""
           destination_net4: ""
-        - target: DROP
-          action: insert
-          rule_number: 8
-          protocol: numeric
-          description: 'DROP_ALL'
-          source_net4: ""
 
 # NAT Settings
 ipv4_nat:
@@ -208,10 +202,22 @@ ipv4_nat:
     POSTROUTING:
         - target: MASQUERADE
           action: append
+          source_net4: '192.168.10.0/24' 
+          description: NAT_DHCP_LAN_NETWORK
+        - target: MASQUERADE
+          action: append
           source_net4: '192.168.11.0/24' 
-          description: NAT_DHCP_NETWORK
+          description: NAT_DHCP_MGMT_NETWORK
 
 network_dhcp_server:
+  - protocol: 'dhcp4'
+    subnet: '192.168.10.0'
+    netmask: '255.255.255.0'
+    domain: 'sdp-domain'
+    domain_name_servers: '8.8.8.8'
+    router_ip: '192.168.10.1'
+    lease_time: '86400'
+    #wifi_controller_ip: '203.0.113.0'
   - protocol: 'dhcp4'
     subnet: '192.168.11.0'
     netmask: '255.255.255.0'
@@ -219,9 +225,12 @@ network_dhcp_server:
     domain_name_servers: '8.8.8.8'
     router_ip: '192.168.11.1'
     lease_time: '86400'
-    #wifi_controller_ip: '203.0.113.0'
 
 network_dhcp_range:
+  - subnet: '192.168.10.0'
+    netmask: '255.255.255.0'
+    ip_address_start: '192.168.10.10'
+    ip_address_end: '192.168.10.100'
   - subnet: '192.168.11.0'
     netmask: '255.255.255.0'
     ip_address_start: '192.168.11.10'
@@ -233,3 +242,13 @@ network_dhcp_range:
 ansible_user: ansible
 ansible_ssh_private_key_file: /home/ansible/.ssh/id_ed25519
 ansible_python_interpreter: "/usr/bin/python3"
+
+# System Libvirt Virtual Machines info: (NO CHANGE REQUIRED)
+libvirt_resources_path: /run/media/sdb1/virtual_machines
+# libvirt_resources_path directory structure
+# |--- images_cache
+# |--- images
+# |--- cloudinit_iso
+images_cache: "images_cache"
+images: "images"
+cloudinit: "cloudinit"

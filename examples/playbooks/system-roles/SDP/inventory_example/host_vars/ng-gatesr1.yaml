@@ -81,14 +81,14 @@ network_connections:
   configure_hostname_through_dhcp: "no"
   ethernet_link_mode: auto
   ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server:
-  ipv4_dns_search:
+  ipv4_dns_server: ""
+  ipv4_dns_search: ""
   ipv4_default_route_metric: 100
   ipv4_ignore_obtained_default_gateway: "no"
   ipv4_ignore_obtained_dns_server: "no"
   ipv6_mode: no_ipv6_address
-  ipv6_dns_server:
-  ipv6_dns_search:
+  ipv6_dns_server: ""
+  ipv6_dns_search: ""
   ipv6_default_route_metric: 100
   ipv6_ignore_obtained_default_gateway: "no"
   ipv6_ignore_obtained_dns_server: "no"
@@ -105,14 +105,14 @@ network_connections:
   configure_hostname_through_dhcp: "no"
   ethernet_link_mode: auto
   ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server:
-  ipv4_dns_search:
+  ipv4_dns_server: ""
+  ipv4_dns_search: ""
   ipv4_default_route_metric: 100
   ipv4_ignore_obtained_default_gateway: "no"
   ipv4_ignore_obtained_dns_server: "no"
   ipv6_mode: no_ipv6_address
-  ipv6_dns_server:
-  ipv6_dns_search:
+  ipv6_dns_server: ""
+  ipv6_dns_search: ""
   ipv6_default_route_metric: 100
   ipv6_ignore_obtained_default_gateway: "no"
   ipv6_ignore_obtained_dns_server: "no"
@@ -147,9 +147,10 @@ virtual_machines:
       count: 2
     disks:
         # VM disk file path on target device (used in the KVM domain)
-      - file: /var/lib/libvirt/images/vmansible.qcow2 
+      - file_name: vmansible.qcow2 
         # VM disk file source (e.g., URL or file path in the target node or control node)
         file_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/files/nextGenFWdisk.qcow2 
+        file_cache_name: nextGenFWdisk.qcow2
         # Defines how to get the disk:
         #  - local_file: it does not copy any disk file. It assumes that the 'file' path exists.
         #  - url: URL to download the qcow2 file and saves it to the 'file' path
@@ -163,19 +164,20 @@ virtual_machines:
       - LAN0
     cloud_init:
       ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
-      iso_file: /var/lib/libvirt/images/seed1.iso
+      iso_filename: seed1.iso
   - name: debianVM
     ram:  
       size: 2048 # size in MB
     cpu:
       count: 2
     disks:
-      - file: /var/lib/libvirt/images/debian.qcow2 
+      - file_name: /var/lib/libvirt/images/debian.qcow2 
         file_source: https://cdimage.debian.org/cdimage/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2
+        file_cache_name: debian-sid-generic-amd64-daily.qcow2 
         type: url 
     network_bridges:
       - MGMT0
     cloud_init:
       ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
-      iso_file: /var/lib/libvirt/images/seed2.iso
+      iso_filename: seed2.iso
 

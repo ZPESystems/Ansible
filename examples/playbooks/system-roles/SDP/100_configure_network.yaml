@@ -58,18 +58,16 @@
           - network_connections
 
     - name: Configure DHCP Server
+      tags:
+        - dhcp-server
       block:
         - name: Add ipv4 DHCP Server
           include_role:
             name: network_dhcp_server
-          tags:
-            - dhcp-server
-        
+
         - name: Add ipv4 DHCP Network range
           include_role:
             name: network_dhcp_range
-          tags:
-            - dhcp-server
     
     - name: Configure Switch
       tags:

@@ -14,7 +14,7 @@
 		<emulator>/usr/bin/qemu-system-x86_64</emulator>
     {% if vm.cloud_init is defined %}
     <disk type='file' device='cdrom'>
-      <source file='{{ vm.cloud_init.iso_file }}'/>
+      <source file='{{ libvirt_resources_path }}/{{ cloudinit }}/{{ vm.cloud_init.iso_file }}'/>
       <target dev='sda' bus='sata'/>
       <readonly/>
     </disk>
@@ -23,7 +23,7 @@
 		{% for disk in vm.disks %}
 		<disk type='file' device='disk'>
 			<driver name='qemu' type='qcow2' discard='unmap'/>
-      <source file='{{ disk.file }}'/>
+      <source file='{{ libvirt_resources_path }}/{{ images }}/{{ disk.file_name }}'/>
       <target dev='sdb' bus='sata'/>
       <boot order='1'/>
 		</disk>

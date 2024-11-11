@@ -51,6 +51,38 @@ EXAMPLES = r'''
         power: "power_control"
         door: "no_access"
     # outlets:  Not supported yet
+- name: Add authorization with Managed devices with manage device permissions
+  zpe.nodegrid.security:
+    authorization:
+    name: 'dev'
+    profile:
+        # Permissions begin
+        track_system_information: "yes"
+        terminate_sessions: "no"
+        software_upgrade_and_reboot_system: "no"
+        configure_system: "no"
+        configure_user_accounts: "no"
+        apply_&_save_settings: "no"
+        shell_access: "no"
+        manage_devices_permissions: "yes"
+        # Permissions end
+        # Managed Devices Permissions begin
+        manage_devices_general_settings: "yes"
+        manage_devices_connection_settings: "no"
+        manage_devices_inbound_access_settings: "no"
+        manage_devices_management: "no"
+        manage_devices_logging: "no"
+        manage_devices_custom_fields: "no"
+        manage_devices_commands: "no"
+        manage_devices_outlets: "no"
+        manage_devices_sensor_channels: "no"
+        # Managed Devices Permissions end
+        restrict_configure_system_permission_to_read_only: "no"
+        menu-driven_access_to_devices: "no"
+        sudo_permission: "no"
+        custom_session_timeout: "no"
+        startup_application: "cli"
+        email_events_to: ""
 '''
 
 RETURN = r'''
@@ -193,8 +225,6 @@ def run_option_authorization(option, run_opt):
                     result = run_option(option, run_opt)
                     if result['failed']:
                         return result
-                    if result['changed']:
-                        all_results['changed'] = True
                     all_results['devices'] = result
                 else:
                     return result_failed(f"Field '{key}/{field_name}' is required")
@@ -204,19 +234,24 @@ def run_option_authorization(option, run_opt):
             result = run_authorization_profile(option, run_opt)
             if result['failed']:
                 return result
-            if result['changed']:
-                        all_results['changed'] = True
             all_results['profile'] = result
 
         # remote_groups
-        else:
+        elif key == 'remote_groups':
             option['settings'] = format_settings(f"{cli_path}/{key}",value)
             result = run_option(option, run_opt)
             if result['failed']:
                 return result
-            if result['changed']:
-                        all_results['changed'] = True
             all_results[key] = result
+
+        else:
+            return result_failed(f"Invalid authorization option key: '{key}'")
+
+    for key, value in all_results.items():
+        if type(value) is dict:
+            if value['changed']:
+                all_results['changed'] = True
+                break
     return all_results
 
 

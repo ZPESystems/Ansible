@@ -51,6 +51,38 @@ EXAMPLES = r'''
         power: "power_control"
         door: "no_access"
     # outlets:  Not supported yet
+- name: Add authorization with Managed devices with manage device permissions
+  zpe.nodegrid.security:
+    authorization:
+    name: 'dev'
+    profile:
+        # Permissions begin
+        track_system_information: "yes"
+        terminate_sessions: "no"
+        software_upgrade_and_reboot_system: "no"
+        configure_system: "no"
+        configure_user_accounts: "no"
+        apply_&_save_settings: "no"
+        shell_access: "no"
+        manage_devices_permissions: "yes"
+        # Permissions end
+        # Managed Devices Permissions begin
+        manage_devices_general_settings: "yes"
+        manage_devices_connection_settings: "no"
+        manage_devices_inbound_access_settings: "no"
+        manage_devices_management: "no"
+        manage_devices_logging: "no"
+        manage_devices_custom_fields: "no"
+        manage_devices_commands: "no"
+        manage_devices_outlets: "no"
+        manage_devices_sensor_channels: "no"
+        # Managed Devices Permissions end
+        restrict_configure_system_permission_to_read_only: "no"
+        menu-driven_access_to_devices: "no"
+        sudo_permission: "no"
+        custom_session_timeout: "no"
+        startup_application: "cli"
+        email_events_to: ""
 '''
 
 RETURN = r'''
@@ -58,7 +90,8 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, get_cli, execute_cmd, close_cli, read_table, read_table_row, run_option_no_diff, read_path_option
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, get_cli, execute_cmd, close_cli, read_table, read_table_row, run_option_no_diff, read_path_option, export_settings, settings_to_dict, result_nochanged
+from collections import defaultdict
 
 import os
 
@@ -72,17 +105,112 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def run_option_local_account(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'username')
 
+def run_authorization_profile(option, run_opt):
+    profile = option['suboptions']['profile']
+    profile_path = f"{option['cli_path']}/profile"
+
+    #
+    # Step 1: Apply general settings and only system permissions
+    #
+
+    # Remove all manage device permissions
+    permissions_list = [
+        'manage_devices_permissions',
+        'manage_devices_general_settings',
+        'manage_devices_connection_settings',
+        'manage_devices_inbound_access_settings',
+        'manage_devices_management',
+        'manage_devices_logging',
+        'manage_devices_custom_fields',
+        'manage_devices_commands',
+        'manage_devices_outlets',
+        'manage_devices_sensor_channels']
+    permissions_dict = {}
+    for item in permissions_list:
+        if item in profile:
+            permissions_dict[item] = profile[item]
+            profile.pop(item, None)
+
+    # Update permissions
+    manage_devices_permissions_enabled = permissions_dict.get('manage_devices_permissions', 'no') == 'yes'
+    if manage_devices_permissions_enabled:
+        profile['configure_system'] = 'no'
+        profile['configure_user_accounts'] = 'no'
+    else:
+        profile = {**{'manage_devices_permissions': 'no'}, **profile}  # Add in the beginning
+
+    # Apply system permissions
+    option['settings'] = format_settings(profile_path,profile)
+    profile_result = run_option(option, run_opt)
+    if profile_result['failed']:
+        return profile_result
+
+    #
+    # Step 2: Apply manage devices permissions
+    #
+    if manage_devices_permissions_enabled:
+
+        # Export the current settings
+        state, exported_settings, exported_all_settings = export_settings(profile_path)
+        if "error" in state:
+            return result_failed(str(state[1]))
+        current_settings = settings_to_dict(exported_settings)[profile_path]
+
+        # diff settings
+        permissions_dict = {**{'manage_devices_permissions': 'yes'}, **permissions_dict}
+        for key, value in current_settings.items():
+            if key in permissions_dict and permissions_dict[key] == value:
+                permissions_dict.pop(key, None)
+
+        if len(permissions_dict) == 0:
+            return result_nochanged()
+
+        profile_result['changed'] = True
+
+        # Add manage devices permissions in a sigle line cli command
+        try:
+            timeout = run_opt['timeout'] if 'timeout' in run_opt else 60
+            cmd_cli = get_cli(timeout=timeout)
+            cmd_line = []
+            for key, value in permissions_dict.items():
+                cmd_line.append(f"{key}='{value}'")
+            cmds = [
+                {'cmd': f"cd {profile_path}"},
+                {'cmd': f"set {' '.join(cmd_line)}"},
+                {'cmd': 'commit'}
+            ]
+            cmd_results = []
+            for cmd in cmds:
+                cmd_result = execute_cmd(cmd_cli, cmd)
+                cmd_result['command'] = cmd.get('cmd')
+                cmd_results.append(cmd_result)
+                if cmd_result['error']:
+                    profile_result['failed'] = True
+                    profile_result['changed'] = False
+                    break
+            close_cli(cmd_cli)
+            profile_result['cmds_output'] = cmd_results
+        except Exception as exc:
+            return result_failed(str(exc))
+    return profile_result
+
 def run_option_authorization(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
-    settings_list = []
 
     field_name = 'name'
     if field_not_exist(suboptions, field_name):
         return result_failed(f"Field '{field_name}' is required")
 
-    cli_path += f"/{suboptions[field_name]}"
+    name = suboptions[field_name]
+    cli_path += f"/{name}"
+    option['cli_path'] = cli_path
     suboptions.pop(field_name, None)
+
+    all_results = dict(
+        changed = False,
+        failed = False,
+    )
 
     for key, value in suboptions.items():
 
@@ -93,17 +221,39 @@ def run_option_authorization(option, run_opt):
                 if field_exist(item, field_name):
                     device_name = item[field_name]
                     item.pop(field_name, None)
-                    settings_list.extend( format_settings(f"{cli_path}/{key}/{device_name}",item) )
+                    option['settings'] = format_settings(f"{cli_path}/{key}/{device_name}",item)
+                    result = run_option(option, run_opt)
+                    if result['failed']:
+                        return result
+                    all_results['devices'] = result
                 else:
                     return result_failed(f"Field '{key}/{field_name}' is required")
 
-        # profile, remote_groups
-        else:
-            settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
+        # profile
+        elif key == 'profile':
+            result = run_authorization_profile(option, run_opt)
+            if result['failed']:
+                return result
+            all_results['profile'] = result
 
-    option['cli_path'] = cli_path
-    option['settings'] = settings_list
-    return run_option(option, run_opt)
+        # remote_groups
+        elif key == 'remote_groups':
+            option['settings'] = format_settings(f"{cli_path}/{key}",value)
+            result = run_option(option, run_opt)
+            if result['failed']:
+                return result
+            all_results[key] = result
+
+        else:
+            return result_failed(f"Invalid authorization option key: '{key}'")
+
+    for key, value in all_results.items():
+        if type(value) is dict:
+            if value['changed']:
+                all_results['changed'] = True
+                break
+    return all_results
+
 
 def run_option_authentication(option, run_opt):
     suboptions = option['suboptions']

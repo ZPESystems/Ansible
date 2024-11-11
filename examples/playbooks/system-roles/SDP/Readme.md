@@ -2,23 +2,23 @@
 
 
 ## Executive Summary
-ZPE Systems provides an Out-of-Band (OOB) **Service Delivery Platform (SDP)** which is a novel solution that enables the management and deployment of Virtualized services in the form of Virtual Machines or Containers. The SDP solution provides an isolated framework that allows the configuration and instantiation of specialized services to further enhance the management and operations of your infrastructure. 
+ZPE Systems provides an Out-of-Band (OOB) **Service Delivery Platform (SDP)** which is a novel solution that enables the management and deployment of Virtualized services in the form of Virtual Machines or Containers. The SDP solution provides an isolated framework that allows the configuration and instantiation of specialized services to further enhance the OOB management and operations of your infrastructure. 
 
 # Introduction
-ZPE Systems focuses on Out-of-Band Network and Infrastructure Management solutions. It provides a variety of solutions that enables the management of your distributed infrastructure in a unified platform. Depending on your specific requirements, multiple hardware boxes have being designed in order to manage your infrastructure and network devices via, for example, serial console ports. All the boxes run the ZPE Nodegrid Operating System.
+ZPE Systems focuses on Out-of-Band Network and Infrastructure Management solutions. It provides a variety of solutions that enables the management of your distributed infrastructure in a unified platform. Depending on your specific requirements, multiple hardware boxes have being designed in order to manage your infrastructure and network devices via, for example, serial console ports. All the ZPE boxes run the *ZPE Nodegrid Operating System*.
 
 ZPE solutions have evolved from initially being focused on providing remote management access to Data Center infrastructure devices (e.g., servers and network devices' serial ports) to become a hybrid distributed solution that enables a platform for deploying services that can be specific and specialized for infrastructure management and operations. These services can be deployed in a virtualized environment via both virtual machines or containers.
 
 
 
 # ZPE Service Delivery Platform SDP
-The ZPE SDP solution focuses on providing DevOps teams an OOB platform to deploy specialized services for managing their infrastructure. This solution extends the remote management access capabilities to enhanced management operations by user defined services that are deployed close to the managed devices. These services can be deployed on different ZPE devices either as a virtual machine or a container.
+The ZPE SDP solution focuses on providing DevOps teams an OOB platform to deploy specialized services for managing their infrastructure. This solution extends the OOB remote management access capabilities to enhanced management operations by user-defined services that are deployed close to the managed devices. These services can be deployed on different ZPE devices either as a Virtual Machine or a Container.
 
-This document considers the case of deploying a service on a Nodegrid Device in the form of a virtual machine. The following requirements are taken into consideration:
+This document considers the case of deploying a service on a Nodegrid Device in the form of a Virtual Machine. The following requirements are taken into consideration:
 
 - Configure a brand new Nodegrid device, it includes its network connections, firewall, and hypervisor.
-- Deploy a list of Virtual Machines
-- All configurations are automated using Ansible
+- Deploy a Virtual Machine.
+- All configurations are automated using Ansible.
 
 ## SDP Example Use Case
 
@@ -28,7 +28,7 @@ The example considers the following scenario for the *Acme* company:
 
 - A ZPE GateSR device is used for OOB management, and it is required to deploy an specialized service on it.
 - The specialized service can be packaged and executed in a virtualized environment. For this example, a virtual machine is used.
-- The virtual machine requires specific network layout and configuration.
+- The virtual machine requires specific network layout and configuration in the hypervisor.
 
 The GateSR network interfaces and layout are as follows:
 - Two SFP interfaces
@@ -42,29 +42,29 @@ The following diagram shows the network layout:
 ![](figs/gatesr_switch.png)
 
 Based on the GateSR capabilities, the following picture depicts the desired virtualized service configuration. It considers the deployment of a **SilverPeak virtual machine** with an specific network layout:
-- Three WAN interfaces, which must be attached to the VM and provide IP-Passthrough (ADD REFERENCE).
-- A VM management VLAN
-- A Nodegrid management VLAN (vlan_id 254). It interconnects the following interfaces: bacplane1.254 (VLAN interface), and netS8 (untagged). 
-- WAN VLAN (vlan_id 250). It interconnects the following interfaces: bacplane1.200 (VLAN interface), and netS7 (untagged). 
-- A local VLAN (vlan_id 1). This is the default VLAN. It interconnects the netS6 interface (untagged)
-- A local VLAN (vlan_id 2). It interconnects the following interfaces: bacplane0.2 (VLAN interface), and netS1, netS2, netS3, netS4, netS5 (all untagged). 
+- Three WAN interfaces, which must be attached to the VM and provide IP-Passthrough.
+- A management LAN *MGMT0* with Internet access. A **dhcp** service must be configured to serve IPs on the network `192.168.11.0/24`, and the appropiate firewall/NAT rules.
+- A Nodegrid management VLAN (`vlan_id 254`) *MGMT1*. It interconnects the following interfaces: `bacplane1.254` (VLAN interface), and `netS8` (untagged). A **dhcp** service must be configured to serve IPs on the network `192.168.10.0/24`.
+- WAN VLAN (`vlan_id 200`). It interconnects the following interfaces: `bacplane1.200` (VLAN interface), and `netS7` (untagged). 
+- A local VLAN (`vlan_id 1`). This is the default VLAN. It interconnects the `netS6` interface (untagged)
+- A local VLAN (`vlan_id 2`). It interconnects the following interfaces: `bacplane0.2` (VLAN interface), and `netS1`, `netS2`, `netS3`, `netS4`, `netS5` (all untagged). 
 
 The following network bridges are considered:
 
 | Bridge Connection | Attached Interfaces |
 |:---|:---|
 | MGMT0 (br0) | VM |
-| WAN0 (br1) | VM, ETH0 |
-| WAN1 (br2) | VM, backplane1.200 |
-| WAN2 (br3) | VM, wlan0 |
-| LAN0 (br4) | VM, backplane0.2 |
-| MGMT1 (br0) | backplane1.254 |
+| WAN0 (br1) | VM, `ETH0` |
+| WAN1 (br2) | VM, `backplane1.200` |
+| WAN2 (br3) | VM, `wlan0` |
+| LAN0 (br4) | VM, `backplane0.2` |
+| MGMT1 (br0) | `backplane1.254` |
 
 
 ![](figs/diagram.png)
 
 
-This guide assumes that the GateSR device is used as an Ansible host that will provision itself. The Guide assumes that only a minimal configuration was performed on the appliance and that the devices is provisioned with multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
+This guide assumes that the GateSR device is used as an Ansible host that will provision itself. It also assumes that only a minimal configuration was performed and that the device is provisioned with multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
 
 
 ## Configuration Process to be followed
@@ -712,25 +712,32 @@ nodegrid_hostname: ng-gatesr1
 
 # Nodegrid Network Connections:  (REQUIRED)
 network_connections:
-- name: VLAN254  # not editable
-  type: vlan  # not editable
+- name: VLAN2
+  type: vlan
   ethernet_interface: backplane0
-  vlan_id: 254 
+  vlan_id: 2
+  description: "vlan2"
+  set_as_primary_connection: 'no'
+  block_unsolicited_incoming_packets: 'no'
+  enable_ip_passthrough: 'no'
+  ipv4_mode: no_ipv4_address # dhcp, no_ipv4_address, static
+- name: VLAN254
+  type: vlan
+  ethernet_interface: backplane1
+  vlan_id: 254
   description: "vlan254"
   set_as_primary_connection: 'no'
   block_unsolicited_incoming_packets: 'no'
-  #ethernet_link_mode: auto  # not editable
   enable_ip_passthrough: 'no'
-  ipv4_mode: dhcp # dhcp no_ipv4_address static
-  #enable_lldp: "no"
+  ipv4_mode: no_ipv4_address # dhcp, no_ipv4_address, static
 - name: MGMT0
-  type: bridge # analog_modem, bonding, bridge, ethernet, loopback, mobile_broadband_gsm, pppoe, vlan, wifi
-  description: 'MGMT PORT' 
+  type: bridge
+  description: 'MGMT0 bridge' 
   bridge_interfaces: lo1
   enable_lldp: 'no'
   bridge_mac_configuration: bridge_custom_mac
   enable_spanning_tree_protocol: "no"
-  ipv4_mode: static # dhcp no_ipv4_address static
+  ipv4_mode: static
   ipv4_address: 192.168.11.1
   ipv4_bitmask: 24
   ipv4_default_route_metric: 425
@@ -740,9 +747,9 @@ network_connections:
   ipv6_ignore_obtained_default_gateway: 'no'
   ipv6_ignore_obtained_dns_server: 'no'
 - name: MGMT1
-  type: bridge # analog_modem, bonding, bridge, ethernet, loopback, mobile_broadband_gsm, pppoe, vlan, wifi
-  description: 'MGMT lanbrd' 
-  bridge_interfaces: lan1
+  type: bridge
+  description: 'MGMT1 lanbrd' 
+  bridge_interfaces: backplane0.2
   enable_lldp: 'no'
   bridge_mac_configuration: bridge_custom_mac
   enable_spanning_tree_protocol: "no"
@@ -756,82 +763,78 @@ network_connections:
   ipv6_ignore_obtained_dns_server: 'no'
 - name: LAN0
   type: bridge
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  description: 'LAN' 
-  bridge_interfaces: backplane0
+  description: "LAN0 bridge"
+  bridge_interfaces: backplane1.254
   enable_lldp: "no"
   enable_spanning_tree_protocol: "no"
+  ipv4_mode: no_ipv4_address
 - name: WAN0
   type: bridge
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  description: 'wan0 bridge' 
-  bridge_interfaces: lo1
+  ipv4_mode: no_ipv4_address
+  description: "WAN0 bridge" 
+  bridge_interfaces: "wlan0"
   enable_lldp: "no"
   enable_spanning_tree_protocol: "no"
 - name: WAN1
   type: bridge
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  description: "wan1 bridge"
+  ipv4_mode: no_ipv4_address
+  description: "WAN1 bridge"
   bridge_interfaces: lo1
   enable_lldp: "no"
   enable_spanning_tree_protocol: "no"
-- name: SFP0
+- name: ETH0
   type: ethernet
-  description: "wan1"
+  description: "ETH0 connection"
   connect_automatically: "yes"
-  ethernet_interface: sfp0
-  set_as_primary_connection: "no"
+  ethernet_interface: eth0
+  set_as_primary_connection: "yes"
   enable_lldp: "no"
   block_unsolicited_incoming_packets: "no"
   configure_hostname_through_dhcp: "no"
   ethernet_link_mode: auto
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server: ""
-  ipv4_dns_search: ""
+  ipv4_mode: dhcp
   ipv4_default_route_metric: 100
-  ipv4_ignore_obtained_default_gateway: "no"
-  ipv4_ignore_obtained_dns_server: "no"
   ipv6_mode: no_ipv6_address
-  ipv6_dns_server: ""
-  ipv6_dns_search: ""
-  ipv6_default_route_metric: 100
-  ipv6_ignore_obtained_default_gateway: "no"
-  ipv6_ignore_obtained_dns_server: "no"
   enable_ip_passthrough: "yes"
   ethernet_connection: WAN0
-- name: SFP1
-  type: ethernet
-  description: "wan2"
+- name: VLAN200
+  type: vlan
+  ethernet_interface: backplane1
+  vlan_id: 200
+  description: "vlan200"
+  set_as_primary_connection: 'no'
+  block_unsolicited_incoming_packets: 'no'
+  ipv4_mode: dhcp
+  ipv4_default_route_metric: 200
+  enable_ip_passthrough: 'yes'
+  ethernet_connection: WAN1
+- name: wlan0
+  type: wifi
+  description: "wlan0 connection"
   connect_automatically: "yes"
-  ethernet_interface: sfp1
-  set_as_primary_connection: "no"
+  ethernet_interface: wlan0
+  set_as_primary_connection: "yes"
   enable_lldp: "no"
   block_unsolicited_incoming_packets: "no"
-  configure_hostname_through_dhcp: "no"
-  ethernet_link_mode: auto
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server: ""
-  ipv4_dns_search: ""
-  ipv4_default_route_metric: 100
-  ipv4_ignore_obtained_default_gateway: "no"
-  ipv4_ignore_obtained_dns_server: "no"
-  ipv6_mode: no_ipv6_address
-  ipv6_dns_server: ""
-  ipv6_dns_search: ""
-  ipv6_default_route_metric: 100
-  ipv6_ignore_obtained_default_gateway: "no"
-  ipv6_ignore_obtained_dns_server: "no"
+  ipv4_mode: dhcp
+  ipv4_default_route_metric: 300
   enable_ip_passthrough: "yes"
-  ethernet_connection: WAN1
+  ethernet_connection: WAN2
 
 switch:
   vlans:
-    - vlan: '200'
+    - vlan: '1'
       tagged_ports: "" # comma separated list
-      untagged_ports: "backplane0,netS2,netS3,netS4,netS5,netS6,netS7" # comma separated list
+      untagged_ports: "netS6" # comma separated list
+    - vlan: '2'
+      tagged_ports: "backplane0"
+      untagged_ports: "netS1,netS2,netS3,netS4,netS5"
+    - vlan: '200'
+      tagged_ports: "backplane1"
+      untagged_ports: "netS7"
     - vlan: '254'
-      tagged_ports: "netS8" # comma separated list
-      untagged_ports: "" # comma separated list
+      tagged_ports: "backplane1"
+      untagged_ports: "netS8"
 
   interfaces:
     - interface: 'netS1'
@@ -842,7 +845,6 @@ switch:
   backplane:
     backplane0_port_vlan_id: '1'
     backplane1_port_vlan_id: '200'
-  
 
 virtual_machines:
   - name: nextGenFW
@@ -864,11 +866,15 @@ virtual_machines:
         #  - copy_file_to_remote: copies the local file 'file_source' to the target node path 'file'
         type: copy_local_file
 
+    # Bridge connections (ordered list)
     network_bridges:
       - MGMT0
       - WAN0
       - WAN1
+      - WAN2
       - LAN0
+
+    # Cloud Init config (limited support, only ssh_public_key definition)
     cloud_init:
       ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
       iso_file: nextGenFWinit.iso

@@ -163,7 +163,7 @@ class ActionModule(ActionBase):
         if prompt == PromptType.CLI:
             conn_obj.sendline('shell')
             self._expect_for(conn_obj, [':~$ ', ':~# '])
-        
+
         conn_obj.sendline("passwd")
 
         for cnt in range(10):
@@ -229,6 +229,20 @@ class ActionModule(ActionBase):
         self._expect_for(conn_obj, [':~$ ', ':~# '])
         conn_obj.sendline(f"chmod 700 /home/{ssh_key_user}/.ssh")
         self._expect_for(conn_obj, [':~$ ', ':~# '])
+
+        # Check if the ssh key is already installed
+        conn_obj.sendline(f"grep -q '{ssh_key}' /home/{ssh_key_user}/.ssh/authorized_keys ; echo $?")
+        ret = self._expect_for(conn_obj, ['0', '1', ':~$ ', ':~# '])
+        if ret == 0:
+            display.vvv(f"SSH key already installed")
+            self._expect_for(conn_obj, [':~$ ', ':~# '])
+            conn_obj.sendline('exit')
+            self._expect_for(conn_obj, ['/]# ', ':~$ ', ':~# '])
+            return False
+        if ret == 1:
+            display.vvv(f"SSH key is not installed")
+            self._expect_for(conn_obj, [':~$ ', ':~# '])
+
         conn_obj.sendline(f"echo '{ssh_key_type} {ssh_key} {comment}' >> /home/{ssh_key_user}/.ssh/authorized_keys")
         self._expect_for(conn_obj, [':~$ ', ':~# '])
         conn_obj.sendline(f"chmod 600 /home/{ssh_key_user}/.ssh/authorized_keys")
@@ -250,13 +264,28 @@ class ActionModule(ActionBase):
                 conn_obj.sendline(f'sudo su -')
             self._expect_for(conn_obj, [':~$ ', ':~# '])
 
+        # Check if sudo permissions is granted
+        conn_obj.sendline(f"[ -f /etc/sudoers.d/{sudo_user} ] ; echo $?")
+        ret = self._expect_for(conn_obj, ['0', '1', ':~$ ', ':~# '])
+        if ret == 0:
+            display.vvv(f"Sudo permissions already granted")
+            self._expect_for(conn_obj, [':~$ ', ':~# '])
+            if prompt != PromptType.ROOT_SHELL:
+                conn_obj.sendline('exit')
+                self._expect_for(conn_obj, ['/]# ', ':~$ ', ':~# '])
+            return False
+        if ret == 1:
+            display.vvv(f"Sudo permissions is not granted")
+            self._expect_for(conn_obj, [':~$ ', ':~# '])
+
         conn_obj.sendline(f"echo '{sudo_user} ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/{sudo_user}")
         self._expect_for(conn_obj, [':~$ ', ':~# '])
         conn_obj.sendline(f"chmod 600 /etc/sudoers.d/{sudo_user}")
         self._expect_for(conn_obj, [':~$ ', ':~# '])
-        
-        conn_obj.sendline('exit')
-        self._expect_for(conn_obj, ['/]# ', ':~$ ', ':~# '])
+
+        if prompt != PromptType.ROOT_SHELL:
+            conn_obj.sendline('exit')
+            self._expect_for(conn_obj, ['/]# ', ':~$ ', ':~# '])
 
         display.vvv(f"Sudo access granted")
         return True
@@ -415,6 +444,7 @@ class ActionModule(ActionBase):
 
             # Login
             conn_obj = pexpect.spawn(cmd, encoding="utf-8")
+            conn_obj.setecho(False)
             prompt, password_changed, password = self._login(conn_obj, password, new_password)
 
             # Change password

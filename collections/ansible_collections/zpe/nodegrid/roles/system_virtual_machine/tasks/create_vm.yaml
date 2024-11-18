@@ -36,6 +36,7 @@
   ansible.builtin.copy:
     src: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
     dest: "{{ libvirt_resources_path }}/{{ images }}/{{ item.file_name }}"
+    remote_src: true
   loop: "{{ vm.disks | list }}"
   when: "'disks' in vm"
     

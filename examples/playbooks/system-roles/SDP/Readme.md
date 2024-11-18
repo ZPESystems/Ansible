@@ -4,6 +4,10 @@
 ## Executive Summary
 ZPE Systems provides an Out-of-Band (OOB) **Service Delivery Platform (SDP)** which is a novel solution that enables the management and deployment of Virtualized services in the form of Virtual Machines or Containers. The SDP solution provides an isolated framework that allows the configuration and instantiation of specialized services to further enhance the OOB management and operations of your infrastructure. 
 
+# Content
+
+[TOC]
+
 # Introduction
 ZPE Systems focuses on Out-of-Band Network and Infrastructure Management solutions. It provides a variety of solutions that enables the management of your distributed infrastructure in a unified platform. Depending on your specific requirements, multiple hardware boxes have being designed in order to manage your infrastructure and network devices via, for example, serial console ports. All the ZPE boxes run the *ZPE Nodegrid Operating System*.
 
@@ -31,45 +35,60 @@ The example considers the following scenario for the *Acme* company:
 - The virtual machine requires specific network layout and configuration in the hypervisor.
 
 The GateSR network interfaces and layout are as follows:
-- Two SFP interfaces
-- 1 ETH0 interface
-- 1 Switch
-  - 8 Ethernet ports (i.e., netS1, netS2, ..., netS8)
-  - 2 Backplane ports (i.e., backplane0, and backplane1)
+- Two SFP interfaces (i.e., `spf0` and `sfp1`)
+- 1 ETH0 interface (i.e., `eth0`)
+- 10-Ports configurable switch
+  - 8 external ports (i.e., `netS1`, `netS2`, `netS3`, `netS4`, `netS5`, `netS6`, `netS7`, `netS8`)
+  - 2 internal (backplane) ports (i.e., `backplane0`, and `backplane1`)
 
 The following diagram shows the network layout:
 
 ![](figs/gatesr_switch.png)
 
 Based on the GateSR capabilities, the following picture depicts the desired virtualized service configuration. It considers the deployment of a **SilverPeak virtual machine** with an specific network layout:
-- Three WAN interfaces, which must be attached to the VM and provide IP-Passthrough.
-- A management LAN *MGMT0* with Internet access. A **dhcp** service must be configured to serve IPs on the network `192.168.11.0/24`, and the appropiate firewall/NAT rules.
-- A Nodegrid management VLAN (`vlan_id 254`) *MGMT1*. It interconnects the following interfaces: `bacplane1.254` (VLAN interface), and `netS8` (untagged). A **dhcp** service must be configured to serve IPs on the network `192.168.10.0/24`.
-- WAN VLAN (`vlan_id 200`). It interconnects the following interfaces: `bacplane1.200` (VLAN interface), and `netS7` (untagged). 
-- A local VLAN (`vlan_id 1`). This is the default VLAN. It interconnects the `netS6` interface (untagged)
-- A local VLAN (`vlan_id 2`). It interconnects the following interfaces: `bacplane0.2` (VLAN interface), and `netS1`, `netS2`, `netS3`, `netS4`, `netS5` (all untagged). 
-
-The following network bridges are considered:
-
-| Bridge Connection | Attached Interfaces |
-|:---|:---|
-| MGMT0 (br0) | VM |
-| WAN0 (br1) | VM, `ETH0` |
-| WAN1 (br2) | VM, `backplane1.200` |
-| WAN2 (br3) | VM, `wlan0` |
-| LAN0 (br4) | VM, `backplane0.2` |
-| MGMT1 (br0) | `backplane1.254` |
-
 
 ![](figs/diagram.png)
 
+### Network Connections
+- Three WAN connections configured with IP-Passthrough
 
-This guide assumes that the GateSR device is used as an Ansible host that will provision itself. It also assumes that only a minimal configuration was performed and that the device is provisioned with multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
+| Connection Name | Type | Interface | IP-Passthrough to Connection | Comments |
+|---|-----|-----|----|---|
+|`ETH0` | ethernet | `eth0` | `WAN0` | |
+|`VLAN200` | vlan | `backplane1` | `WAN1`| `vlan_id`=200 |
+|`wlan0` | WiFi | `wlan0` | `WAN2` | |
+
+
+- Six BRIDGE connections (*Note: the connection name is defined/understood from the VM perspective*)
+
+| Connection Name | Type | Bridge Interfaces | IP address | Comments |
+|---|-----|-----|----|--- | 
+|`WAN0` | bridge | | | Provides direct WAN access to the VM |
+|`WAN1` | bridge | | | Provides direct WAN access to the VM |
+|`WAN2` | bridge | | | Provides direct WAN access to the VM |
+|`LAN0` | bridge | `backplane.2` |  |Provides LAN access to the VM on VLAN `vlan_id=2` |
+|`MGMT0` | bridge | | `192.168.11.1/24` |Provides Management and Internet access to the VM (NATed LAN) |
+|`MGMT1` | bridge | `backplane1.254` | `192.168.10.1/24` | Nodegrid Management VLAN `vlan_id=254` |
+
+### Switch Configuration
+
+The following table defines the VLAN configuration on the switch:
+
+| VLAN | Tagged Ports | Untagged Ports | Comments |
+|---|---|---|---|
+| 1 |  | `netS6`  |  |
+| 2 | `backplane0` |  `netS1`, `netS2`, `netS3`, `netS4`, `netS5` |  |
+| 200 | `backplane1` | `netS7`  |  |
+| 254 | `backplane1`  | `netS8`  |  |
+
+
 
 
 ## Configuration Process to be followed
 
-## Step 1: Download Ansible Library
+This guide assumes that the GateSR device is used as an Ansible host that will provision itself. It also assumes that only a minimal configuration was performed and that the device has multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
+
+### Step 1: Download Ansible Library
 - Download Ansible Library from https://github.com/ZPESystems/Ansible
 	- Click on Code and select "Download ZIP"
 
@@ -117,7 +136,7 @@ Archive:  Ansible-main.zip
   inflating: Ansible-wireguard/build.py
    creating: Ansible-wireguard/collections/
 ```
-## Step 2: Install Ansible Library
+### Step 2: Install Ansible Library
 
 - In an **admin shell**, navigate to the downloaded library directory 
 ```bash
@@ -235,8 +254,8 @@ localhost                  : ok=2    changed=0    unreachable=0    failed=0    s
 ```
 - The Ansible Nodegrid Library has been successfully installed. The next step is to define the `inventory.yaml` file, which is a **strict requirement for the SDP use case**.
 
-## Step 3: Build the Ansible Inventory
-### Overview
+### Step 3: Build the Ansible Inventory
+#### Overview
 This step is critical, as these settings will be used as a source of truth for all appliances and will determine which settings get applied to each system. The Inventory should match the designed layout. The following section outlines a few basic concepts. For more information about the Ansible Inventory option, see [How to Build Your Inventory](https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html)
 
 Inventory Overview
@@ -258,7 +277,7 @@ Inventory Overview
 > 3. **ZPE Cloud plugin**: This plugin enables the execution of Ansible playbooks via ZPE Cloud as the connector, and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. [Ansible ZPE Cloud](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) describes in detail this plugin.
 ---
 
-### Inventory Structure
+#### Inventory Structure
 Configure the Inventory
 
 1. Navigate to the Inventory folder
@@ -366,7 +385,7 @@ ansible@ng-gatesr1:/etc/ansible/inventories$ ansible-inventory --host ng-gatesr1
 > 
 >  The inventory output for the specific host is currently still empty as no variables have been defined. This will be done during the following steps.
 
-### Group Variables
+#### Group Variables
 - Variables can be stored in the `hosts.yaml` file or in dedicated variable files, which are stored in the `group_vars` sub-folders. 
 
 > [!Tip]
@@ -678,7 +697,7 @@ ansible@ng-gatesr1:/etc/ansible/inventories/group_vars$ ansible-inventory --host
     ...
 }
 ```
-### Host Specific Variables (`ng-gatesr1`)
+#### Host Specific Variables (`ng-gatesr1`)
 - Host-specific variables can be stored either in the `hosts.yaml` file, or similar to group variables in individual files. 
   
 > [!Tip]
@@ -712,24 +731,7 @@ nodegrid_hostname: ng-gatesr1
 
 # Nodegrid Network Connections:  (REQUIRED)
 network_connections:
-- name: VLAN2
-  type: vlan
-  ethernet_interface: backplane0
-  vlan_id: 2
-  description: "vlan2"
-  set_as_primary_connection: 'no'
-  block_unsolicited_incoming_packets: 'no'
-  enable_ip_passthrough: 'no'
-  ipv4_mode: no_ipv4_address # dhcp, no_ipv4_address, static
-- name: VLAN254
-  type: vlan
-  ethernet_interface: backplane1
-  vlan_id: 254
-  description: "vlan254"
-  set_as_primary_connection: 'no'
-  block_unsolicited_incoming_packets: 'no'
-  enable_ip_passthrough: 'no'
-  ipv4_mode: no_ipv4_address # dhcp, no_ipv4_address, static
+# BRIDGE CONNECTIONS
 - name: MGMT0
   type: bridge
   description: 'MGMT0 bridge' 
@@ -782,6 +784,7 @@ network_connections:
   bridge_interfaces: lo1
   enable_lldp: "no"
   enable_spanning_tree_protocol: "no"
+# Nodegrid WAN interfaces: IP-Passthrough configuration
 - name: ETH0
   type: ethernet
   description: "ETH0 connection"
@@ -796,7 +799,7 @@ network_connections:
   ipv4_default_route_metric: 100
   ipv6_mode: no_ipv6_address
   enable_ip_passthrough: "yes"
-  ethernet_connection: WAN0
+  ethernet_connection: WAN0  # IP-Passthrough to WAN0 bridge connection
 - name: VLAN200
   type: vlan
   ethernet_interface: backplane1
@@ -807,7 +810,7 @@ network_connections:
   ipv4_mode: dhcp
   ipv4_default_route_metric: 200
   enable_ip_passthrough: 'yes'
-  ethernet_connection: WAN1
+  ethernet_connection: WAN1 # IP-Passthrough to WAN1 bridge connection
 - name: wlan0
   type: wifi
   description: "wlan0 connection"
@@ -819,8 +822,9 @@ network_connections:
   ipv4_mode: dhcp
   ipv4_default_route_metric: 300
   enable_ip_passthrough: "yes"
-  ethernet_connection: WAN2
+  ethernet_connection: WAN2 # IP-Passthrough to WAN2 bridge connection
 
+# Switch configuration
 switch:
   vlans:
     - vlan: '1'
@@ -853,20 +857,20 @@ virtual_machines:
     cpu:
       count: 2
     disks:
-        # VM disk file path on target device (used in the KVM domain)
+        # VM disk file name on the target device (used in the KVM domain)
       - file_name: nextGenFWdisk1.qcow2 
         # VM disk file source (e.g., URL or file path in the target node or control node)
         file_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/files/nextGenFWdisk.qcow2 
         # VM file disk name on the cache directory
         file_cache_name: nextGenFWdisk.qcow2
         # VM file disk copy method: defines how to get the disk
+        type: copy_local_file
         #  - local_file: it does not copy any disk file. It assumes that the 'file' path exists.
         #  - url: URL to download the qcow2 file and saves it to the 'file' path
         #  - copy_local_file: copies the file 'file_source' to the 'file' path (both paths are in the target node)
         #  - copy_file_to_remote: copies the local file 'file_source' to the target node path 'file'
-        type: copy_local_file
 
-    # Bridge connections (ordered list)
+    # Nodegrid Bridge Connections (ordered list)
     network_bridges:
       - MGMT0
       - WAN0
@@ -876,7 +880,9 @@ virtual_machines:
 
     # Cloud Init config (limited support, only ssh_public_key definition)
     cloud_init:
+      # SSH public key
       ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
+      # ISO file name 
       iso_file: nextGenFWinit.iso
 ```
 
@@ -904,12 +910,12 @@ ng-gatesr1 | SUCCESS => {
 }
 ```
 
-## Step 4: Configure Nodegrid on Local System
+### Step 4: Configure Nodegrid
 At this point, everything is ready to configure the GateSR SDP use case. If we want to change any configurations in future, we only have to adjust the inventory variables, and the changes will be on the next run applied to all of the specific systems.
 
 To push the configuration, use the following commands.
 
-### Setup the Network
+#### Setup the Network
 - Navigate to the playbooks folder.
 ```shell
 cd /etc/ansible/playbooks/
@@ -937,7 +943,7 @@ ng-gatesr1                     : ok=26   changed=18   unreachable=0    failed=0 
 
 - The network configuration is now in place.
 
-### Setup the VM
+#### Setup the VM
 - Install Ansible community libvirt
 
 ```bash
@@ -972,7 +978,7 @@ total 1.1G
 ```
 - The VM is now deployed and running on the GateSR.
 
-# Final Result
+## Final Result
 
 The following pictures show the VM instantiated on the GateSR:
 

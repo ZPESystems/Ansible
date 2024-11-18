@@ -186,6 +186,7 @@ def run_authorization_profile(option, run_opt):
                 cmd_results.append(cmd_result)
                 if cmd_result['error']:
                     profile_result['failed'] = True
+                    profile_result['msg'] = cmd_result['json']
                     profile_result['changed'] = False
                     break
             close_cli(cmd_cli)

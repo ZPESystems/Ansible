@@ -7,25 +7,15 @@ nodegrid_hostname: ng-gatesr1
 
 # Nodegrid Network Connections:  (REQUIRED)
 network_connections:
-- name: VLAN254  # not editable
-  type: vlan  # not editable
-  ethernet_interface: backplane0
-  vlan_id: 254 
-  description: "vlan254"
-  set_as_primary_connection: 'no'
-  block_unsolicited_incoming_packets: 'no'
-  #ethernet_link_mode: auto  # not editable
-  enable_ip_passthrough: 'no'
-  ipv4_mode: dhcp # dhcp no_ipv4_address static
-  #enable_lldp: "no"
+# BRIDGE CONNECTIONS
 - name: MGMT0
-  type: bridge # analog_modem, bonding, bridge, ethernet, loopback, mobile_broadband_gsm, pppoe, vlan, wifi
-  description: 'MGMT PORT' 
+  type: bridge
+  description: 'MGMT0 bridge' 
   bridge_interfaces: lo1
   enable_lldp: 'no'
   bridge_mac_configuration: bridge_custom_mac
   enable_spanning_tree_protocol: "no"
-  ipv4_mode: static # dhcp no_ipv4_address static
+  ipv4_mode: static
   ipv4_address: 192.168.11.1
   ipv4_bitmask: 24
   ipv4_default_route_metric: 425
@@ -35,9 +25,9 @@ network_connections:
   ipv6_ignore_obtained_default_gateway: 'no'
   ipv6_ignore_obtained_dns_server: 'no'
 - name: MGMT1
-  type: bridge # analog_modem, bonding, bridge, ethernet, loopback, mobile_broadband_gsm, pppoe, vlan, wifi
-  description: 'MGMT lanbrd' 
-  bridge_interfaces: lan1
+  type: bridge
+  description: 'MGMT1 lanbrd' 
+  bridge_interfaces: backplane0.2
   enable_lldp: 'no'
   bridge_mac_configuration: bridge_custom_mac
   enable_spanning_tree_protocol: "no"
@@ -51,82 +41,80 @@ network_connections:
   ipv6_ignore_obtained_dns_server: 'no'
 - name: LAN0
   type: bridge
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  description: 'LAN' 
-  bridge_interfaces: backplane0
+  description: "LAN0 bridge"
+  bridge_interfaces: backplane1.254
   enable_lldp: "no"
   enable_spanning_tree_protocol: "no"
+  ipv4_mode: no_ipv4_address
 - name: WAN0
   type: bridge
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  description: 'wan0 bridge' 
-  bridge_interfaces: lo1
+  ipv4_mode: no_ipv4_address
+  description: "WAN0 bridge" 
+  bridge_interfaces: "wlan0"
   enable_lldp: "no"
   enable_spanning_tree_protocol: "no"
 - name: WAN1
   type: bridge
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  description: "wan1 bridge"
+  ipv4_mode: no_ipv4_address
+  description: "WAN1 bridge"
   bridge_interfaces: lo1
   enable_lldp: "no"
   enable_spanning_tree_protocol: "no"
-- name: SFP0
+# Nodegrid WAN interfaces: IP-Passthrough configuration
+- name: ETH0
   type: ethernet
-  description: "wan1"
+  description: "ETH0 connection"
   connect_automatically: "yes"
-  ethernet_interface: sfp0
-  set_as_primary_connection: "no"
+  ethernet_interface: eth0
+  set_as_primary_connection: "yes"
   enable_lldp: "no"
   block_unsolicited_incoming_packets: "no"
   configure_hostname_through_dhcp: "no"
   ethernet_link_mode: auto
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server: ""
-  ipv4_dns_search: ""
+  ipv4_mode: dhcp
   ipv4_default_route_metric: 100
-  ipv4_ignore_obtained_default_gateway: "no"
-  ipv4_ignore_obtained_dns_server: "no"
   ipv6_mode: no_ipv6_address
-  ipv6_dns_server: ""
-  ipv6_dns_search: ""
-  ipv6_default_route_metric: 100
-  ipv6_ignore_obtained_default_gateway: "no"
-  ipv6_ignore_obtained_dns_server: "no"
   enable_ip_passthrough: "yes"
-  ethernet_connection: WAN0
-- name: SFP1
-  type: ethernet
-  description: "wan2"
+  ethernet_connection: WAN0  # IP-Passthrough to WAN0 bridge connection
+- name: VLAN200
+  type: vlan
+  ethernet_interface: backplane1
+  vlan_id: 200
+  description: "vlan200"
+  set_as_primary_connection: 'no'
+  block_unsolicited_incoming_packets: 'no'
+  ipv4_mode: dhcp
+  ipv4_default_route_metric: 200
+  enable_ip_passthrough: 'yes'
+  ethernet_connection: WAN1 # IP-Passthrough to WAN1 bridge connection
+- name: wlan0
+  type: wifi
+  description: "wlan0 connection"
   connect_automatically: "yes"
-  ethernet_interface: sfp1
-  set_as_primary_connection: "no"
+  ethernet_interface: wlan0
+  set_as_primary_connection: "yes"
   enable_lldp: "no"
   block_unsolicited_incoming_packets: "no"
-  configure_hostname_through_dhcp: "no"
-  ethernet_link_mode: auto
-  ipv4_mode: no_ipv4_address # dhcp no_ipv4_address static
-  ipv4_dns_server: ""
-  ipv4_dns_search: ""
-  ipv4_default_route_metric: 100
-  ipv4_ignore_obtained_default_gateway: "no"
-  ipv4_ignore_obtained_dns_server: "no"
-  ipv6_mode: no_ipv6_address
-  ipv6_dns_server: ""
-  ipv6_dns_search: ""
-  ipv6_default_route_metric: 100
-  ipv6_ignore_obtained_default_gateway: "no"
-  ipv6_ignore_obtained_dns_server: "no"
+  ipv4_mode: dhcp
+  ipv4_default_route_metric: 300
   enable_ip_passthrough: "yes"
-  ethernet_connection: WAN1
+  ethernet_connection: WAN2 # IP-Passthrough to WAN2 bridge connection
 
+# Switch configuration
 switch:
   vlans:
-    - vlan: '200'
+    - vlan: '1'
       tagged_ports: "" # comma separated list
-      untagged_ports: "backplane0,netS2,netS3,netS4,netS5,netS6,netS7" # comma separated list
+      untagged_ports: "netS6" # comma separated list
+    - vlan: '2'
+      tagged_ports: "backplane0"
+      untagged_ports: "netS1,netS2,netS3,netS4,netS5"
+    - vlan: '200'
+      tagged_ports: "backplane1"
+      untagged_ports: "netS7"
     - vlan: '254'
-      tagged_ports: "netS8" # comma separated list
-      untagged_ports: "" # comma separated list
+      tagged_ports: "backplane1"
+      untagged_ports: "netS8"
 
   interfaces:
     - interface: 'netS1'
@@ -137,47 +125,39 @@ switch:
   backplane:
     backplane0_port_vlan_id: '1'
     backplane1_port_vlan_id: '200'
-  
 
 virtual_machines:
-  - name: nexGenFW
+  - name: nextGenFW
     ram:  
       size: 2048 # size in MB
     cpu:
       count: 2
     disks:
-        # VM disk file path on target device (used in the KVM domain)
-      - file_name: vmansible.qcow2 
+        # VM disk file name on the target device (used in the KVM domain)
+      - file_name: nextGenFWdisk1.qcow2 
         # VM disk file source (e.g., URL or file path in the target node or control node)
         file_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/files/nextGenFWdisk.qcow2 
+        # VM file disk name on the cache directory
         file_cache_name: nextGenFWdisk.qcow2
-        # Defines how to get the disk:
+        # VM file disk copy method: defines how to get the disk
+        type: copy_local_file
         #  - local_file: it does not copy any disk file. It assumes that the 'file' path exists.
         #  - url: URL to download the qcow2 file and saves it to the 'file' path
         #  - copy_local_file: copies the file 'file_source' to the 'file' path (both paths are in the target node)
         #  - copy_file_to_remote: copies the local file 'file_source' to the target node path 'file'
-        type: copy_local_file
+
+    # Nodegrid Bridge Connections (ordered list)
     network_bridges:
       - MGMT0
       - WAN0
       - WAN1
+      - WAN2
       - LAN0
+
+    # Cloud Init config (limited support, only ssh_public_key definition)
     cloud_init:
+      # SSH public key
       ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
-      iso_filename: seed1.iso
-  - name: debianVM
-    ram:  
-      size: 2048 # size in MB
-    cpu:
-      count: 2
-    disks:
-      - file_name: /var/lib/libvirt/images/debian.qcow2 
-        file_source: https://cdimage.debian.org/cdimage/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2
-        file_cache_name: debian-sid-generic-amd64-daily.qcow2 
-        type: url 
-    network_bridges:
-      - MGMT0
-    cloud_init:
-      ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
-      iso_filename: seed2.iso
+      # ISO file name 
+      iso_file: nextGenFWinit.iso
 

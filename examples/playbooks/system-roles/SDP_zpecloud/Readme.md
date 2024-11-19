@@ -2,25 +2,29 @@
 
 
 ## Executive Summary
-ZPE Systems provides an Out-of-Band (OOB) **Service Delivery Platform (SDP)** which is a novel solution that enables the management and deployment of Virtualized services in the form of Virtual Machines or Containers. The SDP solution provides an isolated framework that allows the configuration and instantiation of specialized services to further enhance the OOB management and operations of your infrastructure. 
+ZPE Systems provides an Out-of-Band (OOB) **Service Delivery Platform (SDP)** which is a novel solution that enables the management and deployment of Virtualized services in the form of Virtual Machines or Containers. The SDP solution provides an isolated framework that allows the configuration and instantiation of specialized services to further enhance the OOB management and operations of your infrastructure. The deployment of such services is automated using Ansible and ZPE Cloud.
 
 # Introduction
 ZPE Systems focuses on Out-of-Band Network and Infrastructure Management solutions. It provides a variety of solutions that enables the management of your distributed infrastructure in a unified platform. Depending on your specific requirements, multiple hardware boxes have being designed in order to manage your infrastructure and network devices via, for example, serial console ports. All the ZPE boxes run the *ZPE Nodegrid Operating System*.
 
-ZPE solutions have evolved from initially being focused on providing remote management access to Data Center infrastructure devices (e.g., servers and network devices' serial ports) to become a hybrid distributed solution that enables a platform for deploying services that can be specific and specialized for infrastructure management and operations. These services can be deployed in a virtualized environment via both virtual machines or containers.
+ZPE solutions have evolved from initially being focused on providing remote management access to Data Center infrastructure devices (e.g., servers and network devices' serial ports) to become a hybrid distributed solution that enables a platform for deploying services that can be specific and specialized for infrastructure management and operations. These services can be deployed in a virtualized environment via both virtual machines or containers from the ZPE Cloud central management platform.
 
 # ZPE Service Delivery Platform SDP
 The ZPE SDP solution focuses on providing DevOps teams an OOB platform to deploy specialized services for managing their infrastructure. This solution extends the OOB remote management access capabilities to enhanced management operations by user-defined services that are deployed close to the managed devices. These services can be deployed on different ZPE devices either as a Virtual Machine or a Container.
 
 This document considers the case of deploying a service on a Nodegrid Device in the form of a Virtual Machine. The following requirements are taken into consideration:
 
-- Configure a brand new Nodegrid device, it includes its network connections, firewall, and hypervisor.
+- ZPE Cloud access
+- Nodegrid device reseted to factory settings.
+- The device is required to be enrolled on ZPE Cloud.
+- The device Serial Number.
+- All configurations are automated using Ansible and ZPE Cloud.
+- Configure the device, which includes the Network Connections and Network Settings.
 - Deploy a Virtual Machine.
-- All configurations are automated using Ansible.
 
 ## SDP Example Use Case
 
-This section provides an overview of how a Virtualized Service can be deployed using ZPE Systems' Nodegrid solution. It utilizes the ZPE Systems Ansible Library to automate the setup and configuration process.
+This section provides an overview of how a Virtualized Service can be deployed using ZPE Systems' Nodegrid solution. It utilizes the ZPE Systems Ansible Library to automate the setup and configuration process, and ZPE Cloud as an ansible connector to deploy the configurations into the device.
 
 The example considers the following scenario for the *Acme* company:
 
@@ -78,7 +82,7 @@ The following table defines the VLAN configuration on the switch:
 
 ## Configuration Process to be followed
 
-This guide assumes that the GateSR device is used as an Ansible host that will provision itself. It also assumes that only a minimal configuration was performed and that the device has multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
+This guide assumes that the GateSR device is enrolled into ZPE Cloud. Also, the Ansible Control node is a Nodegrid device. Similarly, it is assumed that only a minimal configuration was performed and that the device has multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
 
 ### Step 1: Download Ansible Library
 - Download Ansible Library from https://github.com/ZPESystems/Ansible
@@ -246,6 +250,15 @@ localhost                  : ok=2    changed=0    unreachable=0    failed=0    s
 ```
 - The Ansible Nodegrid Library has been successfully installed. The next step is to define the `inventory.yaml` file, which is a **strict requirement for the SDP use case**.
 
+#### Ansible ZPE Cloud library
+
+To install the [Ansible ZPE Cloud library](https://github.com/ZPESystems/zpe.zpecloud):
+
+```bash
+ansible-galaxy collection install zpe.zpecloud
+```
+
+
 ### Step 3: Build the Ansible Inventory
 #### Overview
 This step is critical, as these settings will be used as a source of truth for all appliances and will determine which settings get applied to each system. The Inventory should match the designed layout. The following section outlines a few basic concepts. For more information about the Ansible Inventory option, see [How to Build Your Inventory](https://docs.ansible.com/ansible/latest/inventory_guide/intro_inventory.html)
@@ -280,7 +293,7 @@ cd /etc/ansible/inventories/
 ```bash
 vim hosts.yaml
 ```
-3.  Example `hosts.yaml` file without variables, based on the provided Example
+3.  Example `hosts.yaml` file without variables considering the device serial number:
 ```hosts.yaml
 all:
   children:
@@ -290,7 +303,7 @@ all:
           children:
             CA:
               hosts:
-               ng-gatesr1:
+               "2333222":
 ```
 
 > [!Tip]
@@ -313,7 +326,7 @@ Example Output:
   |--@company:
   |  |--@USA:
   |  |  |--@CA:
-  |  |  |  |--ng-gatesr1
+  |  |  |  |--2333222
   |--@managed_devices:
   |  |--@device_disabled:
   |  |  |--HumiditySensor
@@ -364,12 +377,12 @@ Example Output:
 ```
 To display host-specific settings use the following command
 ```bash
-ansible-inventory --host ng-gatesr1
+ansible-inventory --host 2333222
 ```
 
 Example Output:
 ```bash
-ansible@ng-gatesr1:/etc/ansible/inventories$ ansible-inventory --host ng-gatesr1
+ansible@ng-gatesr1:/etc/ansible/inventories$ ansible-inventory --host 2333222
 {}
 ```
 
@@ -406,6 +419,13 @@ vim company.yaml
   "**REQUIRED**" (Details must be provided in these sections)
 
 ```yaml
+#ZPE Cloud
+ansible_connection: zpe.zpecloud.zpecloud
+ansible_zpecloud_username: "<username>"
+ansible_zpecloud_password: "<password>"
+ansible_zpecloud_url: "https://zpecloud.com"
+ansible_zpecloud_organization: "<organization>"
+
 # Section - REQUIRED - THIS SECTION CONTAINS VALUES THAT MUST BE ADJUSTED
 # License Keys: (REQUIRED - ADD VALID CLUSTER LICENSE KEY)
 nodegrid_license_keys:
@@ -664,11 +684,11 @@ cloudinit: "cloudinit"
 - To display and validate the defined group variables, display the host-specific settings of a group member, using the following command.
 
 ```bash
-ansible-inventory --host ng-gatesr1
+ansible-inventory --host 2333222
 ```
 Example Output:
 ```bash
-ansible@ng-gatesr1:/etc/ansible/inventories/group_vars$ ansible-inventory --host ng-gatesr1
+ansible@ng-gatesr1:/etc/ansible/inventories/group_vars$ ansible-inventory --host 2333222
 {
     "ansible_host": "127.0.0.1",
     "ansible_python_interpreter": "/usr/bin/python3",
@@ -689,12 +709,12 @@ ansible@ng-gatesr1:/etc/ansible/inventories/group_vars$ ansible-inventory --host
     ...
 }
 ```
-#### Host Specific Variables (`ng-gatesr1`)
+#### Host Specific Variables (`2333222`)
 - Host-specific variables can be stored either in the `hosts.yaml` file, or similar to group variables in individual files. 
   
 > [!Tip]
 > 
-> It is recommended to store host-specific variables in host-specific files. These files are located in the folder `host_vars` and would typically have the name of the host, for example, `ng-gatesr1.yaml`
+> It is recommended to store host-specific variables in host-specific files. These files are located in the folder `host_vars` and would typically have the name of the host, for example, `2333222.yaml`
 
 > [!Warning]
 > 
@@ -703,9 +723,9 @@ ansible@ng-gatesr1:/etc/ansible/inventories/group_vars$ ansible-inventory --host
 >  Variables with the same name, that are defined on a host level will overwrite group-level variables; this allows us to have generic defaults defined on group levels, which then get overwritten with specific values on a lower level.
 
 - For this example, we will store the variable inside the `host_vars` directory
-- Edit the `ng-gatesr1.yaml` file
+- Edit the `2333222.yaml` file
 ```
-vim /etc/ansible/inventories/host_vars/ng-gatesr1.yaml
+vim /etc/ansible/inventories/host_vars/2333222.yaml
 ```
 - Add the following content.
 
@@ -925,12 +945,12 @@ final_message: "============ Cloud init is done! ==============="
 
 - Now that all required variables for the GateSR are defined, we can validate that the inventory is working before continuing:
 ```bash
-ansible-inventory --host ng-gatesr1
+ansible-inventory --host 2333222
 ```
 - The output will now contain the host-specific variables
 - To test the Ansible connection with the host use the following command
 ```shell
-ansible -m ping ng-gatesr1
+ansible -m ping 2333222
 ```
 
 > [!Warning]
@@ -940,8 +960,8 @@ ansible -m ping ng-gatesr1
 
 Example Output:
 ```shell
-ansible@ng-gatesr1:/etc/ansible/inventories/host_vars$ ansible -m ping ng-gatesr1
-ng-gatesr1 | SUCCESS => {
+ansible@ng-gatesr1:/etc/ansible/inventories/host_vars$ ansible -m ping 2333222
+2333222 | SUCCESS => {
     "changed": false,
     "ping": "pong"
 }
@@ -957,14 +977,14 @@ To push the configuration, use the following commands.
 ```shell
 cd /etc/ansible/playbooks/
 ```
-- Execute the playbook `100_configure_network.yaml`. In this example, we limit the target node execution to the currently configured system `ng-gatesr1`
+- Execute the playbook `100_configure_network.yaml`. In this example, we limit the target node execution to the currently configured system `2333222`
 ```
-ansible-playbook 100_configure_network.yaml --limit ng-gatesr1
+ansible-playbook 100_configure_network.yaml --limit 2333222
 ```
 
 Example Output:
 ```
-ansible@ng-gatesr1:/etc/ansible/playbooks$ ansible-playbook 100_configure_network.yaml --limit ng-gatesr1
+ansible@ng-gatesr1:/etc/ansible/playbooks$ ansible-playbook 100_configure_network.yaml --limit 2333222
 
 PLAY [all] *********************************************************************
 
@@ -991,9 +1011,9 @@ ansible-galaxy collection install community.libvirt
 ```shell
 cd /etc/ansible/playbooks/
 ```
-- Execute the playbook `200_create_virtual_machines.yaml`. In this example, we limit the target node execution to the currently configured system `ng-gatesr1`
+- Execute the playbook `200_create_virtual_machines.yaml`. In this example, we limit the target node execution to the currently configured system `2333222`
 ```
-ansible-playbook 200_create_virtual_machines.yaml --limit ng-gatesr1
+ansible-playbook 200_create_virtual_machines.yaml --limit 2333222
 ```
 - The VM resources (disks, cloudinit isos) shall be stored at:
 ```

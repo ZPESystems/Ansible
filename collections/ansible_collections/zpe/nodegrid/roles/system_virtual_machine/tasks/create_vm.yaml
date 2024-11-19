@@ -51,12 +51,12 @@
     - cloud-init
   block:
     - name: copy cloud-init user-data
-      ansible.builtin.template:
-        src: cloudinit/user-data.j2
+      ansible.builtin.copy:
+        src: "{{ vm.cloud_init.user_data_file }}"
         dest: "{{ libvirt_resources_path }}/{{ cloudinit }}/user-data"
     - name: copy cloud-init meta-data
-      ansible.builtin.template:
-        src: cloudinit/meta-data.j2
+      ansible.builtin.copy:
+        src: "{{ vm.cloud_init.meta_data_file }}"
         dest: "{{ libvirt_resources_path }}/{{ cloudinit }}/meta-data"
     - name: create the cloud-init iso
       shell:

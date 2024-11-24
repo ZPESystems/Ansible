@@ -2,21 +2,130 @@
 
 
 ## Executive Summary
-ZPE Systems provides an Out-of-Band (OOB) **Service Delivery Platform (SDP)** which is a novel solution that enables the management and deployment of Virtualized services in the form of Virtual Machines or Containers. The SDP solution provides an isolated framework that allows the configuration and instantiation of specialized services to further enhance the OOB management and operations of your infrastructure. 
+ZPE Systems provides an **Out-of-Band (OOB) Service Delivery Platform (SDP)** which is a novel solution that enables the management and deployment of Virtualized services in the form of Virtual Machines or Containers. The SDP solution provides an isolated management infrastructure and framework that allows the deployment of specialized services to further enhance the OOB management and operations of your infrastructure. ZPE also provides a [Cloud Based Infrastructure Management](https://zpecloud.com/) that simplifies how you scale and manage your distributed networks. ZPE Cloud simplifies the deployment of the SDP solution.
 
 # Introduction
-ZPE Systems focuses on Out-of-Band Network and Infrastructure Management solutions. It provides a variety of solutions that enables the management of your distributed infrastructure in a unified platform. Depending on your specific requirements, multiple hardware boxes have being designed in order to manage your infrastructure and network devices via, for example, serial console ports. All the ZPE boxes run the *ZPE Nodegrid Operating System*.
+ZPE Systems focuses on Out-of-Band Network and Infrastructure Management solutions. It provides a variety of solutions that enables the management of your distributed infrastructure in a unified platform. Depending on your specific requirements, multiple hardware solutions have being designed in order to manage your infrastructure and network devices via, for example, serial console ports. All the ZPE boxes run the *ZPE Nodegrid Operating System*.
 
-ZPE solutions have evolved from initially being focused on providing remote management access to Data Center infrastructure devices (e.g., servers and network devices' serial ports) to become a hybrid distributed solution that enables a platform for deploying services that can be specific and specialized for infrastructure management and operations. These services can be deployed in a virtualized environment via both virtual machines or containers.
+ZPE solutions have evolved from initially being focused on providing remote management access to Data Center infrastructure devices (e.g., servers and network devices' serial ports) to become an OOB hybrid distributed solution that enables a platform for deploying services that can be specific and specialized for infrastructure management and operations. These services can be deployed in a virtualized environment via both virtual machines or containers.
 
 # ZPE Service Delivery Platform SDP
 The ZPE SDP solution focuses on providing DevOps teams an OOB platform to deploy specialized services for managing their infrastructure. This solution extends the OOB remote management access capabilities to enhanced management operations by user-defined services that are deployed close to the managed devices. These services can be deployed on different ZPE devices either as a Virtual Machine or a Container.
 
 This document considers the case of deploying a service on a Nodegrid Device in the form of a Virtual Machine. The following requirements are taken into consideration:
 
-- Configure a brand new Nodegrid device, it includes its network connections, firewall, and hypervisor.
-- Deploy a Virtual Machine.
-- All configurations are automated using Ansible.
+- Nodegrid device reseted to factory settings.
+- Nodegrid configurations (e.g., Network Connections and Network Settings).
+- Remote access to the Nodegrid either via diret SSH or ZPE Cloud.
+
+The following section describes both methods for remote access.
+
+## Ansible Connection
+All configurations are automated using Ansible. By default, Ansible ships with several connection plugins. The most commonly used are *native ssh* and *local* connection types. All of these can be used in playbooks decide how to talk to remote machines. This tutorial considers two different [Ansible Connection methods](https://docs.ansible.com/ansible/latest/plugins/connection.html):
+
+- `ansible.builtin.ssh`: This connection plugin allows Ansible to communicate to the target machines through normal SSH command line. 
+- `zpe.zpecloud.zpecloud`: This connection plugin allows Ansible to execute tasks on Nodegrid devices via ZPE Cloud API
+
+To list all the available connection plugins:
+```bash
+ansible-doc -t connection -l
+ansible.builtin.local          execute on controller
+ansible.builtin.ssh            connect via SSH client binary
+ansible.netcommon.grpc         Provides a persistent connection using the gRPC protocol
+ansible.netcommon.httpapi      Use httpapi to run command on network appliances
+ansible.netcommon.libssh       Run tasks using libssh for ssh connection
+ansible.netcommon.netconf      Provides a persistent connection using the netconf protocol
+ansible.netcommon.network_cli  Use network_cli to run command on network appliances
+community.docker.docker        Run tasks in docker containers
+...
+community.libvirt.libvirt_lxc  Run tasks in lxc containers via libvirt
+community.libvirt.libvirt_qemu Run tasks on libvirt/qemu virtual machines
+zpe.zpecloud.zpecloud          This connection plugin allows Ansible to execute tasks on Nodegrid devices via ZPE Cloud API 
+```
+
+### Ansible SSH
+This connection plugin allows Ansible to communicate to the target machines through normal SSH command line. To use this connector, the following information is required:
+- Ansible Host: IP address or URL to reach the Nodegrid
+- Ansible Port: SSH TCP port to rech the Nodegrid (default 22)
+- Ansible User: User that has the access rights to connect to the Nodegrid
+- Ansible SSH private key: Private SSH key to access the Nodegrid
+
+To validate that Ansible is able to access the remote Nodegrid, create a file called `inventory.yaml` with the following content and adapt it accordingly:
+```yaml
+all:
+  hosts:
+    nodegrid:
+      ansible_host: 10.11.1.1
+      ansible_port: 22
+      ansible_user: ansible
+      ansible_ssh_private_key_file: "~/.ssh/private_key"
+```
+
+To check that Ansible is able to access the remote device via a direct SSH connection:
+
+```bash
+ansible -m ping --inventory=inventory.yaml nodegrid
+```
+
+The output should look like:
+```bash
+ansible -m ping --inventory=inventory.yaml nodegrid
+nodegrid | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.10"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+```
+
+### ZPE Cloud connection plugin
+
+**ZPE Cloud plugin** enables the execution of Ansible playbooks via ZPE Cloud as the connector, and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. [Ansible ZPE Cloud](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) describes in detail this plugin. To install it:
+
+```bash
+ansible-galaxy collection install zpe.zpecloud
+```
+
+In order to use ZPE Cloud as the Ansible connector, the following is required:
+
+- ZPE Cloud access.
+- Nodegrid device enrolled.
+- Nodegrid device Serial Number.
+
+
+To validate that Ansible is able to access the remote Nodegrid, create a file called `inventory.yaml` with the following content and adapt it accordingly:
+```yaml
+all:
+  hosts:
+    "234567890":                                          # Nodegrid Serial Number
+      ansible_connection: zpe.zpecloud.zpecloud
+      ansible_zpecloud_username: "user@zpesystems.com"
+      ansible_zpecloud_password: "******"
+      ansible_zpecloud_url: "https://zpecloud.com"
+      ansible_zpecloud_organization: "ZPE Organization"
+```
+
+To check that Ansible is able to access the remote device via ZPE Cloud:
+```bash
+ansible -m ping --inventory=inventory.yaml 234567890
+```
+
+The output should look like:
+
+```bash
+ansible -m ping --inventory=inventory.yaml 234567890
+234567890 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.10"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+```
+
+To execute the SDP Example Use Case, any of the above Ansible connections can be utilized.
 
 ## SDP Example Use Case
 
@@ -78,7 +187,7 @@ The following table defines the VLAN configuration on the switch:
 
 ## Configuration Process to be followed
 
-This guide assumes that the GateSR device is used as an Ansible host that will provision itself. It also assumes that only a minimal configuration was performed and that the device has multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
+This guide assumes that a Nodegrid device device is used as an Ansible host. It also assumes that on the target GateSR a minimal configuration was performed and that it has multiple WAN connections. Furthermore, as an example, the device's switch is configured in an specific scenario considering LAN segmentation by using VLANs.
 
 ### Step 1: Download Ansible Library
 - Download Ansible Library from https://github.com/ZPESystems/Ansible
@@ -407,6 +516,15 @@ vim company.yaml
 
 ```yaml
 # Section - REQUIRED - THIS SECTION CONTAINS VALUES THAT MUST BE ADJUSTED
+# ZPE Cloud. Uncomment the following ONLY if ZPE Cloud is used as the Ansible connector
+# ------------------------------------------------
+# ansible_connection: zpe.zpecloud.zpecloud
+# ansible_zpecloud_username: "user@zpesystems.com"
+# ansible_zpecloud_password: "******"
+# ansible_zpecloud_url: "https://zpecloud.com"
+# ansible_zpecloud_organization: "ZPE Organization"
+# ------------------------------------------------
+
 # License Keys: (REQUIRED - ADD VALID CLUSTER LICENSE KEY)
 nodegrid_license_keys:
      - XXXXX-XXXXX-XXXXX-XXXXX
@@ -714,9 +832,15 @@ vim /etc/ansible/inventories/host_vars/ng-gatesr1.yaml
 > It is recommended to configure some base settings. Other settings can be added later. The below example defines the required variables for the SDP example. Adjust the values are required.
 
 ```yaml
+# REQUIRED
+# Ansible SSH: Uncomment the following ONLY if Ansible SSH is used as the Ansible connector
+# ------------------------------------------------
+# ansible_host: 192.168.101.1
+# ansible_port: 22
+# ansible_user: ansible
+# ansible_ssh_private_key_file: "~/.ssh/private_key"
+
 # Generic Ansible Settings  (REQUIRED)
-ansible_host: 127.0.0.1  # IP address, which ansible will use to communicate with the host
-ansible_port: 22
 
 # Nodegrid Network Settings:  (CHANGE)
 nodegrid_hostname: ng-gatesr1
@@ -853,8 +977,14 @@ virtual_machines:
       - file_name: nextGenFWdisk1.qcow2 
         # VM disk file source (e.g., URL or file path in the target node or control node)
         file_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/files/nextGenFWdisk.qcow2 
+        # Influence whether the disk file on the disks directory must always be replaced. 
+        #   If true, the remote file will be replaced when contents are different than the source.
+        #   If false, the file will only be transferred if the destination does not exist.
+        file_force_copy: false 
         # VM file disk name on the cache directory
         file_cache_name: nextGenFWdisk.qcow2
+        # Influence whether the disk file on the chache directory must always be replaced.
+        file_force_copy_cache
         # VM file disk copy method: defines how to get the disk
         type: copy_local_file
         #  - local_file: it does not copy any disk file. It assumes that the 'file' path exists.

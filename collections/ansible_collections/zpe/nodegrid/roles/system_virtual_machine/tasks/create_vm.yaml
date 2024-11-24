@@ -1,44 +1,48 @@
-- name: Copy Disks to images_cache
-  become: yes
-  when: "'disks' in vm"
+- name: Download Disks from URL to images_cache
   tags: 
     - vm-disks
     - always
-  block:
-  - name: Download disk from URL 
-    ansible.builtin.get_url:
-      url: "{{ item.file_source }}"
-      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
-    loop: "{{ vm.disks | list }}"
-    register: URL
-    when: item.type == "url"
-  
-  - name: Copy local control node file disk (qcow2) to remote
-    ansible.builtin.copy:
-      src: "{{ item.file_source }}"
-      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
-    loop: "{{ vm.disks | list }}"
-    when: item.type == "copy_file_to_remote"
-  
-  - name: Copy local file disk (qcow2)
-    ansible.builtin.copy:
-      remote_src: true
-      src: "{{ item.file_source }}"
-      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
-    loop: "{{ vm.disks | list }}"
-    when: item.type == "copy_local_file"
-
-- name: Copy VM Disks from cache to images
-  become: yes
-  tags: 
-    - vm-disks
-    - always
-  ansible.builtin.copy:
-    src: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ item.file_cache_name }}"
-    dest: "{{ libvirt_resources_path }}/{{ images }}/{{ item.file_name }}"
-    remote_src: true
+  include_tasks: download_file.yaml
   loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
+  when: 
+    - "'disks' in vm"
+    - disk.type == "url"
+
+- name: Copy control node disk file to remote images_cache
+  tags: 
+    - vm-disks
+    - always
+  include_tasks: copy_file_to_remote.yaml
+  loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
+  when: 
+    - "'disks' in vm"
+    - disk.type == "copy_file_to_remote"
+  
+- name: Copy remote disk file to remote images_cache
+  tags: 
+    - vm-disks
+    - always
+  include_tasks: copy_local_file.yaml
+  loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
+  when: 
+    - "'disks' in vm"
+    - disk.type == "copy_local_file"
+
+- name: Copy VM Disks from images_cache to images (if the file does not exist in images)
   when: "'disks' in vm"
+  tags: 
+    - vm-disks
+    - always
+  include_tasks: copy_disk_images.yaml
+  loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
     
 - name: Create cloud-init iso file
   become: yes

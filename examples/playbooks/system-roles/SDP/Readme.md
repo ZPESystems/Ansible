@@ -975,16 +975,16 @@ virtual_machines:
     disks:
         # VM disk file name on the target device (used in the KVM domain)
       - file_name: nextGenFWdisk1.qcow2 
+        # Obtain the checksum if the disk file exists
+        file_get_checksum: no
         # VM disk file source (e.g., URL or file path in the target node or control node)
         file_source: /var/local/file_manager/remote_file_system/extended_storage/Shared/files/nextGenFWdisk.qcow2 
-        # Influence whether the disk file on the disks directory must always be replaced. 
-        #   If true, the remote file will be replaced when contents are different than the source.
-        #   If false, the file will only be transferred if the destination does not exist.
-        file_force_copy: false 
+        # Obtain the checksum of the disk file source if exists
+        file_source_get_checksum: no
+        # file source checksum
+        file_source_checksum: "bc8128047d6b7d215c9a3b61324ad71329f41c3a"
         # VM file disk name on the cache directory
         file_cache_name: nextGenFWdisk.qcow2
-        # Influence whether the disk file on the chache directory must always be replaced.
-        file_force_copy_cache
         # VM file disk copy method: defines how to get the disk
         type: copy_local_file
         #  - local_file: it does not copy any disk file. It assumes that the 'file' path exists.

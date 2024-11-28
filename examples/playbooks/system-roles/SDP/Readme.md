@@ -16,7 +16,7 @@ This document considers the case of deploying a service on a Nodegrid Device in 
 
 - Nodegrid device reseted to factory settings.
 - Nodegrid configurations (e.g., Network Connections and Network Settings).
-- Remote access to the Nodegrid either via diret SSH or ZPE Cloud.
+- Remote access to the Nodegrid either via direct SSH or ZPE Cloud.
 
 The following section describes both methods for remote access.
 
@@ -45,10 +45,13 @@ zpe.zpecloud.zpecloud          This connection plugin allows Ansible to execute 
 
 ### Ansible SSH
 This connection plugin allows Ansible to communicate to the target machines through normal SSH command line. To use this connector, the following information is required:
-- Ansible Host: IP address or URL to reach the Nodegrid
-- Ansible Port: SSH TCP port to rech the Nodegrid (default 22)
-- Ansible User: User that has the access rights to connect to the Nodegrid
-- Ansible SSH private key: Private SSH key to access the Nodegrid
+
+| Parameter | Description |
+|---|---|
+|**Ansible Host** | IP address or URL to reach the Nodegrid |
+|**Ansible Port** | SSH TCP port to reach the Nodegrid (default 22) |
+|**Ansible User** | User that has the access rights to connect to the Nodegrid |
+|**Ansible SSH private key** | Private SSH key to access the Nodegrid|
 
 To validate that Ansible is able to access the remote Nodegrid, create a file called `inventory.yaml` with the following content and adapt it accordingly:
 ```yaml
@@ -79,7 +82,7 @@ nodegrid | SUCCESS => {
 }
 ```
 
-### ZPE Cloud connection plugin
+### [ZPE Cloud connection plugin](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/)
 
 **ZPE Cloud plugin** enables the execution of Ansible playbooks via ZPE Cloud as the connector, and the use of the ZPE Cloud inventory and custom fields as inventory on a local Ansible host. [Ansible ZPE Cloud](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/) describes in detail this plugin. To install it:
 
@@ -93,8 +96,19 @@ In order to use ZPE Cloud as the Ansible connector, the following is required:
 - Nodegrid device enrolled.
 - Nodegrid device Serial Number.
 
+To configure the ZPE Cloud connector plugin, the following configurations are required:
 
-To validate that Ansible is able to access the remote Nodegrid, create a file called `inventory.yaml` with the following content and adapt it accordingly:
+
+| Parameter | Description |
+|---|---|
+|**Nodegrid Serial Number** | Device Serial Number specific for each target device |
+|**Ansible Connection** | `zpe.zpecloud.zpecloud` (this the [Ansible connector developed by ZPE](https://galaxy.ansible.com/ui/repo/published/zpe/zpecloud/)) |
+|**ZPE Cloud User** | User name to access [zpecloud.com](https://zpecloud.com) |
+|**ZPE Cloud Password** | User password to access [zpecloud.com](https://zpecloud.com) |
+|**ZPE Cloud URL** | ZPE Cloud URL, by default https://zpecloud.com |
+|**ZPE Cloud Organization** | Organization name under which the Nodegrid device is registered |
+
+To validate that Ansible is able to access the remote Nodegrid via ZPE Cloud, create a file called `inventory.yaml` with the following content and adapt it accordingly:
 ```yaml
 all:
   hosts:
@@ -1010,7 +1024,7 @@ virtual_machines:
       meta_data_file: /tmp/meta-data # Example at cloud_init/meta-data
 ```
 
-  - `user-data` example. This example considers that the VM supports cloud-init initial configuration. 
+  - [`user-data` example](cloud_init/user-data). This example considers that the VM supports cloud-init initial configuration. 
   ```yaml
   #cloud-config
 users:
@@ -1053,6 +1067,8 @@ runcmd:
 final_message: "============ Cloud init is done! ==============="
   ```
 
+- [`meta-data` example](cloud_init/metadata). In this scenario, this file is empty.
+
 - Now that all required variables for the GateSR are defined, we can validate that the inventory is working before continuing:
 ```bash
 ansible-inventory --host ng-gatesr1
@@ -1063,10 +1079,6 @@ ansible-inventory --host ng-gatesr1
 ansible -m ping ng-gatesr1
 ```
 
-> [!Warning]
-> 
->  This command will only be successful if the target host is the local system. 
->  In the case of a remote target, the user `ssh_keys` must be installed first on the remote system. This is covered in the section [[#Configure a new host]]
 
 Example Output:
 ```shell
@@ -1125,7 +1137,7 @@ cd /etc/ansible/playbooks/
 ```
 ansible-playbook 200_create_virtual_machines.yaml --limit ng-gatesr1
 ```
-- The VM resources (disks, cloudinit isos) shall be stored at:
+- The VM resources (disks, cloud-init ISOs) shall be stored at:
 ```
 ansible@ng-gatesr1:~$ ls -lh /run/media/sdb1/virtual_machines/*
 /run/media/sdb1/virtual_machines/cloudinit:
@@ -1153,4 +1165,50 @@ The following pictures show the VM instantiated on the GateSR:
 
 ![](figs/vm-2.png)
 
+
+---
+# Appendix
+
+## Debian VM example.
+
+The following example considers the definition of a Debian VM. In this example, the VM will have access to the following connections:
+
+|Connection|Description|
+|---|---|
+|**WAN0**| Internet access (IP-Passthrough configured)|
+|**WAN1**| Internet access (IP-Passthrough configured)|
+|**LAN0**| LAN access|
+
+- Add the following into the file `/etc/ansible/inventories/host_vars/ng-gatesr1.yaml`
+
+```yaml
+virtual_machines:
+# Debian VM
+  - name: debianVM
+    ram:  
+      size: 2048 # size in MB
+    cpu:
+      count: 2
+    disks:
+      - file_name: debian.qcow2 
+        file_get_checksum: yes
+        file_source: https://cdimage.debian.org/cdimage/cloud/sid/daily/latest/debian-sid-generic-amd64-daily.qcow2
+        file_source_checksum: "fdf261dc649a14ef40585536144b43a441b3a9bd"
+        file_cache_name: debian-sid-generic-amd64-daily.qcow2
+        type: url 
+    network_bridges:
+      - WAN0
+      - WAN1
+      - LAN0
+    cloud_init:
+      iso_file: seed2.iso
+      user_data_file: cloud_init/user-data.local
+      meta_data_file: cloud_init/meta-data
+```
+
+- To instantiate the VM:
+
+```bash
+ansible-playbook 200_create_virtual_machines.yaml --limit ng-gatesr1
+```
 

@@ -56,15 +56,6 @@ def get_chain( endpoint , chain , timeout):
     close_cli(cmd_cli)
     return data
 
-def clean_chain( endpoint , chain , timeout):
-    #build cmd
-    cmd = {
-        'cmd' : str('delete /settings/' + endpoint + '/chains/' + chain + ' -'),
-        'confirm': True
-    }
-    data = {chain: {'current_state': {}, 'current_state_rules':{}}}
-    return data, cmd
-
 def _get_rule( endpoint: str,rule_number: str, cmd_cli: dict) -> dict:
     #build cmd
     cmd: dict = {
@@ -161,10 +152,6 @@ def run_module():
         'ipv4_firewall': {},
         'ipv4_firewall_policy': {},
     }
-    
-    # Build out commands
-    cmds = []
-
     #Get Current NAT Data
     if module.params['ipv4_nat']:
         ipv4_nat = module.params['ipv4_nat']
@@ -172,18 +159,11 @@ def run_module():
         if 'chains' in ipv4_nat.keys():
             chains_current = {}
             for chain in ipv4_nat['chains']:
-                # Clean Rules if clean_and_config is yes
-                if 'clean_and_config' in ipv4_nat.keys() and ipv4_nat['clean_and_config']:
-                    data, cmd = clean_chain("ipv4_nat", chain, module.params['timeout'])
-                    chains_current.update(data)
-                    cmds.append(cmd)
-                else:
-                    # Get the current state of the chain
-                    chains_current.update(get_chain("ipv4_nat", chain, module.params['timeout']))
+                # Get the current state of the chain
+                chains_current.update(get_chain("ipv4_nat", chain, module.params['timeout']))
                 # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
                 diff_rules = []
-                #for rule in ipv4_nat['chains'][chain]:
-                for rule in sorted(ipv4_nat['chains'][chain], key=lambda x: x.get('rule_number', float('inf'))):
+                for rule in ipv4_nat['chains'][chain]:
                     # Before continue, do we ensure that a target is defined, by default value will be set MASQUERADE
                     if 'target' not in rule.keys():
                         rule['target'] = "MASQUERADE"
@@ -227,18 +207,11 @@ def run_module():
         if 'chains' in ipv4_firewall.keys():
             chains_current = {}
             for chain in ipv4_firewall['chains']:
-                # Clean Rules if clean_and_config is yes
-                if 'clean_and_config' in ipv4_firewall.keys() and ipv4_firewall['clean_and_config']:
-                    data, cmd = clean_chain("ipv4_firewall", chain, module.params['timeout'])
-                    chains_current.update(data)
-                    cmds.append(cmd)
-                else:
-                    # Get the current state of the chain
-                    chains_current.update(get_chain("ipv4_firewall", chain, module.params['timeout']))
+                # Get the current state of the chain
+                chains_current.update(get_chain("ipv4_firewall", chain, module.params['timeout']))
                 # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
                 diff_rules = []
-                #for rule in ipv4_firewall['chains'][chain]:
-                for rule in sorted(ipv4_firewall['chains'][chain], key=lambda x: x.get('rule_number', float('inf'))):
+                for rule in ipv4_firewall['chains'][chain]:
                     # Before continue, do we ensure that a target is defined, by default value will be set MASQUERADE
                     if 'target' not in rule.keys():
                         rule['target'] = "ACCEPT"
@@ -278,6 +251,8 @@ def run_module():
                         diff.append({item: ipv4_firewall['policy'][item]})
             diff_chains['ipv4_firewall_policy'] = diff
 
+    # Build out commands
+    cmds = []
     # Build Commands for IPv4 NAT rules
     for chain in diff_chains['ipv4_nat']:
         if len(diff_chains['ipv4_nat'][chain]) > 0:
@@ -291,7 +266,6 @@ def run_module():
                     cmd = {'cmd': f"set {setting}={rule[setting]}"}
                     cmds.append(cmd)
                 cmds.append({'cmd': "commit"})
-                cmds.append({'cmd': "cd"})
 
     # Build Commands for IPv4 NAT Policy
     if len(diff_chains['ipv4_nat_policy']) > 0:
@@ -301,7 +275,6 @@ def run_module():
                 cmd = {'cmd': f"set {setting}={rule[setting]}"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
-        cmds.append({'cmd': "cd"})
 
     # Build Commands for IPv4 Firewall rules
     for chain in diff_chains['ipv4_firewall']:
@@ -316,7 +289,6 @@ def run_module():
                     cmd = {'cmd': f"set {setting}={rule[setting]}"}
                     cmds.append(cmd)
                 cmds.append({'cmd': "commit"})
-                cmds.append({'cmd': "cd"})
 
     # Build Commands for IPv4 Firewall Policy
     if len(diff_chains['ipv4_firewall_policy']) > 0:
@@ -326,7 +298,6 @@ def run_module():
                 cmd = {'cmd': f"set {setting}={rule[setting]}"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
-        cmds.append({'cmd': "cd"})
 
     # as fail save add system roll back
     if len(cmds) > 0:

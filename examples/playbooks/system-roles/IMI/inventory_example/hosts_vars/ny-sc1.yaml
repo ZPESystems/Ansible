@@ -10,12 +10,12 @@ nodegrid_hostname: ny-sc1
 
 # Nodegrid Network Connections:  (REQUIRED)
 network_connections:
-- nodegrid_connection_name: ETH0
-  nodegrid_interface: eth0
-  nodegrid_connect_description: "MGMT"
-  nodegrid_ipv4_mode: static
-  nodegrid_ipv4_address: 10.0.2.134
-  nodegrid_ipv4_bitmask: 24
+- name: ETH0
+  ethernet_interface: eth0
+  description: "MGMT"
+  ipv4_mode: static
+  ipv4_address: 10.0.2.134
+  ipv4_bitmask: 24
 
 # Wireguard Settings:  (CHANGE)
 wireguard_interface_name: ny-sc1-hub                            # Wireguard interface and VPN name

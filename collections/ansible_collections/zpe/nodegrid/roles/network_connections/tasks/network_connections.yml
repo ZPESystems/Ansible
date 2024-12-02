@@ -2,21 +2,137 @@
   tags: always
 
   zpe.nodegrid.network:
-    connection: "{{ connection }}"
+    connection:
+      name: "{{ connection.name }}"
+      description: "{{ connection.description | default('') }}"
+      type: "{{ connection.type | default('ethernet') }}" # ethernet, bridge, vlan, mobile_broadband_gsm, wifi. | analog_modem, loopback, pppoe, bonding
+      ethernet_interface: "{{ connection.ethernet_interface | default('') }}"
+      connect_automatically: "{{ connection.connect_automatically|default('yes') }}"
+      set_as_primary_connection: "{{ connection.set_as_primary_connection | default('no')}}"
+      enable_lldp: "{{ connection.enable_lldp | default('no') }}"
+      # enable_lldp: yes ---
+      port_id: "{{ connection.port_id | default('interface_name') }}"
+      port_description: "{{connection.port_description | default('interface_description') }}"
+      # ---
+      block_unsolicited_incoming_packets: "{{ connection.block_unsolicited_incoming_packets | default('no') }}"
+      #      ethernet_link_mode: "{{ connection.ethernet_link_mode | default('auto') }}"
+      mtu: "{{ connection.mtu | default('auto') }}"
+      enable_ip_passthrough: "{{ connection.enable_ip_passthrough | default('no') }}"
+      # enable_ip_passthrough: yes. for type: ethernet, vlan, wifi, mobile_broadband_gsm
+      ethernet_connection: "{{ connection.ethernet_connection | default('') }}"
+      mac_address: "{{ connection.mac_address | default('') }}"
+      port_intercepts: "{{ connection.port_intercepts | default('') }}"
+      # ---
+
+      # type: vlan
+      vlan_id: "{{ connection.vlan_id | default('') }}"
+      # ---
+
+      # type: bridge
+      bridge_interfaces: "{{ connection.bridge_interfaces | default('lo1') }}"
+      bridge_mac_configuration: "{{ connection.bridge_mac_configuration | default('use_mac_from_first_interface') }}" # use_mac_from_first_interface, bridge_custom_mac
+      bridge_mac_address: "{{ connection.bridge_mac_address | default('') }}"
+      enable_spanning_tree_protocol: "{{ connection.enable_spanning_tree_protocol | default('yes') }}"
+      hello_time: "{{ connection.hello_time | default(2) }}"
+      forward_delay: "{{ connection.forward_delay | default(5) }}"
+      max_age: "{{ connection.max_age | default(20) }}"
+      ageing_time: "{{ connection.ageing_time | default(300) }}"
+      # ---
+
+      # type: wifi
+      wifi_ssid: "{{ connection.wifi_ssid | default('my-ssid') }}"
+      wifi_bssid: "{{ connection.wifi_bssid | default('') }}"
+      hidden_network: "{{ connection.hidden_network | default('no') }}"
+      wifi_security: "{{ connection.wifi_security | default('disabled') }}" #disabled, wpa2_enterprise, wpa2_personal, wpa3_personal
+      # wifi_security: wpa2_personal, wpa3_personal
+      psk: "{{ connection.psk | default('') }}"
+      # wifi_security: wpa2_enterprise
+      wpa2_username: "{{ connection.wpa2_username | default('') }}"
+      wpa2_password: "{{ connection.wpa2_password | default('') }}"
+      wpa2_method: "{{ connection.wpa2_method | default('peap') }}"
+      wpa2_phase2_auth: "{{ connection.wpa2_phase2_auth | default('mschapv2') }}"
+      wpa2_validate_server_certificate: "{{ connection.wpa2_validate_server_certificate | default('no') }}"
+      # ---
+
+      # type: mobile_broadband_gsm
+      enable_connection_health_monitoring: "{{ connection.enable_connection_health_monitoring | default('no') }}"
+      ensure_connection_is_up: "{{ connection.ensure_connection_is_up | default('no') }}"
+      ip_address: "{{ connection.ip_address | default('') }}"
+      interval: "{{ connection.interval | default(24) }}" # between 1 and 24
+      # --
+      # SIM-1
+      sim-1_phone_number: "{{ connection['sim-1_phone_number'] | default('') }}"
+      sim-1_apn_configuration: "{{ connection['sim-1_apn_configuration'] | default('manual') }}" # manual, automatic
+      # sim-1_apn_configuration: manual
+      sim-1_user_name: "{{ connection['sim-1_user_name'] | default('') }}"
+      sim-1_password: "{{ connection['sim-1_password'] | default('') }}"
+      sim-1_access_point_name: "{{ connection['sim-1_access_point_name'] | default('') }}" 
+      # ---
+      sim-1_personal_identification_number: "{{ connection['sim-1_personal_identification_number'] | default('') }}"
+      sim-1_mtu: "{{ connection['sim-1_mtu'] | default('auto') }}"
+      sim-1_allowed_modes: "{{ connection['sim-1_allowed_modes'] | default('3g|4g') }}" # 3g, 3g|4g, 4g
+      sim-1_preferred_mode: "{{ connection['sim-1_preferred_mode'] | default('3g') }}" # 3g, 4g
+      enable_data_usage_monitoring: "{{ connection.enable_data_usage_monitoring | default('no') }}"
+      # enable_data_usage_monitoring: yes
+      sim-1_data_limit_value: "{{ connection['sim-1_data_limit_value'] | default('') }}" # GB
+      sim-1_data_warning: "{{ connection['sim-1_data_warning'] | default('') }}" # % percentage
+      sim-1_renew_day: "{{ connection['sim-1_renew_day'] | default(1) }}" #
+      # ---
+      enable_global_positioning_system: "{{ connection.enable_global_positioning_system | default('no') }}"
+      # enable_global_positioning_system: yes
+      polling_time: "{{ connection.polling_time | default('') }}" # minutes
+      gps_antenna: "{{ connection.gps_antenna | default('shared_diversity') }}" #dedicated_gps, passive_gps, shared_diversity
+      # ---
+
+      enable_second_sim_card: "{{ connection.enable_second_sim_card | default('no') }}"
+      # enable_second_sim_card: yes
+      active_sim_card: "{{ connection.active_sim_card | default(1) }}"
+      # SIM-2
+      sim-2_phone_number: "{{ connection['sim-2_phone_number'] | default('') }}"
+      sim-2_apn_configuration: "{{ connection['sim-2_apn_configuration'] | default('manual') }}" # manual, automatic
+      # sim-2-apn_configuration: manual
+      sim-2_user_name: "{{ connection['sim-2_user_name'] | default('') }}"
+      sim-2_password: "{{ connection['sim-2_password'] | default('') }}"
+      sim-2_access_point_name: "{{ connection['sim-2_access_point_name'] | default('') }}" 
+      # ---
+      sim-2_personal_identification_number: "{{ connection['sim-2_personal_identification_number'] | default('') }}"
+      sim-2_mtu: "{{ connection['sim-2_mtu'] | default('auto') }}"
+      sim-2_allowed_modes: "{{ connection['sim-2_allowed_modes'] | default('3g|4g') }}" # 3g, 3g|4g, 4g
+      sim-2_preferred_mode: "{{ connection['sim-2_preferred_mode'] | default('3g') }}" # 3g, 4g
+      sim-2_enable_data_usage_monitoring: "{{ connection['sim-2_enable_data_usage_monitoring'] | default('no') }}"
+      # enable_data_usage_monitoring: yes
+      sim-2_data_limit_value: "{{ connection['sim-2_data_limit_value'] | default('') }}" # GB
+      sim-2_data_warning: "{{ connection['sim-2_data_warning'] | default('') }}" # % percentage
+      sim-2_renew_day: "{{ connection['sim-2_renew_day'] | default(1) }}" #
+      # ---
+
+      # IPv4
+      ipv4_mode: "{{ connection.ipv4_mode | default('dhcp') }}" # dhcp, no_ipv4_address, static
+      # ipv4_mode: static
+      ipv4_address: "{{ connection.ipv4_address | default('') }}"
+      ipv4_bitmask: "{{ connection.ipv4_bitmask | default('') }}"
+      ipv4_gateway: "{{ connection.ipv4_gateway | default('') }}"
+      # ---
+
+      ipv4_dns_server: "{{ connection.ipv4_dns_server | default('') }}"
+      ipv4_dns_search: "{{ connection.ipv4_dns_search | default('') }}" 
+      ipv4_default_route_metric: "{{ connection.ipv4_default_route_metric | default('') }}"
+      ipv4_ignore_obtained_default_gateway: "{{ connection.ipv4_ignore_obtained_default_gateway | default('no') }}"
+      ipv4_ignore_obtained_dns_server: "{{ connection.ipv4_ignore_obtained_dns_server | default('no') }}"
+
+      # IPv6
+      ipv6_mode: "{{ connection.ipv6_mode | default('no_ipv6_address') }}" # address_auto_configuration, no_ipv6_address, static, link-local_only, stateful_dhcpv6
+      # ipv6_mode: static
+      ipv6_address: "{{ connection.ipv6_address | default('') }}"
+      ipv6_prefix_length: "{{ connection.ipv6_prefix_length | default('') }}"
+      ipv6_gateway: "{{ connection.ipv6_gateway | default('') }}"
+      # ---
+
+      # ipv6_dns_server: "{{ connection.ipv6_dns_server | default('') }}"
+      # ipv6_dns_search: "{{ connection.ipv6_dns_search | default('') }}"
+      ipv6_default_route_metric: "{{ connection.ipv6_default_route_metric | default('') }}"
+      ipv6_ignore_obtained_default_gateway: "{{ connection.ipv6_ignore_obtained_default_gateway | default('no') }}"
+      ipv6_ignore_obtained_dns_server: "{{ connection.ipv6_ignore_obtained_dns_server | default('no') }}"
   loop: "{{ network_connections }}"
   loop_control:
     loop_var: connection
-      #      name: "{{ item.nodegrid_connection_name }}"
-      #      description: "{{ item.nodegrid_connect_description|default('') }}"
-      #      ethernet_interface: "{{ item.nodegrid_interface|default('') }}"
-      #      connect_automatically: "{{ item.nodegrid_connect_automatically|default('yes') }}"
-      #      set_as_primary_connection: "{{ item.nodegrid_set_as_primary_connection|default('no') }}"
-      #      enable_lldp: "{{ item.nodegrid_enable_lldp|default('yes') }}"
-      #      block_unsolicited_incoming_packets: "{{ item.nodegrid_block_unsolicited_incoming_packets|default('no') }}"
-      #      ethernet_link_mode: "{{ item.nodegrid_ethernet_link_mode|default('auto') }}"
-      #      enable_ip_passthrough: "{{ item.nodegrid_enable_ip_passthrough|default('no') }}"
-      #      ipv4_mode: "{{ item.nodegrid_ipv4_mode|default('dhcp') }}"
-      #      ipv4_address: "{{ item.nodegrid_ipv4_address|default('') }}"
-      #      ipv4_bitmask: "{{ item.nodegrid_ipv4_bitmask|default('') }}"
-      #      ipv4_gateway: "{{ item.nodegrid_ipv4_gateway|default('') }}"
-      #  with_items: "{{ network_connections }}"

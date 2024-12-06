@@ -1,6 +1,10 @@
-# Generic Ansible Settings  (REQUIRED)
-ansible_host: 127.0.0.1  # IP address, which ansible will use to communicate with the host
-ansible_port: 22
+# REQUIRED
+# Ansible SSH: Uncomment the following ONLY if Ansible SSH is used as the Ansible connector
+# ------------------------------------------------
+# ansible_host: 127.0.0.1 # IP address, which ansible will use to communicate with the host
+# ansible_port: 22
+# ansible_user: ansible
+# ansible_ssh_private_key_file: "~/.ssh/private_key"
 
 # Nodegrid Network Settings:  (CHANGE)
 nodegrid_hostname: ng-gatesr1
@@ -153,11 +157,3 @@ virtual_machines:
       - WAN1
       - WAN2
       - LAN0
-
-    # Cloud Init config (limited support, only ssh_public_key definition)
-    cloud_init:
-      # SSH public key
-      ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZLODlo19fgQg9IL ansible@zpesystems.com"
-      # ISO file name 
-      iso_file: nextGenFWinit.iso
-

@@ -1,4 +1,15 @@
 # Section - REQUIRED - THIS SECTION CONTAINS VALUES THAT MUST BE ADJUSTED
+# ZPE Cloud. Uncomment the following ONLY if ZPE Cloud is used as the Ansible connector
+# ------------------------------------------------
+# ansible_connection: zpe.zpecloud.zpecloud
+# ansible_zpecloud_username: "user@zpesystems.com"
+# ansible_zpecloud_password: "******"
+# ansible_zpecloud_url: "https://zpecloud.com"
+# ansible_zpecloud_organization: "ZPE Organization"
+# ------------------------------------------------
+
+
+# Section - REQUIRED - THIS SECTION CONTAINS VALUES THAT MUST BE ADJUSTED
 # License Keys: (REQUIRED - ADD VALID CLUSTER LICENSE KEY)
 nodegrid_license_keys:
      - XXXXX-XXXXX-XXXXX-XXXXX

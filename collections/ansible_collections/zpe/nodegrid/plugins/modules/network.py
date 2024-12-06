@@ -301,6 +301,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, field_exist, export_settings
 
 import os
+from collections import OrderedDict
+import traceback
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -310,6 +312,238 @@ if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
 def run_option_network_connections(option, run_opt):
+    # Settings to be deleted/discarded if empty
+    settings_to_delete_if_empty = [
+        'ipv4_default_route_metric', 
+        'ipv6_default_route_metric',
+        'sim-1_phone_number',
+        'sim-1_apn_configuration',
+        'sim-1_user_name',
+        'sim-1_password',
+        'sim-1_access_point_name',
+        'sim-1_personal_identification_number',
+        'sim-2_phone_number',
+        'sim-2_apn_configuration',
+        'sim-2_user_name',
+        'sim-2_password',
+        'sim-2_access_point_name',
+        'sim-2_personal_identification_number'
+    ]
+
+    # Settings dependencies
+    dependencies = OrderedDict()
+    dependencies = {
+        'type': 
+        {
+            'ethernet': 
+            [
+                'ethernet_interface',
+                'enable_lldp',
+                'port_id',
+                'port_description',
+                'mtu',
+                'enable_ip_passthrough',
+                'ethernet_connection',
+                'mac_address',
+                'port_intercepts'
+            ],
+            'bridge': 
+            [
+                'enable_lldp',
+                'port_id',
+                'port_description',
+                'bridge_interfaces',
+                'bridge_mac_configuration',
+                'bridge_mac_address',
+                'enable_spanning_tree_protocol',
+                'hello_time',
+                'forward_delay',
+                'max_age',
+                'ageing_time'
+            ],
+            'vlan': 
+            [
+                'ethernet_interface',
+                'vlan_id',
+                'enable_ip_passthrough',
+                'ethernet_connection',
+                'mac_address',
+                'port_intercepts'
+            ],
+            'wifi': 
+            [
+                'ethernet_interface',
+                'enable_lldp',
+                'port_id',
+                'port_description',
+                'wifi_ssid',
+                'wifi_bssid',
+                'hidden_network',
+                'wifi_security',
+                'psk',
+                'wpa2_username',
+                'wpa2_password', 
+                'wpa2_method',
+                'wpa2_phase2_auth',
+                'wpa2_validate_server_certificate',
+                'enable_ip_passthrough',
+                'ethernet_connection',
+                'mac_address',
+                'port_intercepts'
+            ],
+            'mobile_broadband_gsm':
+            [
+                'ethernet_interface',
+                'enable_lldp',
+                'port_id',
+                'port_description',
+                'enable_connection_health_monitoring',
+                'ensure_connection_is_up',
+                'ip_address',
+                'interval',
+                'sim-1_phone_number',
+                'sim-1_apn_configuration',
+                'sim-1_user_name',
+                'sim-1_password',
+                'sim-1_access_point_name',
+                'sim-1_personal_identification_number',
+                'sim-1_mtu',
+                'sim-1_allowed_modes',
+                'sim-1_preferred_mode',
+                'enable_data_usage_monitoring',
+                'sim-1_data_limit_value',
+                'sim-1_data_warning',
+                'sim-1_renew_day',
+                'enable_global_positioning_system',
+                'polling_time',
+                'gps_antenna',
+                'enable_second_sim_card',
+                'active_sim_card',
+                'sim-2_phone_number',
+                'sim-2_apn_configuration',
+                'sim-2_user_name',
+                'sim-2_password',
+                'sim-2_access_point_name',
+                'sim-2_personal_identification_number',
+                'sim-2_mtu',
+                'sim-2_allowed_modes',
+                'sim-2_preferred_mode',
+                'sim-2_enable_data_usage_monitoring',
+                'sim-2_data_limit_value',
+                'sim-2_data_warning',
+                'sim-2-renew_day',
+                'enable_ip_passthrough',
+                'ethernet_connection',
+                'mac_address',
+                'port_intercepts'
+            ]
+        },
+        'bridge_mac_configuration':
+        {
+            'bridge_custom_mac': ['bridge_mac_address'],
+            'use_mac_from_first_interface': []
+        },
+        'wifi_security': 
+        { 
+            'disabled': [],
+            'wpa2_personal': ['psk'],
+            'wpa3_personal': ['psk'],
+            'wpa2_enterprise': 
+            [
+                'wpa2_username',
+                'wpa2_password',
+                'wpa2_method',
+                'wpa2_phase2_auth',
+                'wpa2_validate_server_certificate'
+            ],
+        },
+        'sim-1_apn_configuration':
+        {
+            'manual':
+            [
+                'sim-1_user_name',
+                'sim-1_password',
+                'sim-1_access_point_name' 
+            ],
+            'automatic': []
+        },
+        'sim-2_apn_configuration': 
+        {
+            'manual': 
+            [
+                'sim-2_user_name',
+                'sim-2_password',
+                'sim-2_access_point_name' 
+            ],
+            'automatic': []
+        },
+        'ipv4_mode':
+        {
+            'static': ['ipv4_address', 'ipv4_bitmask', 'ipv4_gateway'],
+            'dhcp': [],
+            'no_ipv4_address': []
+        },
+        'ipv6_mode':
+        {
+            'static': ['ipv6_address', 'ipv6_prefix_length', 'ipv6_gateway'],
+            'stateful_dhcpv6': [],
+            'link-local_only': [],
+            'no_ipv6_address': [],
+            'address_auto_configuration': []
+        },
+        'enable_lldp': 
+        [
+            'port_id',
+            'port_description'
+        ],
+        'enable_ip_passthrough': 
+        [
+            'ethernet_connection',
+            'mac_address',
+            'port_intercepts'
+        ],
+        'enable_connection_health_monitoring':
+        [
+            'ensure_connection_is_up',
+            'ip_address',
+            'interval'
+        ],
+        'enable_data_usage_monitoring':
+        [
+            'sim-1_data_limit_value', 
+            'sim-1_data_warning', 
+            'sim-1_renew_day'
+        ],
+        'sim-2_enable_data_usage_monitoring':
+        [
+            'sim-2_data_limit_value', 
+            'sim-2_data_warning', 
+            'sim-2_renew_day'
+        ],
+        'enable_global_positioning_system': 
+        [
+            'polling_time', 
+            'gps_antenna'
+        ],
+        'enable_second_sim_card': 
+        [
+            'active_sim_card', 
+            'sim-2_phone_number', 
+            'sim-2_apn_configuration', 
+            'sim-2_user_name', 
+            'sim-2_password', 
+            'sim-2_access_point_name', 
+            'sim-2_personal_identification_number', 
+            'sim-2_mtu', 
+            'sim-2_allowed_modes', 
+            'sim-2_preferred_mode', 
+            'sim-2_enable_data_usage_monitoring', 
+            'sim-2_data_limit_value', 
+            'sim-2_data_warning', 
+            'sim-2_renew_day'
+        ],
+    }
+
     suboptions = option['suboptions']
     check_mode = run_opt['check_mode']
     field_name = 'name'
@@ -320,6 +554,36 @@ def run_option_network_connections(option, run_opt):
         if not "error" in state:
             if "ethernet_interface" in option['suboptions']:
                 del option['suboptions']['ethernet_interface']
+        
+        #
+        # Remove invalid parameters
+        #
+        try:
+
+            settings_tobe_deleted = set()
+            for dependency in dependencies:
+                if isinstance(dependencies[dependency], dict):
+                    for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
+                        for setting in dependencies[dependency][dep_rem]:
+                            if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
+                                settings_tobe_deleted.add(setting)
+
+                elif isinstance(dependencies[dependency], list) and dependency in suboptions and suboptions[dependency].lower() == "no":
+                    for setting in dependencies[dependency]:
+                        settings_tobe_deleted.add(setting)
+
+            # Delete settings not required
+            for setting in settings_tobe_deleted:
+                suboptions.pop(setting, None)
+
+            # Delete settings that are empty
+            for setting in settings_to_delete_if_empty:
+                if setting in suboptions and suboptions[setting].strip() == "":
+                    suboptions.pop(setting, None)
+
+        except Exception as e:
+            return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
+
         return run_option_adding_field_in_the_path(option, run_opt, field_name)
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}

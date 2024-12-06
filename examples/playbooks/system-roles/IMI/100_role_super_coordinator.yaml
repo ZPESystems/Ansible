@@ -4,15 +4,13 @@
 #  - Configure a nodegrid as Super Coordinator role
 #
 - hosts: all
-  name: Configure a nodegrid as Super Coordinator
+  name: Configure a Nodegrid as Super Coordinator
   gather_facts: true
   collections:
+    - ansible.builtin
     - zpe.nodegrid
 
   tasks:
-    - name: Gather Facts
-      zpe.nodegrid.facts:
-
     - name: Configure a nodegrid as Super Coordinator
       block:
       - name: Setup Audit Settings
@@ -47,7 +45,7 @@
 
       - name: Setup IPv4 Firewall Settings
         include_role:
-          name: network_firewall
+          name: network_firewallv2
         tags:
           - firewall
 

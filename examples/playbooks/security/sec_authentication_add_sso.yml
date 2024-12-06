@@ -6,6 +6,7 @@
   tasks:
 
   - name: Authentication SSO
+    no_log: True
     zpe.nodegrid.security:
         authentication:
           sso:

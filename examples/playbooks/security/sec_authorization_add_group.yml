@@ -5,6 +5,7 @@
 
   tasks:
   - name: Add authorization
+    no_log: True
     zpe.nodegrid.security:
       authorization:
         name: 'manager'

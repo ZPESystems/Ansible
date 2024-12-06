@@ -1,12 +1,14 @@
-        - name: Set Cluster Varaibles
-          set_fact:
-            cluster_peer_tmp:
-              - remote_cluster_name: "{{cluster_settings_name}}"
-                remote_coordinator_address: "{{wg_lc.wireguard_interface_address}}"
-                remote_psk: "{{cluster_settings_psk}}"
+- name: Set Cluster Varaibles
+  tags: always
+  set_fact:
+    cluster_peer_tmp:
+      - remote_cluster_name: "{{ cluster_settings_name }}"
+        remote_coordinator_address: "{{ wg_lc.wireguard_interface_address }}"
+        remote_psk: "{{ cluster_settings_psk }}"
 
-        - name: Export Cluster to Super Coordinator
-          set_fact:
-            cluster_peers: "{{ hostvars[wg_lc.wireguard_hub].cluster_peers + cluster_peer_tmp }}"
-          delegate_to: "{{ wg_lc.wireguard_hub }}"
-          delegate_facts: true
+- name: Export Cluster to Super Coordinator
+  tags: always
+  set_fact:
+    cluster_peers: "{{ hostvars[wg_lc.wireguard_hub].cluster_peers + cluster_peer_tmp }}"
+  delegate_to: "{{ wg_lc.wireguard_hub }}"
+  delegate_facts: true

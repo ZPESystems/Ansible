@@ -39,5 +39,5 @@
 
 - name: Add Authentication servers
   zpe.nodegrid.security:
-        authentication:
-          servers: "{{nodegrid_authentication_servers}}"
+    authentication:
+      servers: "{{ nodegrid_authentication_servers }}"

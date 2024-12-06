@@ -1,0 +1,24 @@
+- become: true
+  block:
+  - name: Get destination disk file stats (in images_cache if exists)
+    ansible.builtin.stat:
+      path: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ disk.file_cache_name }}"
+      get_checksum: "{{ disk.file_get_checksum | default('yes') }}"
+    register: st_dest
+  - name: Download disk file from URL if it does not exist
+    ansible.builtin.get_url:
+      url: "{{ disk.file_source }}"
+      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ disk.file_cache_name }}"
+    when: not st_dest.stat.exists 
+  - name: Download disk file from URL if it exists in images_cache but checksum is different
+    ansible.builtin.get_url:
+      url: "{{ disk.file_source }}"
+      dest: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ disk.file_cache_name }}"
+    when: 
+      - st_dest.stat.exists
+      - disk.file_source_checksum is defined
+      - st_dest.stat.checksum is defined
+      - disk.file_source_checksum != st_dest.stat.checksum
+  - name: Clear stats vars
+    ansible.builtin.set_fact:
+      st_dest:

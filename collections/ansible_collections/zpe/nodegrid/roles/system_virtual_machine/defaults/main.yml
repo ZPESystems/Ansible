@@ -1,0 +1,3 @@
+images: "images"
+cloudinit: "cloudinit"
+images_cache: "images_cache"

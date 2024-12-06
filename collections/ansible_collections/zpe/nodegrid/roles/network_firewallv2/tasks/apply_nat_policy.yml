@@ -1,0 +1,5 @@
+- name: Apply NAT Policy on chain {{ rule.key }}
+  tags: always
+  zpe.nodegrid.natv2:
+    chain: "{{ rule.key }}"
+    policy: "{{ rule.value }}"

@@ -1,0 +1,6 @@
+- name: Apply NAT rules on chain {{ chain }}
+  tags: always
+  vars:
+    current_chain:
+      chain: "{{ chain }}"
+  zpe.nodegrid.natv2: "{{ current_chain | combine(rule) }}"

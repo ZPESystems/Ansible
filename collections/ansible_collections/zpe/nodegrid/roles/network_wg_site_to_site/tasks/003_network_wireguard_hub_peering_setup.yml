@@ -1,44 +1,49 @@
 # ##############################
 # Hub - Add hub-spoke peering
 - name: Create HUB Wireguard Peers
+  tags: always
   vars:
     _peer_name: "peer-{{ wg_peer.peer_name }}"
   block:
-        - name: check if wireguard peers exist
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'show /settings/wireguard/{{ wireguard_interface_name }}/peers/{{ _peer_name }}'
-          ignore_errors: True
-          register: ng_wireguard_peers_output
+    - name: check if wireguard peers exist
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'show /settings/wireguard/{{ wireguard_interface_name }}/peers/{{ _peer_name }}'
+      ignore_errors: True
+      register: ng_wireguard_peers_output
 
-        - name: Hub Add hub-spoke peering if it does not exists
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'cd /settings/wireguard/{{ wireguard_interface_name }}/peers'
-              - cmd: 'add'
-              - cmd: 'set peer_name={{ _peer_name }}'
-              - cmd: "set allowed_ips={{ wg_peer.allowed_ips}}"
-              - cmd: 'set public_key={{ wg_peer.public_key }}'
-              - cmd: 'set keepalive=21'
-              - cmd: "set description='{{ wireguard_interface_name }} peering with {{ wg_peer.peer_name }}'"
-              - cmd: 'commit'
-          when: ng_wireguard_peers_output.failed
+    - name: Hub Add hub-spoke peering if it does not exists
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'cd /settings/wireguard/{{ wireguard_interface_name }}/peers'
+          - cmd: 'add'
+          - cmd: 'set peer_name={{ _peer_name }}'
+          - cmd: "set allowed_ips={{ wg_peer.allowed_ips}}"
+          - cmd: 'set public_key={{ wg_peer.public_key }}'
+          - cmd: 'set keepalive=21'
+          - cmd: "set description='{{ wireguard_interface_name }} peering with {{ wg_peer.peer_name }}'"
+          - cmd: 'commit'
+      when: ng_wireguard_peers_output.failed
 
-        - name: Hub Update hub-spoke peering if it exists
-          zpe.nodegrid.nodegrid_cmds:
-            cmds:
-              - cmd: 'cd /settings/wireguard/{{ wireguard_interface_name }}/peers/{{ _peer_name }}'
-              - cmd: "set allowed_ips={{ wg_peer.allowed_ips }}"
-              - cmd: 'set public_key={{ wg_peer.public_key }}'
-              - cmd: 'set keepalive=21'
-              - cmd: "set description='{{ wireguard_interface_name }} peering with {{ wg_peer.peer_name }}'"
-              - cmd: 'commit'
-          when: ng_wireguard_peers_output.failed == False
+    - name: Hub Update hub-spoke peering if it exists
+      tags: always
+      zpe.nodegrid.nodegrid_cmds:
+        cmds:
+          - cmd: 'cd /settings/wireguard/{{ wireguard_interface_name }}/peers/{{ _peer_name }}'
+          - cmd: "set allowed_ips={{ wg_peer.allowed_ips }}"
+          - cmd: 'set public_key={{ wg_peer.public_key }}'
+          - cmd: 'set keepalive=21'
+          - cmd: "set description='{{ wireguard_interface_name }} peering with {{ wg_peer.peer_name }}'"
+          - cmd: 'commit'
+      when: ng_wireguard_peers_output.failed == False
 
-        - name: check if Peer Port 22 is accessible
-          wait_for:
-            host: "{{ wg_peer.allowed_ips.split('/') | first }}"
-            port: 22
-            state: started
-            delay: 30
-            timeout: 300
+    - name: check if Peer Port 22 is accessible
+      tags: always
+      wait_for:
+        host: "{{ wg_peer.allowed_ips.split('/') | first }}"
+        port: 22
+        state: started
+        delay: 30
+        timeout: 300

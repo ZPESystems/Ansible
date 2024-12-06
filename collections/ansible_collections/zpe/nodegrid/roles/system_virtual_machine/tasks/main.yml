@@ -1,0 +1,4 @@
+- name: Instantiate Virtual Machines
+  tags: always
+  import_tasks: vmdeploy.yaml
+  when: virtual_machines is defined

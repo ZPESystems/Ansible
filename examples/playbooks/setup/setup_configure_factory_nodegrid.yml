@@ -1,7 +1,8 @@
 - hosts: all
   name: Configure ZPE Out Of Box - Factory Default
-  gather_facts: False
+  gather_facts: true
   collections:
+    - ansible.builtin
     - zpe.nodegrid
   vars:
     username: "<myusername>"
@@ -42,7 +43,7 @@
 
   - name: Check version
     set_fact:
-      upgrade_required: "{{ nodegrid_version == '' or ansible_facts['about']['version'] is version(nodegrid_version, '!=') }}"
+      upgrade_required: "{{ nodegrid_version == '' or ansible_facts['nodegrid_about']['version'] is version(nodegrid_version, '!=') }}"
 
   - name: Copy iso
     when: upgrade_required
@@ -107,5 +108,5 @@
     until: not result.failed
 
   - name: Check the version
-    when: upgrade_required and nodegrid_version != '' and ansible_facts['about']['version'] is version(nodegrid_version, '!=')
+    when: upgrade_required and nodegrid_version != '' and ansible_facts['nodegrid_about']['version'] is version(nodegrid_version, '!=')
     fail: msg="Invalid Nodegrid OS version"

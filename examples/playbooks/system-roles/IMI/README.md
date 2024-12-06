@@ -132,14 +132,15 @@ admin@nodegrid:/var/local/file_manager/admin_group/Ansible-main$
 sudo su - ansible
 ```
 
-- Navigate to the system ansible folder
+- Navigate to the system ansible folder and display the example playbooks
 ```bash
 cd /etc/ansible/playbooks/
+ls -l examples
 ```
-- Display example playbooks
+
 ```bash
 ansible@nodegrid:~$ cd /etc/ansible/playbooks/
-ansible@nodegrid:/etc/ansible/playbooks$ ls -l examples/playbooks/
+ansible@nodegrid:/etc/ansible/playbooks$ ls -l examples
 total 7
 drwxrwxr-x 2 ansible admin 1024 May 13 10:30 managed_devices
 drwxrwxr-x 2 ansible admin 1024 May 13 10:30 network
@@ -160,12 +161,12 @@ drwxrwxr-x 3 ansible admin 1024 May 13 10:30 system-roles
 
 - To copy the required playbooks for this example to the playbook folder, use the following command.
 ```shell
-cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansible/playbooks/
+cp /etc/ansible/playbooks/examples/system-roles/IMI/*.yaml /etc/ansible/playbooks/
 ```
 
 - *Example*:
 ```shell
-ansible@nodegrid:/etc/ansible/playbooks$ cp /etc/ansible/playbooks/examples/playbooks/system-roles/IMI/*.yaml /etc/ansible/playbooks/
+ansible@nodegrid:/etc/ansible/playbooks$ cp /etc/ansible/playbooks/examples/system-roles/IMI/*.yaml /etc/ansible/playbooks/
 ansible@nodegrid:/etc/ansible/playbooks$ ls -l
 total 20
 -rwxr-xr-x 1 ansible ansible 1580 May 13 10:42 001_setup_nodegrid_ansible.yaml
@@ -207,7 +208,7 @@ TASK [output] ******************************************************************
 ok: [localhost] => {
     "output": {
         "ansible_facts": {
-            "about": {
+            "nodegrid_about": {
                 "bogomips": "6787.24",
                 "boot_mode": "Legacy",
                 "cpu": "QEMU Virtual CPU version 2.5+",
@@ -527,64 +528,61 @@ vim company.yaml
 
 ```all.yaml
 # Section - REQUIRED - THIS SECTION CONTAINS VALUES THAT MUST BE ADJUSTED
-# License Keys: (REQUIRED - ADD VALID CLUSTER LICENSE KEY) 
-nodegrid_license_keys:  
+# License Keys: (REQUIRED - ADD VALID CLUSTER LICENSE KEY)
+nodegrid_license_keys:
      - XXXXX-XXXXX-XXXXX-XXXXX
      - XXXXX-XXXXX-XXXXX-XXXXX
     
 # Local User Accounts: (REQUIRED - UPDATED PASSWORD)
-local_user_accounts:  
-  - username: "<myusername>"  
-    hash_format_password: "no"  
-    password: "<mypassword>"  
-    user_group: "admin"  
-    
+local_user_accounts:
+  - username: admin
+    hash_format_password: "no"
+    password: "xxxxxx"
+    user_group: "admin"
+
 # SECTION - CHANGE - CHANGES ARE RECOMMENDED BUT NOT REQUIRED
 
-# Firmware Settings: (CHANGE - TO DESIRED NODEGRID VERSION)  
-nodegrid_iso_location: "/var/local/file_manager/datastore/"  
-nodegrid_iso_file: "Nodegrid_Platform_v5.8.16_20231107.iso"  
-nodegrid_iso_target_version: "5.8.16"  
-  
-# Default System Settings: (CHANGE - TO DESIRED VALUES)  
-sys_show_hostname_on_webui_header: "yes"  
-sys_idle_timeout: 3600  
-sys_banner: '''  
-WARNING: This private system is provided for authorized use only and it may be monitored for all lawful purposes to ensure its use. All information  
-including personal information, placed on or sent over this system may be  
-monitored and recorded. Use of this system, authorized or unauthorized,  
-constitutes consent to monitoring your session. Unauthorized use may subject you to criminal prosecution. Evidence of any such unauthorized  
-use may be used for administrative, criminal and/or legal actions. '''  
-  
-# Default System Date and Time: (CHANGE - TO DESIRED VALUES)  
-sys_date_and_time_date_and_time: "network_time_protocol"  
-sys_date_and_time_zone: "utc"  
+# Firmware Settings: (CHANGE - TO DESIRED NODEGRID VERSION)
+nodegrid_iso_location: "/var/local/file_manager/datastore/"
+nodegrid_iso_file: "Nodegrid_Platform_v5.8.16_20231107.iso"
+nodegrid_iso_target_version: "5.8.16"
 
-# Authentication  
+# Default System Settings: (CHANGE - TO DESIRED VALUES)
+sys_show_hostname_on_webui_header: "yes"
+sys_idle_timeout: 3600
+sys_banner: "
+WARNING: This private system is provided for authorized use only and it may be monitored for all lawful purposes to ensure its use. All information including personal information, placed on or sent over this system may be monitored and recorded. Use of this system, authorized or unauthorized, constitutes consent to monitoring your session. Unauthorized use may subject you to criminal prosecution. Evidence of any such unauthorized use may be used for administrative, criminal and/or legal actions.
+"
+
+# Default System Date and Time: (CHANGE - TO DESIRED VALUES)
+sys_date_and_time_date_and_time: "network_time_protocol"
+sys_date_and_time_zone: "utc"
+
+# Authentication
 # Local User Groups: (CHANGE - TO DESIRED VALUES)
-nodegrid_local_user_groups:  
-  - name: 'admin'  
-    track_system_information: "yes"  
-    terminate_sessions: "yes"  
-    software_upgrade_and_reboot_system: "yes"  
-    configure_system: "yes"  
-    configure_user_accounts: "yes"  
-    apply_and_save_settings: "yes"  
-    shell_access: "yes"  
-    manage_devices_permissions: "no"  
-  - name: 'user'  
-    track_system_information: "no"  
-    terminate_sessions: "no"  
-    software_upgrade_and_reboot_system: "no"  
-    configure_system: "yes"  
-    configure_user_accounts: "no"  
-    apply_and_save_settings: "no"  
-    shell_access: "no"  
-    manage_devices_permissions: "no"  
+nodegrid_local_user_groups:
+  - name: 'admin'
+    track_system_information: "yes"
+    terminate_sessions: "yes"
+    software_upgrade_and_reboot_system: "yes"
+    configure_system: "yes"
+    configure_user_accounts: "yes"
+    apply_and_save_settings: "yes"
+    shell_access: "yes"
+    manage_devices_permissions: "no"
+  - name: 'user'
+    track_system_information: "no"
+    terminate_sessions: "no"
+    software_upgrade_and_reboot_system: "no"
+    configure_system: "yes"
+    configure_user_accounts: "no"
+    apply_and_save_settings: "no"
+    shell_access: "no"
+    manage_devices_permissions: "no"
 
 # Default Authentication Server: (CHANGE - TO DESIRED VALUES)
 # TACACS server settings have changed from 5.8 to 6.0 Update settings as required
-nodegrid_authentication_servers:  
+nodegrid_authentication_servers:
   - number: 1
     method: "tacacs+"
     status: "disabled"
@@ -599,7 +597,7 @@ nodegrid_authentication_servers:
     tacacs_plus_retries: "2"
     tacacs_plus_version: "v1"
     tacacs_plus_enable_user-level: "yes"
-    tacacs_plus_user_level_12: "user" 
+    tacacs_plus_user_level_12: "user"
     tacacs_plus_user_level_15: "admin"
 
 # System SNMP Settings: (CHANGE - TO DESIRED VALUES)
@@ -619,27 +617,27 @@ nodegrid_domain_name: us.internal
 # SECTION - NO CHANGE REQUIRED - NO CHANGES ARE REQUIRED
 
 # Default Network Settings: (NO CHANGE REQUIRED)
-nodegrid_enable_ipv4_ip_forward: "no"  
-nodegrid_enable_ipv6_ip_forward: "no"  
-nodegrid_reverse_path_filtering: "strict_mode"  
-nodegrid_enable_multiple_routing_tables: "yes"  
-failover_enable_network_failover: "no"  
+nodegrid_enable_ipv4_ip_forward: "no"
+nodegrid_enable_ipv6_ip_forward: "no"
+nodegrid_reverse_path_filtering: "strict_mode"
+nodegrid_enable_multiple_routing_tables: "yes"
+failover_enable_network_failover: "no"
   
-# Default Audit Settings: (NO CHANGE REQUIRED)  
+# Default Audit Settings: (NO CHANGE REQUIRED)
 auditing_settings:
-  event_timestamp_format: local_time  
-  datalog_add_timestamp: "no"  
-  datalog_timestamp_format: local_time  
+  event_timestamp_format: local_time
+  datalog_add_timestamp: "no"
+  datalog_timestamp_format: local_time
   datalog_destination: file
   enable_persistent_logs: "no"
 
-# System Session Logging: (NO CHANGE REQUIRED) 
-system_logging_enable_session_logging_alerts: "no"  
+# System Session Logging: (NO CHANGE REQUIRED)
+system_logging_enable_session_logging_alerts: "no"
 
 # Nodegrid Authentication settings: (NO CHANGE REQUIRED)
-authentication_admin_and_root_fallback_to_local_on_console: "yes"  
-authentication_default_group_for_remote_users: ""  
-authentication_enable_authentication_server_selection_based_on_realms: "yes"  
+authentication_admin_and_root_fallback_to_local_on_console: "yes"
+authentication_default_group_for_remote_users: ""
+authentication_enable_authentication_server_selection_based_on_realms: "yes"
 
 # System Services: (NO CHANGE REQUIRED)
 services_enable_snmp_service: "yes"
@@ -652,89 +650,110 @@ ipv4_firewall:
     OUTPUT: ACCEPT
   chains:
     INPUT:
-        - target: ACCEPT
-          rule_number: 0
-          input_interface: lo
-          output_interface: any
-          description: DEFAULT_RULE_DO_NOT_REMOVE
-        - target: ACCEPT
-          rule_number: 1
-          protocol: tcp
-          destination_port: 22
-          source_net4: ""
-          destination_net4: ""
-          description: 'NODEGRID_SSH'        
-        - target: ACCEPT
-          rule_number: 2
-          protocol: tcp
-          source_net4: ""
-          destination_net4: ""
-          destination_port: 9300
-          description: 'NODEGRID_SEARCH_9300' 
-        - target: ACCEPT
-          rule_number: 3
-          protocol: tcp
-          destination_port: 9966
-          description: 'NODEGRID_CLUSTER_9966'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 4
-          protocol: tcp
-          destination_port: 443
-          description: 'NODEGRID_HTTPS'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 5
-          protocol: udp
-          destination_udp_port: 161
-          description: 'NODEGRID_SNMP'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 6
-          protocol: udp
-          destination_udp_port: 51820
-          description: 'NODEGRID_WIREGUARD'
-          source_net4: ""
-          destination_net4: ""
-        - target: ACCEPT
-          rule_number: 7
-          protocol: numeric
-          description: 'ACCEPT_WIREGUARD_TRAFFIC'
-          source_net4: "10.21.0.0/16"
-          destination_net4: "10.21.0.0/16"
-          enable_state_match: "no"
-        - target: ACCEPT
-          rule_number: 8
-          protocol: numeric
-          description: 'ACCEPT_RELATED_TRAFFIC'
-          enable_state_match: "yes"
-          new: "no"
-          established: "yes"
-          related: "yes"
-          invalid: "no"
-          reverse_state_match: "no"
-          source_net4: ""
-          destination_net4: ""
-        - target: DROP
-          rule_number: 9
-          protocol: numeric
-          description: 'DROP_ALL'
-          source_net4: ""
+      # - flush: yes
+      - action: insert
+        state: present
+        target: ACCEPT
+        rule_number: 0
+        input_interface: lo
+        output_interface: any
+        description: DEFAULT_RULE_DO_NOT_REMOVE
+      - action: insert
+        state: present
+        rule_number: 1
+        target: ACCEPT
+        protocol: tcp
+        destination_port: 22
+        source_net4: ""
+        destination_net4: ""
+        description: 'NODEGRID_SSH'
+      - action: insert
+        state: present
+        rule_number: 2
+        target: ACCEPT
+        protocol: tcp
+        source_net4: ""
+        destination_net4: ""
+        destination_port: 9300
+        description: 'NODEGRID_SEARCH_9300' 
+      - action: insert
+        state: present
+        rule_number: 3
+        target: ACCEPT
+        protocol: tcp
+        destination_port: 9966
+        description: 'NODEGRID_CLUSTER_9966'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 4
+        target: ACCEPT
+        protocol: tcp
+        destination_port: 443
+        description: 'NODEGRID_HTTPS'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 5
+        target: ACCEPT
+        protocol: udp
+        destination_udp_port: 161
+        description: 'NODEGRID_SNMP'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 6
+        target: ACCEPT
+        protocol: udp
+        destination_udp_port: 51820
+        description: 'NODEGRID_WIREGUARD'
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 7
+        target: ACCEPT
+        protocol: numeric
+        description: 'ACCEPT_WIREGUARD_TRAFFIC'
+        source_net4: "10.21.0.0/16"
+        destination_net4: "10.21.0.0/16"
+        enable_state_match: "no"
+      - action: insert
+        state: present
+        rule_number: 8
+        target: ACCEPT
+        protocol: numeric
+        description: 'ACCEPT_RELATED_TRAFFIC'
+        enable_state_match: "yes"
+        new: "no"
+        established: "yes"
+        related: "yes"
+        invalid: "no"
+        reverse_state_match: "no"
+        source_net4: ""
+        destination_net4: ""
+      - action: insert
+        state: present
+        rule_number: 9
+        target: DROP
+        protocol: numeric
+        description: 'DROP_ALL'
+        source_net4: ""
 
 # SECTION - DO NOT CHANGE - THIS SECTION CONTAINS SETTING WHICH SHOULD NOT BE CHANGED
 # Generic Ansible Settings: (DO NOT CHANGE)
 ansible_user: ansible
 ansible_ssh_private_key_file: /home/ansible/.ssh/id_ed25519
-ansible_python_interpreter: "/usr/bin/python3" 
+ansible_python_interpreter: "/usr/bin/python3"
 
-# Generic Nodegrid Roles  
-nodegrid_roles:  
+# Generic Nodegrid Roles
+nodegrid_roles:
   - local_peer
 
-cluster_settings_cluster_mode: mesh  
+cluster_settings_cluster_mode: mesh
 cluster_settings_polling_rate: 120
 ```
 
@@ -796,32 +815,32 @@ vim /etc/ansible/inventories/host_vars/ny-sc1.yaml
 ansible_host: 127.0.0.1  # IP address, which ansible will use to communicate with the host
 ansible_ssh_port: 22
 ssh_tcp_port: 22
-# Generic Nodegrid Roles (DO NOT CHANGE)  
-nodegrid_roles:  
-  - super_coordinator  
-  - wireguard_hub  
+# Generic Nodegrid Roles (DO NOT CHANGE)
+nodegrid_roles:
+  - super_coordinator
+  - wireguard_hub
 
 # Nodegrid Network Settings:  (CHANGE)
-nodegrid_hostname: ny-sc1  
+nodegrid_hostname: ny-sc1
   
 # Nodegrid Network Connections:  (REQUIRED)
 network_connections:  
-- nodegrid_connection_name: ETH0  
-  nodegrid_interface: eth0  
-  nodegrid_connect_description: "MGMT"  
-  nodegrid_ipv4_mode: static  
-  nodegrid_ipv4_address: 10.0.2.134  
-  nodegrid_ipv4_bitmask: 24  
+- name: ETH0
+  ethernet_interface: eth0
+  description: "MGMT"
+  ipv4_mode: static 
+  ipv4_address: 10.0.2.134
+  ipv4_bitmask: 24
   
-# Wireguard Settings:  (CHANGE)  
-wireguard_interface_name: ny-sc1-hub            # Wireguard interface and VPN name  
-wireguard_interface_address: 10.21.1.1/32       # Wireguard interface internal IP address  
-wireguard_external_address_main: 10.0.2.134     # Wireguard main external IP address (used on the spoke side)  
-wireguard_external_address_backup: 10.0.2.134   # Wireguard backup external IP address (used on the spoke side)  
-wireguard_udp_port: 51820                       # Wireguard UDP port  
+# Wireguard Settings:  (CHANGE)
+wireguard_interface_name: ny-sc1-hub            # Wireguard interface and VPN name
+wireguard_interface_address: 10.21.1.1/32       # Wireguard interface internal IP address
+wireguard_external_address_main: 10.0.2.134     # Wireguard main external IP address (used on the spoke side)
+wireguard_external_address_backup: 10.0.2.134   # Wireguard backup external IP address (used on the spoke side)
+wireguard_udp_port: 51820                       # Wireguard UDP port
   
-# Cluster Settings:  (NO CHANGE REQUIRED)  
-cluster_settings_name: NY  
+# Cluster Settings:  (NO CHANGE REQUIRED)
+cluster_settings_name: NY
 cluster_settings_psk: NYCluster
 cluster_settings_type: coordinator
 cluster_settings_mode: star
@@ -916,7 +935,7 @@ Before we do this, let us cover briefly which settings are required for each sys
 | Network Settings   | **Network Settings**              |                             |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                                                                                                          |
 |                    | nodegrid_hostname                 | All                         | system hostname                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                                                                                                          |
 |                    | nodegrid_domain_name              | All                         | systems domain name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |                                                                                                                                                                                                                          |
-|                    | network_connections               | All                         | Configuration of the Network interfaces                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | - nodegrid_connection_name: ETH0  <br>  nodegrid_interface: eth0  <br>  nodegrid_connect_description: "MGMT"  <br>  nodegrid_ipv4_mode: static  <br>  nodegrid_ipv4_address: 10.0.2.134  <br>  nodegrid_ipv4_bitmask: 24 |
+|                    | network_connections               | All                         | Configuration of the Network interfaces                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | - name: ETH0  <br>  ethernet_interface: eth0  <br>  description: "MGMT"  <br>  ipv4_mode: static  <br>  ipv4_address: 10.0.2.134  <br>  ipv4_bitmask: 24 |
 | Network Failover   | **Network Failover**              |                             |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                                                                                                          |
 |                    | failover_enable_network_failover  | Local Coordinator           | Should Network Failover be configured, "yes" or "no" (Default)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | "yes"                                                                                                                                                                                                                    |
 |                    | failover_primary_connection       | Local Coordinator           | Primary Interface                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | ETH0                                                                                                                                                                                                                     |
@@ -964,23 +983,23 @@ nodegrid_roles:
 # Nodegrid Network Settings
 nodegrid_hostname: dub-sc1
 nodegrid_domain_name: emea.internal
-# Nodegrid Network Connections  
-network_connections:  
-    - nodegrid_connection_name: ETH0  
-      nodegrid_interface: eth0  
-      nodegrid_connect_description: "MGMT"  
-      nodegrid_ipv4_mode: static  
-      nodegrid_ipv4_address: 10.0.2.136  
-      nodegrid_ipv4_bitmask: 24  
-# Wireguard Settings  
+# Nodegrid Network Connections
+network_connections:
+    - name: ETH0
+      ethernet_interface: eth0
+      description: "MGMT"
+      ipv4_mode: static
+      ipv4_address: 10.0.2.136
+      ipv4_bitmask: 24
+# Wireguard Settings
 wireguard_interface_name: dub-sc1-hub           # VPN interface name
 wireguard_interface_address: 10.21.2.1/32       # VPN Internal IP address
 # The following settings are used to configure the Wireguard Spokes
-wireguard_external_address_main: 10.0.2.136     # VPN primary external IP  
-wireguard_external_address_backup: 10.0.2.136   # VPN backup external IP  
-wireguard_udp_port: 51820     # VPN UDP port  
-# Cluster Settings  
-cluster_settings_name: DUB  
+wireguard_external_address_main: 10.0.2.136     # VPN primary external IP
+wireguard_external_address_backup: 10.0.2.136   # VPN backup external IP
+wireguard_udp_port: 51820     # VPN UDP port
+# Cluster Settings
+cluster_settings_name: DUB
 cluster_settings_psk: DUBCluster
 cluster_settings_type: coordinator
 cluster_settings_mode: star
@@ -995,48 +1014,48 @@ ansible-inventory --host dub-sc1
 ```
 vim /etc/ansible/inventories/host_vars/la-lc1.yaml
 ```
-- Add the following values 
-```la-lc1.yaml  
-# Generic Ansible Settings  
-ansible_host: 10.0.2.135  
-# Generic Nodegrid Roles  
-nodegrid_roles:  
-    - local_coordinator  
-    - wireguard_spoke  
-# Nodegrid Network Settings  
+- Add the following values
+```la-lc1.yaml
+# Generic Ansible Settings
+ansible_host: 10.0.2.135
+# Generic Nodegrid Roles
+nodegrid_roles:
+    - local_coordinator
+    - wireguard_spoke
+# Nodegrid Network Settings
 nodegrid_hostname: la-lc1
-# Nodegrid Network Connections  
-network_connections:  
-    - nodegrid_connection_name: ETH0  
-      nodegrid_interface: eth0  
-      nodegrid_connect_description: "MGMT"  
-      nodegrid_ipv4_mode: static  
-      nodegrid_ipv4_address: 10.0.2.135  
-      nodegrid_ipv4_bitmask: 24  
-    - nodegrid_connection_name: ETH1  
-      nodegrid_interface: eth1  
-      nodegrid_set_as_primary_connection: "yes"  
-      nodegrid_connect_description: "LTE"  
-      nodegrid_ipv4_mode: static  
-      nodegrid_ipv4_address: 10.1.11.2  
-      nodegrid_ipv4_bitmask: 24  
-      nodegrid_ipv4_gateway: 10.1.11.1  
-# Network Failover  
-failover_enable_network_failover: "yes"  
-failover_primary_connection: "ETH0"  
-failover_secondary_connection: "ETH1"  
-failover_trigger_ip_address: 10.0.2.1 
+# Nodegrid Network Connections
+network_connections:
+    - name: ETH0
+      ethernet_interface: eth0
+      description: "MGMT"
+      ipv4_mode: static
+      ipv4_address: 10.0.2.135
+      ipv4_bitmask: 24
+    - name: ETH1
+      ethernet_interface: eth1
+      set_as_primary_connection: "yes"
+      description: "LTE"
+      ipv4_mode: static 
+      ipv4_address: 10.1.11.2
+      ipv4_bitmask: 24
+      ipv4_gateway: 10.1.11.1
+# Network Failover
+failover_enable_network_failover: "yes"
+failover_primary_connection: "ETH0"
+failover_secondary_connection: "ETH1"
+failover_trigger_ip_address: 10.0.2.1
 # Wireguard Settings
 wireguard_failover_status: "yes"
-wireguard_interfaces:  
-    - wireguard_hub: ny-sc1                       # super_coordinator ansible hostname  
-      wireguard_interface_name: ny-sc1            # VPN interface name  
-      wireguard_interface_address: 10.21.1.11/32  # Internal IP address  
+wireguard_interfaces:
+    - wireguard_hub: ny-sc1                       # super_coordinator ansible hostname
+      wireguard_interface_name: ny-sc1            # VPN interface name
+      wireguard_interface_address: 10.21.1.11/32  # Internal IP address
     - wireguard_hub: dub-sc1                      # super_coordinator ansible hostname
       wireguard_interface_name: dub-sc1           # VPN interface name
       wireguard_interface_address: 10.21.2.11/32  # Internal IP address
 # Cluster Settings
-cluster_settings_name: LA-CLUSTER  
+cluster_settings_name: LA-CLUSTER
 cluster_settings_psk: LA-NGCluster
 cluster_settings_type: coordinator
 cluster_settings_mode: mesh
@@ -1054,20 +1073,20 @@ vim /etc/ansible/inventories/host_vars/la-lp1.yaml
 ```
 - Add the following values 
 ```la-lp1.yaml
-# Generic Ansible Settings  
-ansible_host: 10.0.2.137  
-# Nodegrid Network Settings  
-nodegrid_hostname: la-lp1  
-# Nodegrid Network Connections  
-network_connections:  
-  - nodegrid_connection_name: ETH0  
-    nodegrid_interface: eth0  
-    nodegrid_connect_description: "MGMT"  
-    nodegrid_ipv4_mode: static  
-    nodegrid_ipv4_address: 10.0.2.137  
-    nodegrid_ipv4_bitmask: 24
+# Generic Ansible Settings
+ansible_host: 10.0.2.137
+# Nodegrid Network Settings
+nodegrid_hostname: la-lp1
+# Nodegrid Network Connections
+network_connections:
+  - name: ETH0
+    ethernet_interface: eth0
+    description: "MGMT"
+    ipv4_mode: static
+    ipv4_address: 10.0.2.137
+    ipv4_bitmask: 24
 # Cluster Settings
-cluster_settings_name: LA-CLUSTER  
+cluster_settings_name: LA-CLUSTER
 cluster_settings_psk: LA-NGCluster
 cluster_coordinator_address: 10.0.2.135
 cluster_settings_type: peer
@@ -1111,14 +1130,34 @@ Example Output
 ansible@ny-sc1:/etc/ansible/playbooks$ ansible-playbook 001_setup_nodegrid_ansible.yaml --limit company
 Enter Username for the connection [admin]: 
 Provide a password for the user: 
+Provide local ssh key file path [~/.ssh/id_ed25519.pub]: 
+Add the Nodegrid user to sudoers (True | False)? [True]: 
 
-PLAY [Configure ZPE Out Of Box - Wireguard Spoke profile] ********************************************************************************************************************************************************************************************************************
+PLAY [Configure ZPE Out Of Box - Install a ssh public key into a Nodegrid user] ********************************************************************************************************************************************************************************************************************
 
 TASK [Read ssh_key] **********************************************************************************************************************************************************************************************************************************************************
 ok: [ny-sc1]
 ok: [la-lc1]
 ok: [la-lp1]
 ok: [dub-sc1]
+
+TASK [Read ssh_key] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
+
+TASK [Validate ssh_key] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
+
+TASK [Get ssh_key type] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
 
 TASK [Install a ssh_key for a user] ******************************************************************************************************************************************************************************************************************************************
 changed: [ny-sc1]
@@ -1131,6 +1170,12 @@ ok: [ny-sc1]
 ok: [la-lc1]
 ok: [dub-sc1]
 ok: [la-lp1]
+
+TASK [Create .vimrc config file] ******************************************************************************************************************************************************************************************************************************************
+changed: [ny-sc1]
+changed: [la-lc1]
+changed: [dub-sc1]
+changed: [la-lp1]
 
 PLAY RECAP *******************************************************************************************************************************************************************************************************************************************************************
 dub-sc1                    : ok=3    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   

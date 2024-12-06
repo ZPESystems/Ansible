@@ -21,23 +21,23 @@ nodegrid_local_user_groups:
 
 # Authentication Servers
 nodegrid_authentication_servers:
-            - number: 1
-              method: "tacacs+"
-              two_factor_authentication: "none"
-              status: "enabled"
-              fallback_if_denied_access: "yes"
-              remote_server: "10.1.1.5"
-              tacacs_plus_accounting_server: "10.1.1.5"
-              authorize_ssh_pkey_users: "yes"
-              tacacs_plus_port: "49"
-              tacacs_plus_service: "raccess"
-              tacacs_plus_secret: "tacacs"
-              tacacs_plus_timeout: "2"
-              tacacs_plus_retries: "2"
-              tacacs_plus_version: "v1"
-              tacacs_plus_enable_user_level: "yes"
-              tacacs_plus_user_level_12: "zpeuser"
-              tacacs_plus_user_level_15: "zpeadmin"
+  - number: 1
+    method: "tacacs+"
+    two_factor_authentication: "none"
+    status: "enabled"
+    fallback_if_denied_access: "yes"
+    remote_server: "10.1.1.5"
+    tacacs_plus_accounting_server: "10.1.1.5"
+    authorize_ssh_pkey_users: "yes"
+    tacacs_plus_port: "49"
+    tacacs_plus_service: "raccess"
+    tacacs_plus_secret: "tacacs"
+    tacacs_plus_timeout: "2"
+    tacacs_plus_retries: "2"
+    tacacs_plus_version: "v1"
+    tacacs_plus_enable_user_level: "yes"
+    tacacs_plus_user_level_12: "zpeuser"
+    tacacs_plus_user_level_15: "zpeadmin"
 
 # Local User Accounts
 local_user_accounts:

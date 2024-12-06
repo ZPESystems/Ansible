@@ -1,24 +1,36 @@
 - name: Add User Group
+  tags: always
   zpe.nodegrid.security:
-      authorization:
-        name: "{{item.name}}"
-        profile:
-          # Permissions begin
-          track_system_information: "{{item.track_system_information | default('no')}}"
-          terminate_sessions: "{{item.terminate_sessions | default('no')}}"
-          software_upgrade_and_reboot_system: "{{item.software_upgrade_and_reboot_system | default('no')}}"
-          configure_system: "{{item.configure_system | default('no')}}"
-          configure_user_accounts: "{{item.configure_user_accounts | default('no')}}"
-          apply_&_save_settings: "{{item.apply_and_save_settings | default('no')}}"
-          shell_access: "{{item.shell_access | default('no')}}"
-          manage_devices_permissions: "{{item.manage_devices_permissions | default('no')}}"
-          # Permissions end
-          restrict_configure_system_permission_to_read_only: "{{item.restrict_configure_system_permission_to_read_only | default('no')}}"
-          menu-driven_access_to_devices: "{{item.menu_driven_access_to_devices | default('no')}}"
-          sudo_permission: "{{item.sudo_permission | default('no')}}"
-          custom_session_timeout: "{{item.custom_session_timeout | default('no')}}"
-          startup_application: "{{item.startup_application | default('cli')}}"
-          email_events_to: "{{item.email_events_to | default('')}}"
-  with_items: "{{nodegrid_local_user_groups}}"
+    authorization:
+      name: "{{ item.name }}"
+      profile:
+        # Permissions begin
+        track_system_information: "{{ item.track_system_information | default('no') }}"
+        terminate_sessions: "{{ item.terminate_sessions | default('no') }}"
+        software_upgrade_and_reboot_system: "{{ item.software_upgrade_and_reboot_system | default('no') }}"
+        configure_system: "{{ item.configure_system | default('no') }}"
+        configure_user_accounts: "{{ item.configure_user_accounts | default('no') }}"
+        apply_&_save_settings: "{{ item.apply_and_save_settings | default('no') }}"
+        shell_access: "{{ item.shell_access | default('no') }}"
+        manage_devices_permissions: "{{ item.manage_devices_permissions | default('no') }}"
+        # Permissions end
+        # Managed Devices Permissions begin
+        manage_devices_general_settings: "{{ item.manage_devices_general_settings | default('no') }}"
+        manage_devices_connection_settings: "{{ item.manage_devices_connection_settings | default('no') }}"
+        manage_devices_inbound_access_settings: "{{ item.manage_devices_inbound_access_settings | default('no') }}"
+        manage_devices_management: "{{ item.manage_devices_management | default('no') }}"
+        manage_devices_logging: "{{ item.manage_devices_logging | default('no') }}"
+        manage_devices_custom_fields: "{{ item.manage_devices_custom_fields | default('no') }}"
+        manage_devices_commands: "{{ item.manage_devices_commands | default('no') }}"
+        manage_devices_outlets: "{{ item.manage_devices_outlets | default('no') }}"
+        manage_devices_sensor_channels: "{{ item.manage_devices_sensor_channels | default('no') }}"
+        # Managed Devices Permissions end
+        restrict_configure_system_permission_to_read_only: "{{ item.restrict_configure_system_permission_to_read_only | default('no') }}"
+        menu-driven_access_to_devices: "{{ item.menu_driven_access_to_devices | default('no') }}"
+        sudo_permission: "{{ item.sudo_permission | default('no') }}"
+        custom_session_timeout: "{{ item.custom_session_timeout | default('no') }}"
+        startup_application: "{{ item.startup_application | default('cli') }}"
+        email_events_to: "{{ item.email_events_to | default('') }}"
+  with_items: "{{ nodegrid_local_user_groups }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{  item.name  }}"

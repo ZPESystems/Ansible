@@ -1,4 +1,5 @@
 - name: Setup Auditing Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/settings event_timestamp_format={{ auditing_event_timestamp_format }}"
@@ -8,6 +9,7 @@
       - "/settings/auditing/settings enable_persistent_logs={{ auditing_event_enable_persistent_logs }}"
 
 - name: Setup ZPE Cloud Auditing Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/events/zpe_cloud system_events={{ auditing_event_zpe_cloud_system_events }}"
@@ -17,6 +19,7 @@
       - "/settings/auditing/events/zpe_cloud zpe_cloud_events={{ auditing_event_zpe_cloud_zpe_cloud_events }}"
 
 - name: Setup E-Mail Auditing Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/events/email system_events={{ auditing_event_email_system_events }}"
@@ -26,6 +29,7 @@
       - "/settings/auditing/events/email zpe_cloud_events={{ auditing_event_email_zpe_cloud_events }}"
 
 - name: Setup File Auditing Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/events/file system_events={{ auditing_event_file_system_events }}"
@@ -35,6 +39,7 @@
       - "/settings/auditing/events/file zpe_cloud_events={{ auditing_event_file_zpe_cloud_events }}"
 
 - name: Setup Syslog Auditing Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/events/syslog system_events={{ auditing_event_syslog_system_events }}"
@@ -44,6 +49,7 @@
       - "/settings/auditing/events/syslog zpe_cloud_events={{ auditing_event_syslog_zpe_cloud_events }}"
 
 - name: Setup SNMP Auditing Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/events/snmp_trap system_events={{ auditing_event_snmp_trap_system_events }}"
@@ -53,6 +59,7 @@
       - "/settings/auditing/events/snmp_trap zpe_cloud_events={{ auditing_event_snmp_trap_zpe_cloud_events }}"
 
 - name: Setup File Destination Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/destinations/file destination={{ auditing_destination_file_destination }}"
@@ -62,6 +69,7 @@
       - "/settings/auditing/destinations/file number_of_archives_in_nfs={{ auditing_destination_file_number_of_archives_in_nfs }}"
 
 - name: Setup Syslog Destination Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/destinations/syslog system_console={{ auditing_destination_syslog_system_console }}"
@@ -73,12 +81,14 @@
       - "/settings/auditing/destinations/syslog datalog_facility={{ auditing_destination_syslog_datalog_facility }}"
 
 - name: Setup E-Mail Destination Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/destinations/email email_port={{ auditing_destination_email_email_port }}"
       - "/settings/auditing/destinations/email start_tls={{ auditing_destination_email_start_tls }}"
 
 - name: Setup SNMP Destination Settings
+  tags: always
   zpe.nodegrid.import_settings:
     cmds:
       - "/settings/auditing/destinations/snmptrap snmptrap_server={{ auditing_destination_snmptrap_snmptrap_server }}"

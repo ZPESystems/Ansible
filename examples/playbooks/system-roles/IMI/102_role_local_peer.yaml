@@ -7,12 +7,10 @@
   name: Configure a Nodegrid as Local Peer
   gather_facts: true
   collections:
+    - ansible.builtin
     - zpe.nodegrid
 
   tasks:
-    - name: Gather Facts
-      zpe.nodegrid.facts:
-
     - name: Configure a Nodegrid as Local Peer
       block:
       - name: Setup Audit Settings
@@ -41,7 +39,7 @@
 
       - name: Setup IPv4 Firewall Settings
         include_role:
-          name: network_firewall
+          name: network_firewallv2
         tags:
           - firewall
 

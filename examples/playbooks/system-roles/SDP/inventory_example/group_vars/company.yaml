@@ -1,0 +1,254 @@
+# Section - REQUIRED - THIS SECTION CONTAINS VALUES THAT MUST BE ADJUSTED
+# License Keys: (REQUIRED - ADD VALID CLUSTER LICENSE KEY)
+nodegrid_license_keys:
+     - XXXXX-XXXXX-XXXXX-XXXXX
+     - XXXXX-XXXXX-XXXXX-XXXXX
+
+# Local User Accounts: (REQUIRED - UPDATED PASSWORD)
+local_user_accounts:
+  - username: "<myusername>"
+    hash_format_password: "no"
+    password: "<mypassword>"
+    user_group: "admin"
+
+# SECTION - CHANGE - CHANGES ARE RECOMMENDED BUT NOT REQUIRED
+
+# Firmware Settings: (CHANGE - TO DESIRED NODEGRID VERSION)
+nodegrid_iso_location: "/var/local/file_manager/datastore/"
+nodegrid_iso_file: "Nodegrid_Platform_v5.8.16_20231107.iso"
+nodegrid_target_version: "5.8.16"
+
+# Default System Settings: (CHANGE - TO DESIRED VALUES)
+sys_show_hostname_on_webui_header: "yes"
+sys_idle_timeout: 3600
+sys_banner: "
+WARNING: This private system is provided for authorized use only and it may be monitored for all lawful purposes to ensure its use. All information including personal information, placed on or sent over this system may be monitored and recorded. Use of this system, authorized or unauthorized, constitutes consent to monitoring your session. Unauthorized use may subject you to criminal prosecution. Evidence of any such unauthorized use may be used for administrative, criminal and/or legal actions.
+"
+
+# Default System Date and Time: (CHANGE - TO DESIRED VALUES)
+sys_date_and_time_date_and_time: "network_time_protocol"
+sys_date_and_time_zone: "utc"
+
+# Authentication
+# Local User Groups: (CHANGE - TO DESIRED VALUES)
+nodegrid_local_user_groups:
+  - name: 'admin'
+    track_system_information: "yes"
+    terminate_sessions: "yes"
+    software_upgrade_and_reboot_system: "yes"
+    configure_system: "yes"
+    configure_user_accounts: "yes"
+    apply_and_save_settings: "yes"
+    shell_access: "yes"
+    manage_devices_permissions: "no"
+  - name: 'user'
+    track_system_information: "no"
+    terminate_sessions: "no"
+    software_upgrade_and_reboot_system: "no"
+    configure_system: "yes"
+    configure_user_accounts: "no"
+    apply_and_save_settings: "no"
+    shell_access: "no"
+    manage_devices_permissions: "no"
+
+# Default Authentication Server: (CHANGE - TO DESIRED VALUES)
+# TACACS server settings have changed from 5.8 to 6.0 Update settings as required
+nodegrid_authentication_servers:
+  - number: 1
+    method: "tacacs+"
+    status: "disabled"
+    fallback_if_denied_access: "yes"
+    remote_server: "10.1.1.5"
+    tacacs_plus_accounting_server: "10.1.1.5"
+    authorize_ssh_pkey_users: "yes"
+    tacacs_plus_port: "49"
+    tacacs_plus_service: "raccess"
+    tacacs_plus_secret: "tacacs"
+    tacacs_plus_timeout: "2"
+    tacacs_plus_retries: "2"
+    tacacs_plus_version: "v1"
+    tacacs_plus_enable_user-level: "yes"
+    tacacs_plus_user_level_12: "user"
+    tacacs_plus_user_level_15: "admin"
+
+# System SNMP Settings: (CHANGE - TO DESIRED VALUES)
+syscontact: "noc@zpesystems.internal"
+syslocation: "Nodegrid"
+snmp_rules:
+  - version: "version_v1|v2"
+    community: "public"
+    source: ""
+    snmp_for_ipv6: "no"
+    oid: ""
+    access_type: "read_only"
+
+# Network Settings (CHANGE - TO DESIRED VALUES)
+nodegrid_domain_name: us.internal
+
+# SECTION - NO CHANGE REQUIRED - NO CHANGES ARE REQUIRED
+
+# Default Network Settings: (NO CHANGE REQUIRED)
+nodegrid_enable_ipv4_ip_forward: "yes"
+nodegrid_enable_ipv6_ip_forward: "no"
+nodegrid_reverse_path_filtering: "disabled"
+nodegrid_enable_multiple_routing_tables: "yes"
+failover_enable_network_failover: "no"
+
+# Default Audit Settings: (NO CHANGE REQUIRED)
+auditing_settings:
+  event_timestamp_format: local_time
+  datalog_add_timestamp: "no"
+  datalog_timestamp_format: local_time
+  datalog_destination: file
+  enable_persistent_logs: "no"
+
+# System Session Logging: (NO CHANGE REQUIRED)
+system_logging_enable_session_logging_alerts: "no"
+
+# Nodegrid Authentication settings: (NO CHANGE REQUIRED)
+authentication_admin_and_root_fallback_to_local_on_console: "yes"
+authentication_default_group_for_remote_users: ""
+authentication_enable_authentication_server_selection_based_on_realms: "yes"
+
+# System Services: (NO CHANGE REQUIRED)
+services_enable_snmp_service: "yes"
+enable_qemu: "yes"
+enable_docker: "yes"
+
+# Firewall Settings
+ipv4_firewall:
+  policy:
+    FORWARD: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+  chains:
+    INPUT:
+        - target: ACCEPT
+          action: insert
+          rule_number: 0
+          input_interface: lo
+          output_interface: any
+          description: DEFAULT_RULE_DO_NOT_REMOVE
+        - target: ACCEPT
+          action: insert
+          rule_number: 1
+          protocol: tcp
+          destination_port: 22
+          source_net4: ""
+          destination_net4: ""
+          description: 'NODEGRID_SSH'
+        - target: ACCEPT
+          action: insert
+          rule_number: 2
+          protocol: tcp
+          source_net4: ""
+          destination_net4: ""
+          destination_port: 9300
+          description: 'NODEGRID_SEARCH_9300'
+        - target: ACCEPT
+          action: insert
+          rule_number: 3
+          protocol: tcp
+          destination_port: 9966
+          description: 'NODEGRID_CLUSTER_9966'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          action: insert
+          rule_number: 4
+          protocol: tcp
+          destination_port: 443
+          description: 'NODEGRID_HTTPS'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          action: insert
+          rule_number: 5
+          protocol: udp
+          destination_udp_port: 161
+          description: 'NODEGRID_SNMP'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          action: insert
+          rule_number: 6
+          protocol: udp
+          destination_udp_port: 51820
+          description: 'NODEGRID_WIREGUARD'
+          source_net4: ""
+          destination_net4: ""
+        - target: ACCEPT
+          action: insert
+          rule_number: 7
+          protocol: numeric
+          description: 'ACCEPT_RELATED_TRAFFIC'
+          enable_state_match: "yes"
+          new: "no"
+          established: "yes"
+          related: "yes"
+          invalid: "no"
+          reverse_state_match: "no"
+          source_net4: ""
+          destination_net4: ""
+
+# NAT Settings
+ipv4_nat:
+  policy:
+    PREROUTING: ACCEPT
+    INPUT: ACCEPT
+    OUTPUT: ACCEPT
+    POSTROUTING: ACCEPT
+  chains:
+    POSTROUTING:
+        - target: MASQUERADE
+          action: append
+          source_net4: '192.168.10.0/24' 
+          description: NAT_DHCP_LAN_NETWORK
+        - target: MASQUERADE
+          action: append
+          source_net4: '192.168.11.0/24' 
+          description: NAT_DHCP_MGMT_NETWORK
+
+network_dhcp_server:
+  - protocol: 'dhcp4'
+    subnet: '192.168.10.0'
+    netmask: '255.255.255.0'
+    domain: 'sdp-domain'
+    domain_name_servers: '8.8.8.8'
+    router_ip: '192.168.10.1'
+    lease_time: '86400'
+    #wifi_controller_ip: '203.0.113.0'
+  - protocol: 'dhcp4'
+    subnet: '192.168.11.0'
+    netmask: '255.255.255.0'
+    domain: 'sdp-domain'
+    domain_name_servers: '8.8.8.8'
+    router_ip: '192.168.11.1'
+    lease_time: '86400'
+
+network_dhcp_range:
+  - subnet: '192.168.10.0'
+    netmask: '255.255.255.0'
+    ip_address_start: '192.168.10.10'
+    ip_address_end: '192.168.10.100'
+  - subnet: '192.168.11.0'
+    netmask: '255.255.255.0'
+    ip_address_start: '192.168.11.10'
+    ip_address_end: '192.168.11.100'
+
+
+# SECTION - DO NOT CHANGE - THIS SECTION CONTAINS SETTING WHICH SHOULD NOT BE CHANGED
+# Generic Ansible Settings: (DO NOT CHANGE)
+ansible_user: ansible
+ansible_ssh_private_key_file: /home/ansible/.ssh/id_ed25519
+ansible_python_interpreter: "/usr/bin/python3"
+
+# System Libvirt Virtual Machines info: (NO CHANGE REQUIRED)
+libvirt_resources_path: /run/media/sdb1/virtual_machines
+# libvirt_resources_path directory structure
+# |--- images_cache
+# |--- images
+# |--- cloudinit_iso
+images_cache: "images_cache"
+images: "images"
+cloudinit: "cloudinit"

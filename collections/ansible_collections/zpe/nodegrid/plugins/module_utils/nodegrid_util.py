@@ -5,6 +5,8 @@ import pexpect
 import re
 from collections import OrderedDict
 from datetime import datetime
+import os
+import uuid
 
 def _get_import_process_timeout(import_text):
     ret_timeout = 1500 # arbitrary default timeout
@@ -157,27 +159,51 @@ def import_settings(settings, use_config_start=True):
     """
     import_p_timeout = _get_import_process_timeout(("\n").join(settings))
     output_buffer_flush_timeout = 5
+    import_settings_file = f"/tmp/import_settings_{str(uuid.uuid4())}.cli"
+
+    with open(import_settings_file, "w") as f:
+        for item in settings:
+            f.write(item + "\n")
+
     cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
-    cmd_cli.sendline('.sessionpageout undefined=no')
-    cmd_cli.expect_exact('/]# ')
     if use_config_start:
-        cmd_cli.sendline('config_start')
+        cmd_cli.sendline("config_start\n")
         cmd_cli.expect_exact('/]# ')
-    cmd_cli.sendline("import_settings")
-    cmd_cli.expect_exact('finish.')
-    for item in settings:
-        cmd_cli.sendline(item)
-        # Read the line was just sent by expecting a newline, because a big
-        # import_settings input can cause sendline to hang
-        cmd_cli.expect('\n', timeout=output_buffer_flush_timeout)
-    cmd_cli.sendcontrol('d')
-    cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
+    cmd_cli.sendline(f"import_settings --file {import_settings_file}")
     output = cmd_cli.before
+    cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
+    
     if use_config_start:
-        cmd_cli.sendline('config_confirm')
+        cmd_cli.sendline("config_confirm")
         cmd_cli.expect_exact('/]# ')
+    try:
+        os.remove(import_settings_file)
+    except OSError:
+        pass
+
+    #    cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
+    #    cmd_cli.setwinsize(500, 250)
+    #    cmd_cli.expect_exact('/]# ')
+    #    cmd_cli.sendline('.sessionpageout undefined=no')
+    #    cmd_cli.expect_exact('/]# ')
+    #    if use_config_start:
+    #        cmd_cli.sendline('config_start')
+    #        cmd_cli.expect_exact('/]# ')
+    #    cmd_cli.sendline("import_settings")
+    #    cmd_cli.expect_exact('finish.')
+    #    for item in settings:
+    #        cmd_cli.sendline(item)
+    #        # Read the line was just sent by expecting a newline, because a big
+    #        # import_settings input can cause sendline to hang
+    #        cmd_cli.expect('\n', timeout=output_buffer_flush_timeout)
+    #    cmd_cli.sendcontrol('d')
+    #    cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
+    #    output = cmd_cli.before
+    #    if use_config_start:
+    #        cmd_cli.sendline('config_confirm')
+    #        cmd_cli.expect_exact('/]# ')
     cmd_cli.sendline('exit')
     cmd_cli.close()
 

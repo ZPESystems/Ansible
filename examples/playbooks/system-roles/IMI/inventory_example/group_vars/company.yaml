@@ -112,6 +112,8 @@ authentication_enable_authentication_server_selection_based_on_realms: "yes"
 
 # System Services: (NO CHANGE REQUIRED)
 services_enable_snmp_service: "yes"
+enable_zpe_cloud: "no"
+enable_remote_access: "no"
 
 # Firewall Settings
 ipv4_firewall:

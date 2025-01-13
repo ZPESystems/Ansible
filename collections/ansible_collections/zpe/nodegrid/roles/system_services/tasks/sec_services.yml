@@ -61,3 +61,6 @@
       tlsv1.1: "{{ tlsv1_1 }}"
       tlsv1: "{{ tlsv1 }}"
       cipher_suite_level: "{{ cipher_suite_level }}"
+    zpe_cloud:
+      enable_zpe_cloud: "{{ enable_zpe_cloud }}"
+      enable_remote_access: "{{ enable_remote_access }}"

@@ -18,7 +18,7 @@
       loop: "{{ ipv4_firewall.chains.INPUT }}"
       loop_control:
         loop_var: rule
-      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and "{{ chain }}" is in ipv4_firewall.chains
+      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and chain is in ipv4_firewall.chains
       
     - name: Apply Firewall OUTPUT rules
       tags: always
@@ -28,7 +28,7 @@
       loop: "{{ ipv4_firewall.chains.OUTPUT }}"
       loop_control:
         loop_var: rule
-      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and "{{ chain }}" is in ipv4_firewall.chains
+      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and chain is in ipv4_firewall.chains
     
     - name: Apply Firewall FORWARD rules
       include_tasks: apply_firewall_rule.yml
@@ -38,7 +38,7 @@
       loop: "{{ ipv4_firewall.chains.FORWARD }}"
       loop_control:
         loop_var: rule
-      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and "{{ chain }}" is in ipv4_firewall.chains
+      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and chain is in ipv4_firewall.chains
 
 - name: Configuring NAT policies and rules
   tags: always
@@ -60,8 +60,8 @@
       loop: "{{ ipv4_nat.chains.INPUT }}"
       loop_control:
         loop_var: rule
-      when: ipv4_nat is defined and "chains" is in ipv4_firewall and "{{ chain }}" is in ipv4_nat.chains
-      
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains
+    
     - name: Apply NAT OUTPUT rules
       tags: always
       include_tasks: apply_nat_rule.yml
@@ -70,7 +70,7 @@
       loop: "{{ ipv4_nat.chains.OUTPUT }}"
       loop_control:
         loop_var: rule
-      when: ipv4_nat is defined and "chains" is in ipv4_firewall and "{{ chain }}" is in ipv4_nat.chains
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains
     
     - name: Apply NAT PREROUTING rules
       include_tasks: apply_nat_rule.yml
@@ -80,7 +80,7 @@
       loop: "{{ ipv4_nat.chains.PREROUTING }}"
       loop_control:
         loop_var: rule
-      when: ipv4_nat is defined and "chains" is in ipv4_firewall and "{{ chain }}" is in ipv4_nat.chains
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains
     
     - name: Apply NAT POSTROUTING rules
       include_tasks: apply_nat_rule.yml
@@ -90,4 +90,4 @@
       loop: "{{ ipv4_nat.chains.POSTROUTING }}"
       loop_control:
         loop_var: rule
-      when: ipv4_nat is defined and "chains" is in ipv4_firewall and "{{ chain }}" is in ipv4_nat.chains
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains

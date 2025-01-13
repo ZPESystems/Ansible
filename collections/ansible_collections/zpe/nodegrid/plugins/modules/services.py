@@ -81,7 +81,8 @@ def clean_rule(rule: dict) -> dict:
     autodiscovery = {'key': 'enable_autodiscovery', 'list':['dhcp_lease_per_autodiscovery_rules']}
     vm_serial_access = {'key': 'enable_vm_serial_access', 'list': ['vm_serial_port','vmotion_timeout']}
     multiple_authentication_fails = {'key': 'block_host_with_multiple_authentication_fails', 'list': ['period_host_will_stay_blocked','timeframe_to_monitor_authentication_fails','number_of_authentication_fails_to_block_host']}
-    master_list = [autodiscovery,vm_serial_access,status_page,docker,qemu,multiple_authentication_fails,search_engine,bluetooth]
+    zpe_cloud = {'key': 'enable_zpe_cloud', 'list':['enable_remote_access', 'enable_file_protection', 'enable_file_encryption']}
+    master_list = [autodiscovery,vm_serial_access,status_page,docker,qemu,multiple_authentication_fails,search_engine,bluetooth,zpe_cloud]
 
     for item in master_list:
         if item['key'] in rule.keys():
@@ -97,6 +98,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         services=dict(type='dict', required=False),
+        zpe_cloud=dict(type='dict', required=False),
         timeout=dict(type=int, default=60),
         debug=dict(type='bool', default=False)
     )
@@ -139,6 +141,7 @@ def run_module():
     ## Find out what needs to be changed
     diff_chains = {
         'services': {},
+        'zpe_cloud': {},
     }
     # Get Current Services Data
     if module.params['services']:
@@ -160,6 +163,24 @@ def run_module():
             result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
         finally:
             diff_chains['services'] = diff
+    
+    if module.params['zpe_cloud']:
+        zpe_cloud_desired = module.params['zpe_cloud']
+        zpe_cloud_desired = clean_rule(zpe_cloud_desired)
+        zpe_cloud_current = {}
+        zpe_cloud_current.update(get_state("zpe_cloud", module.params['timeout']))
+        diff = []
+        try:
+            for item in zpe_cloud_desired:
+                if item in zpe_cloud_current.keys():
+                    # to avoid comparision issues, will we compare string to strings
+                    if str(zpe_cloud_desired[item]) != str(zpe_cloud_current[item]):
+                        diff.append({item: zpe_cloud_desired[item]})
+        except Exception as e:
+            result['failed'] = True
+            result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
+        finally:
+            diff_chains['zpe_cloud'] = diff
 
     # Build out commands
     cmds = []
@@ -167,6 +188,14 @@ def run_module():
     if len(diff_chains['services']) > 0:
         cmds.append({'cmd': f"cd /settings/services/"})
         for item in diff_chains['services']:
+            for setting in item:
+                cmd = {'cmd': f"set {setting}={item[setting]}"}
+                cmds.append(cmd)
+        cmds.append({'cmd': "commit"})
+    
+    if len(diff_chains['zpe_cloud']) > 0:
+        cmds.append({'cmd': f"cd /settings/zpe_cloud/"})
+        for item in diff_chains['zpe_cloud']:
             for setting in item:
                 cmd = {'cmd': f"set {setting}={item[setting]}"}
                 cmds.append(cmd)
@@ -182,6 +211,8 @@ def run_module():
         result['diff'] = diff_chains
         result['service_current'] = services_current
         result['services_desired'] = services_desired
+        result['zpe_cloud_current'] = zpe_cloud_current
+        result['zpe_cloud_desired'] = zpe_cloud_desired
  #       result['services_skipped'] = services_desired_org
 
     if module.check_mode:

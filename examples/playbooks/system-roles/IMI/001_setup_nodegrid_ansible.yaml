@@ -30,47 +30,50 @@
       private: false
 
   tasks:
-   - name: SSH Key validation
-     block:
-     - name: Validate ssh_key
-       ansible.builtin.shell: ssh-keygen -lf {{ ssh_key_filepath }} | cut -d' ' -f4 | sed -r 's/\(|\)//g'
-       register: ssh_keygen
-       failed_when: "ssh_keygen.stderr != ''"
-       connection: local
-     
-     - name: Read ssh_key
-       set_fact:
-         ssh_key: "{{ lookup('ansible.builtin.file', ssh_key_filepath) }}"
-       connection: local
+    - name: SSH Key validation
+      block:
+      - name: Validate ssh_key
+        ansible.builtin.shell: ssh-keygen -lf {{ ssh_key_filepath }} | cut -d' ' -f4 | sed -r 's/\(|\)//g'
+        register: ssh_keygen
+        failed_when: "ssh_keygen.stderr != ''"
+        connection: local
+      
+      - name: Read ssh_key
+        set_fact:
+          ssh_key: "{{ lookup('ansible.builtin.file', ssh_key_filepath) }}"
+        connection: local
+ 
+      - name: Get ssh_key_type
+        set_fact:
+          ssh_key_type: "ssh-{{ ssh_keygen.stdout | lower }}"
+        connection: local
+    - name: show ssh_key_type
+      debug:
+        msg: "{{ ssh_key_type }}"
+    - name: Install SSH key to the remote Nodegrid
+      block:
+      - name: Install a ssh_key for a user
+      #       no_log: True
+        zpe.nodegrid.setup:
+           login:
+             username: "{{ nodegrid_user }}"
+             password: "{{ current_password }}"
+             ssh_port: 22
+           install_ssh_key:
+             user: "{{ ssh_key_user }}"
+             key_type: "{{ ssh_key_type }}"
+             key: "{{ ssh_key }}"
+           grant_sudo_access:
+             user: "{{ ssh_key_user }}"
+             enable: "{{ ssh_key_user_sudoers }}"
 
-     - name: Get ssh_key_type
-       set_fact:
-         ssh_key_type: "ssh-{{ ssh_keygen.stdout | lower }}"
-       connection: local
+      - name: Validate Connection
+        vars:
+          ansible_user: "{{ ssh_key_user }}"
+        ansible.builtin.ping:
 
-   - name: Install SSH key to the remote Nodegrid
-     block:
-     - name: Install a ssh_key for a user
-       no_log: True
-       zpe.nodegrid.setup:
-          login:
-            username: "{{ nodegrid_user }}"
-            password: "{{ current_password }}"
-          install_ssh_key:
-            user: "{{ ssh_key_user }}"
-            key_type: "{{ ssh_key_type }}"
-            key: "{{ ssh_key }}"
-          grant_sudo_access:
-            user: "{{ ssh_key_user }}"
-            enable: "{{ ssh_key_user_sudoers }}"
-
-     - name: Validate Connection
-       vars:
-         ansible_user: "{{ ssh_key_user }}"
-       ansible.builtin.ping:
-
-     - name: Create .vimrc config file
-       vars:
-         ansible_user: "{{ ssh_key_user }}"
-       ansible.builtin.shell:
-         cmd: "echo -e 'set number\nset tabstop=2 softtabstop=2 shiftwidth=2\nset number ruler\nset autoindent smartindent\nsyntax enable\nfiletype plugin indent on\nset backspace=indent,eol,start' > /home/ansible/.vimrc"
+      - name: Create .vimrc config file
+        vars:
+          ansible_user: "{{ ssh_key_user }}"
+        ansible.builtin.shell:
+          cmd: "echo -e 'set number\nset tabstop=2 softtabstop=2 shiftwidth=2\nset number ruler\nset autoindent smartindent\nsyntax enable\nfiletype plugin indent on\nset backspace=indent,eol,start' > /home/ansible/.vimrc"

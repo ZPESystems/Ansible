@@ -6,8 +6,11 @@ users:
     sudo: ALL=(ALL) NOPASSWD:ALL
     groups: users, admin    
     shell: /bin/bash
+    lock_passwd: false
+    passwd: "$6$rounds=4096$kWal3yCGtfcN3KEr$vK4hc6siE1Qa/uoPu5YgquUSgwIxbgbXpi1jHfmUOtgNPuGzqe0u3BvVz7QgPO0gB6uKYbY8pQL4mCcvZcJG0/"
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAQIL admin@zpesystems.com
+      - ssh-ed25519 AAAA*****B sdp@zpesystems.com
+
 write_files:
   - path: /etc/cloud/cloud.cfg.d/99-custom-networking.cfg
     permissions: '0600'

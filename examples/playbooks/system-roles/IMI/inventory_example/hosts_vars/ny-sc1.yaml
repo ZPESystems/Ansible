@@ -16,6 +16,7 @@ network_connections:
   ipv4_mode: static
   ipv4_address: 10.0.2.134
   ipv4_bitmask: 24
+  block_unsolicited_incoming_packets: 'no'
 
 # Wireguard Settings:  (CHANGE)
 wireguard_interface_name: ny-sc1-hub                            # Wireguard interface and VPN name

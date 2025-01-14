@@ -31,6 +31,9 @@
         custom_session_timeout: "{{ item.custom_session_timeout | default('no') }}"
         startup_application: "{{ item.startup_application | default('cli') }}"
         email_events_to: "{{ item.email_events_to | default('') }}"
+      devices: "{{ item.devices | default([]) }}"
+      remote_groups:
+        remote_groups: "{{ item.remote_groups | default('') }}"
   with_items: "{{ nodegrid_local_user_groups }}"
   loop_control:
     label: "{{  item.name  }}"

@@ -18,6 +18,24 @@ nodegrid_local_user_groups:
     apply_and_save_settings: "no"
     shell_access: "no"
     manage_devices_permissions: "no"
+    remote_groups: ''
+    devices:
+      - name: "OTHER_DEVICES" 
+        mks: "no"
+        kvm: "no"
+        reset_device: "no"
+        sp_console: "no"
+        virtual_media: "no"
+        access_log_audit: "no"
+        access_log_clear: "no"
+        event_log_audit: "no"
+        event_log_clear: "no"
+        sensors_data: "no"
+        monitoring: "no"
+        custom_commands: "no"
+        session: "no_access"
+        power: "no_access"
+        door: "no_access"
 
 # Authentication Servers
 nodegrid_authentication_servers:

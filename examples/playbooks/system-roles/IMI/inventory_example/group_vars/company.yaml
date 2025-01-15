@@ -218,3 +218,20 @@ nodegrid_roles:
 
 cluster_settings_cluster_mode: mesh
 cluster_settings_polling_rate: 120
+
+# Switch Settings: only applicable for BoldSR, GateSR of NetSR
+switch:
+  vlans:
+    - vlan: '1'
+      tagged_ports: "" # comma separated list
+      untagged_ports: "" # comma separated list
+
+  interfaces:
+    - interface: 'sfp0'
+      enable_lldp_advertising_and_reception_through_this_interface: "yes"
+    - interface: 'sfp1'
+      enable_lldp_advertising_and_reception_through_this_interface: "yes"
+
+  backplane:
+    # backplane0_port_vlan_id: '1'
+    # backplane1_port_vlan_id: '200'

@@ -1,5 +1,5 @@
 - hosts: all
-  gather_facts: false
+  gather_facts: true
   collections:
     - zpe.nodegrid
 
@@ -78,16 +78,22 @@
             network_switch_interfaces: "{{ switch.interfaces }}"
           include_role:
             name: network_switch_interfaces
+          when: switch is defined and "interfaces" is in switch
 
         - name: Configure Switch VLANs
           vars:
             network_switch_vlan: "{{ switch.vlans }}"
           include_role:
             name: network_switch_vlan
+          when: switch is defined and "vlans" is in switch
         
         - name: Configure Switch Backplane interfaces
           vars:
             network_switch_backplane: "{{ switch.backplane }}"
           include_role:
             name: network_switch_backplane
+          when: switch is defined and "backplane" is in switch
+      when:
+        - ansible_facts is defined and "nodegrid_about" is in ansible_facts
+        - ansible_facts.nodegrid_about["system"] is in ["Nodegrid Gate SR", "Nodegrid Bold SR", "Nodegrid Net SR"]
 

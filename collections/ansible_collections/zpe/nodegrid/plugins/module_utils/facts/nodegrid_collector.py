@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ansible.module_utils.facts import collector
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, get_system_details
 
 # ttp templates
 import ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.about
@@ -94,7 +94,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
 
         return result
 
-    def _get_cmds(self):
+    def _get_cmds(self, system_details):
         cmds = list()
         templates_path = "ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates"
         cmds.append(
@@ -127,6 +127,18 @@ class NodegridFactCollector(collector.BaseFactCollector):
                  template=f"{templates_path}.memory_usage"
                  ),
         )
+        cmds.append(
+            dict(cmd='show /settings/cluster/cluster_clusters/',
+                 template=f"{templates_path}.cluster_clusters",
+                 ignore_error=True
+                 ),
+        )
+
+        # Check if Syste is Nodegrid Manager
+        if system_details['system'] == 'Nodegrid Manager':
+            return cmds
+
+        # Extra detaisl for systems like 
         cmds.append(
             dict(cmd='show /system/hw_monitor/io_ports/',
                  template=f"{templates_path}.io_ports",
@@ -165,12 +177,6 @@ class NodegridFactCollector(collector.BaseFactCollector):
                  ignore_error=True
                  ),
         )
-        cmds.append(
-            dict(cmd='show /settings/cluster/cluster_clusters/',
-                 template=f"{templates_path}.cluster_clusters",
-                 ignore_error=True
-                 ),
-        )
         return cmds
 
     def collect(self, module=None, collected_facts=None):
@@ -190,8 +196,10 @@ class NodegridFactCollector(collector.BaseFactCollector):
         res, err_msg, nodegrid_os = check_os_version_support()
         if res == 'error' or res == 'unsupported':
             return dict(msg=err_msg)
+
+        system_details = get_system_details()
     
-        cmds = self._get_cmds()
+        cmds = self._get_cmds(system_details)
         cmds_results = self._run_commands(cmds, timeout=timeout)
         result = dict()
         parsed_dict = dict()

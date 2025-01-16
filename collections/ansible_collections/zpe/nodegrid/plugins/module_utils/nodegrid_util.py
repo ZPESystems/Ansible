@@ -118,6 +118,26 @@ def get_nodegrid_os_details():
             details[key.strip()] = value.strip()
     return details
 
+def get_system_details():
+    """Returns details about the Nodegrid System /system/about
+
+    Returns:
+        dict: Nodegrid System details
+    """
+    output = run_cli_command("show /system/about")
+    details = {}
+    if "Error" in output or "error" in output:
+        if "Error: Invalid argument:" in output:
+            details["error"] = "Error getting system information"
+        else:
+            details["error"] = output
+        return details
+    for line in output.splitlines():
+        if ":" in line:
+            key, value = line.split(':', 1)
+            details[key.strip()] = value.strip()
+    return details
+
 def export_settings(cli_path):
     """Runs the export settings
 

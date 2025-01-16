@@ -138,7 +138,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
         if system_details['system'] == 'Nodegrid Manager':
             return cmds
 
-        # Extra detaisl for systems like 
+        # Extra detaisl for systems like GateSR, BoldSR, NetSR, etc.
         cmds.append(
             dict(cmd='show /system/hw_monitor/io_ports/',
                  template=f"{templates_path}.io_ports",

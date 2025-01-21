@@ -23,6 +23,10 @@
         allow_ssh_protocol: "{{ item.allow_ssh_protocol | default('yes') }}"
         allow_telnet_protocol: "{{ item.allow_telnet_protocol | default('no') }}"
   with_items: "{{ serial_ports }}"
+  when:
+    - ansible_facts is defined and ansible_facts.nodegrid_about is defined
+    - ansible_facts.nodegrid_about.model is defined and ansible_facts.nodegrid_about.model != "NSR"
+    - serial_ports is defined
 
 - name: Update Serial Port Settings on NSR
   tags: always
@@ -48,3 +52,7 @@
         allow_ssh_protocol: "{{ item.allow_ssh_protocol | default('yes') }}"
         allow_telnet_protocol: "{{ item.allow_telnet_protocol | default('no') }}"
   with_items: "{{ serial_ports }}"
+  when:
+    - ansible_facts is defined and ansible_facts.nodegrid_about is defined
+    - ansible_facts.nodegrid_about.model is defined and ansible_facts.nodegrid_about.model == "NSR"
+    - serial_ports is defined

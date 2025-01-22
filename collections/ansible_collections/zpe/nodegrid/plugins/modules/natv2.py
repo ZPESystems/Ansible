@@ -385,7 +385,7 @@ options:
     description:
       - Timeout time for cli commands when executed.
     type: int
-    default: 30
+    default: 60
 '''
 
 EXAMPLES = r'''
@@ -526,7 +526,7 @@ if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
 
-def get_chains_present(table, timeout=30) -> dict:
+def get_chains_present(table, timeout=60) -> dict:
     cmd_cli = get_cli(timeout=timeout)
     #build cmd
     cmd = {
@@ -560,7 +560,7 @@ def delete_chain(table, chain):
     return cmds
 
 
-def get_chain_policy(table, chain, timeout=30) -> dict:
+def get_chain_policy(table, chain, timeout=60) -> dict:
     cmd_cli = get_cli(timeout=timeout)
 
     #build cmd
@@ -594,7 +594,7 @@ def _get_rule(table, chain, rule_number, cmd_cli) -> dict:
        return cmd_result['json'][0]['data']
 
 
-def get_rules_present(table, chain, timeout=30) -> dict:
+def get_rules_present(table, chain, timeout=60) -> dict:
     cmd_cli = get_cli(timeout=timeout)
     #build cmd
     cmd = {
@@ -793,7 +793,7 @@ def run_module():
     module_args = OrderedDict(
         action=dict(type='str'),
         debug=dict(type='bool', default=False),
-        timeout=dict(type=int, default=30),
+        timeout=dict(type=int, default=60),
         flush=dict(type='bool', default=False),
         state=dict(type='str', default='present', choices=['absent', 'present']),
         chain=dict(type='str'),
@@ -889,7 +889,7 @@ def run_module():
     #
     # Nodegrid OS section starts here
     #
-    timeout = int(module.params.pop('timeout', 30))
+    timeout = int(module.params.pop('timeout', 60))
     debug = module.params.pop('debug', False)
 
     # Lets get the current status and check if it must be changed
@@ -908,7 +908,7 @@ def run_module():
     user_chains = get_chains["user_chains"]
     chain_is_present = True if result['chain'] in chains else False
     if not result['chain'] in chains and not chain_management:
-            module.fail_json(msg=f"Chain '{result['chain']}' does not exist. To create it, set the parameter 'chain_management' to yes")
+        module.fail_json(msg=f"Chain '{result['chain']}' does not exist. To create it, set the parameter 'chain_management' to yes")
 
     # Check action 'insert'
     if module.params['action'] == 'insert' and not module.params["rule_number"].isdigit():
@@ -950,12 +950,11 @@ def run_module():
             cmds.extend(delete_chain(table=table, chain=module.params['chain']))
     else:
         if not module.params['action']:
-            if not module.params['chain'] in chains and should_be_present:
-                module.fail_json(msg=f"Chain '{module.params['chain']}' does not exits. To create a chain, set the parameter 'chain_management' to yes")
-            if module.params['chain'] in chains and not should_be_present:
-                module.fail_json(msg=f"Chain '{module.params['chain']}' cannot be deleted. To delete a chain, set the parameter 'chain_management' to yes")
-
-        if not module.params['action'] in ['append', 'insert', 'modify']:
+            if module.params["rule_number"].isdigit():
+                module.params['action'] = 'insert'
+            else:
+                module.params['action'] = 'append'
+        elif not module.params['action'] in ['append', 'insert', 'modify']:
             module.fail_json(msg=f"Rule action '{module.params['action']}' incorrect. Valid options are: append, insert, modify.")
         if not module.params['chain'] in chains:
             module.fail_json(msg=f"Chain '{module.params['chain']}' does not exits. Current chains are: {chains}. To create a chain, set the parameter 'chain_management' to yes")
@@ -971,44 +970,51 @@ def run_module():
 
         insert = (module.params['action'] == 'insert')
         modify = (module.params['action'] == 'modify')
+        append = (module.params['action'] == 'append')
         rules_present = get_rules_present(table=table, chain=module.params['chain'], timeout=timeout)
         if rules_present.get('error', False):
             module.fail_json(msg=rules_present.get('msg'))        
         parsed_rule = create_rule(params=module.params, chain=module.params['chain'], sort_list=[key for key in module_args])
 
-        # If insert: check if rule_number is within range
-        if insert and int(parsed_rule['rule_number']) > len(rules_present['rules']):
-            module.fail_json(msg=f"Rule insert error: rule number {module.params.get('rule_number', None)} is out of bounds. Current rules range from: 0,...,{len(rules_present['rules'])-1}.")
-        # If modify: check if rule_number is within range
-        if modify and int(parsed_rule['rule_number']) > len(rules_present['rules'])-1:
-            module.fail_json(msg=f"Rule modify error: rule number {module.params.get('rule_number', None)} is out of bounds. Current rules range from: 0,...,{len(rules_present['rules'])-1}.")
-
-        if modify:
-            rule_is_present = True
-            rule_present = rules_present['rules'][int(parsed_rule['rule_number'])]
-        else:
-            rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=insert)
-
-        should_be_present = (result['state'] == 'present')
-        if modify:
-            result['changed'] = rule_is_present
-        else:
-            result['changed'] = (rule_is_present != should_be_present)
-        if result['changed'] is False:
-            result['should'] = rule_is_present
-            module.exit_json(**result)
-
         # Build the modifications
         if should_be_present:
+            # If insert: check if rule_number is within range
+            if insert and int(parsed_rule['rule_number']) > len(rules_present['rules']):
+                module.fail_json(msg=f"Rule insert error: rule number {module.params.get('rule_number', None)} is out of bounds. Current rules range from: 0,...,{len(rules_present['rules'])-1}.")
+            # If modify: check if rule_number is within range
+            if modify and int(parsed_rule['rule_number']) > len(rules_present['rules'])-1:
+                module.fail_json(msg=f"Rule modify error: rule number {module.params.get('rule_number', None)} is out of bounds. Current rules range from: 0,...,{len(rules_present['rules'])-1}.")
+
+            if modify:
+                rule_is_present = True
+                rule_present = rules_present['rules'][int(parsed_rule['rule_number'])]
+                result['changed'] = rule_is_present
+            else:
+                rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=insert)
+                result['changed'] = (rule_is_present != should_be_present)
+
             if insert:
                 diff_state, cmds = insert_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
             elif modify:
                 diff_state, cmds = update_rule(table=table, chain=module.params['chain'], rule=rule_present, new_rule=parsed_rule)
-            else:
+            elif append:
                 diff_state, cmds = append_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
         else:
-            cmds.extend(delete_rule(table=table, chain=module.params['chain'], rule=parsed_rule))
-            diff_state = cmds[-1]['cmd']
+            if module.params["rule_number"].isdigit() and int(parsed_rule['rule_number']) < len(rules_present['rules']):
+                rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=True)
+                if rule_is_present:
+                    cmds.extend(delete_rule(table=table, chain=module.params['chain'], rule=rule_present))
+                    diff_state = cmds[-1]['cmd']
+                    result['changed'] = True
+            elif module.params["rule_number"] == '': 
+                rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=False)
+                if rule_is_present:
+                    cmds.extend(delete_rule(table=table, chain=module.params['chain'], rule=rule_present))
+                    diff_state = cmds[-1]['cmd']
+                    result['changed'] = True
+            
+    if result['changed'] is False:
+        module.exit_json(**result)
 
     if module.check_mode:
         # Display Changes

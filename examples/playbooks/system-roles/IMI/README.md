@@ -1213,7 +1213,7 @@ As some configuration options are firmware version specific, validating that all
 >  Before running this playbook, check that the inventory details are defined in the company.yaml file, the following settings must be provided: 
 > `nodegrid_iso_location`
 > `nodegrid_iso_file`
-> `nodegrid_target_version` 
+> `nodegrid_iso_target_version` 
 > The script assumes that the firmware file is located on the Ansible controller and that Ansible can copy the file to the target. The playbook dose not require that the files are hosted on a server.
 
 - Run the playbook to validate the firmware with:

@@ -12,7 +12,7 @@
    gather_facts: False
    vars:
      nodegrid_iso_file: "./files/Nodegrid_Platform_v5.10.1_20230530.iso"
-     nodegrid_target_version: "5.10.1"
+     nodegrid_iso_target_version: "5.10.1"
 
    tasks:
      - name: Check unit is ready for upgrade or flag
@@ -118,4 +118,4 @@
        - name: Assert that upgrade was successful
          assert:
            that:
-             - "nodegrid_target_version in ng_version_after.stdout"
+             - "nodegrid_iso_target_version in ng_version_after.stdout"

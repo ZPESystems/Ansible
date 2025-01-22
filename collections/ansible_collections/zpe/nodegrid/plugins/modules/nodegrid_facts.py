@@ -56,7 +56,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         gather_subset=dict(default=["all"], required=False, type='list', elements='str'),
-        gather_timeout=dict(default=10, required=False, type='int'),
+        gather_timeout=dict(default=300, required=False, type='int'),
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible

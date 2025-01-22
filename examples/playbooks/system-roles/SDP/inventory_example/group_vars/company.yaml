@@ -27,7 +27,7 @@ local_user_accounts:
 # Firmware Settings: (CHANGE - TO DESIRED NODEGRID VERSION)
 nodegrid_iso_location: "/var/local/file_manager/datastore/"
 nodegrid_iso_file: "Nodegrid_Platform_v5.8.16_20231107.iso"
-nodegrid_target_version: "5.8.16"
+nodegrid_iso_target_version: "5.8.16"
 
 # Default System Settings: (CHANGE - TO DESIRED VALUES)
 sys_show_hostname_on_webui_header: "yes"

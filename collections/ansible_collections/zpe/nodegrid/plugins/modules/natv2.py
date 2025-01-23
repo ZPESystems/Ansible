@@ -1005,17 +1005,24 @@ def run_module():
                 if rule_is_present:
                     cmds.extend(delete_rule(table=table, chain=module.params['chain'], rule=rule_present))
                     diff_state = cmds[-1]['cmd']
-                    result['changed'] = True
+                else:
+                    result['skipped'] = True
+                    result['message'] = "No rule match. Skipping!"
+                    module.exit_json(**result)
             elif module.params["rule_number"] == '': 
                 rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=False)
                 if rule_is_present:
                     cmds.extend(delete_rule(table=table, chain=module.params['chain'], rule=rule_present))
                     diff_state = cmds[-1]['cmd']
-                    result['changed'] = True
+                else:
+                    result['skipped'] = True
+                    result['message'] = "No rule match. Skipping!"
+                    module.exit_json(**result)
+            else:
+                result['skipped'] = True
+                result['message'] = "No rule match. Skipping!"
+                module.exit_json(**result)
             
-    if result['changed'] is False:
-        module.exit_json(**result)
-
     if module.check_mode:
         # Display Changes
         result['diff'] = diff_state

@@ -1,6 +1,7 @@
 - hosts: all
   name: Configure ZPE Out Of Box - Factory Default
   gather_facts: true
+  gather_timeout: 30
   collections:
     - ansible.builtin
     - zpe.nodegrid

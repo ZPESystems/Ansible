@@ -6,6 +6,7 @@
 - hosts: all
   name: Configure a Nodegrid as Super Coordinator
   gather_facts: true
+  gather_timeout: 30
   collections:
     - ansible.builtin
     - zpe.nodegrid

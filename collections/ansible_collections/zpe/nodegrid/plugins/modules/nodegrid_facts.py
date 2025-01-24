@@ -46,7 +46,9 @@ EXAMPLES = r'''
 # ansible host -m zpe.nodegrid.nodegrid_facts
 '''
 
+
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.common.text.converters import to_text
 from ansible.module_utils.facts.collector import CollectorNotFoundError, CycleFoundInFactDeps, UnresolvedFactDep
 from ansible.module_utils.facts.namespace import PrefixFactNamespace
 
@@ -67,6 +69,8 @@ def run_module():
         argument_spec = module_args,
         supports_check_mode=True,
     )
+
+    gather_timeout = module.params.get('gather_timeout', 300)
 
     result = dict()
     namespace = PrefixFactNamespace(namespace_name='nodegrid', prefix='nodegrid_')

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from ansible.plugins.action import ActionBase
-from ansible_collections.zpe.nodegrid.plugins.module_utils.parse import get_template
+from ansible_collections.zpe.nodegrid.plugins.module_utils.facts.parse import get_template
 from ttp import ttp
 
 class ActionModule(ActionBase):
@@ -29,75 +29,75 @@ class ActionModule(ActionBase):
         cmds = list()
         cmds.append(
             dict(cmd='show /system/about/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.about'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.about'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/open_sessions/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.open_sessions'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.open_sessions'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/device_sessions/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.device_sessions'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.device_sessions'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/system_usage/cpu_usage/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.cpu_usage'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.cpu_usage'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/system_usage/disk_usage/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.disk_usage'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.disk_usage'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/system_usage/memory_usage/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.memory_usage'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.memory_usage'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/hw_monitor/io_ports/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.io_ports',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.io_ports',
                  ignore_error=True
                  ),
         )
         cmds.append(
             dict(cmd='show /system/hw_monitor/power/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.power'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.power'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/hw_monitor/thermal/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.thermal'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.thermal'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/hw_monitor/usb_sensors/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.usb_sensors'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.usb_sensors'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/usb_devices/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.usb_devices'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.usb_devices'
                  ),
         )
         cmds.append(
             dict(cmd='show /system/serial_statistics/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.serial_statistics_nsr',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.serial_statistics_nsr',
                  ignore_error=True
                  ),
         )
         cmds.append(
             dict(cmd='show /system/serial_statistics/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.serial_statistics',
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.serial_statistics',
                  ignore_error=True
                  ),
         )
         cmds.append(
             dict(cmd='show /settings/cluster/cluster_clusters/',
-                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.templates.cluster_clusters'
+                 template='ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.cluster_clusters'
                  ),
         )
 

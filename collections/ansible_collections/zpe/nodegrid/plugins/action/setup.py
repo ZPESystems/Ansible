@@ -203,7 +203,14 @@ class ActionModule(ActionBase):
             # BAD PASSWORD:
             elif ret == 4:
                 display.vvv("Bad Password detected")
-                raise ResultFailedException(f"BAD PASSWORD, provide a different new password")
+                reason = ''
+                try:
+                    self._expect_for(conn_obj, ['/]# ', ':~$ ', ':~# '])
+                    reason = f" ({str(conn_obj.before).splitlines()[0]})"
+                    display.vvv(reason)
+                except Exception as e:   # pylint: disable=broad-except
+                    dispaly.vvv(str(e))
+                raise ResultFailedException(f"BAD PASSWORD{reason}, provide a different new password")
 
             # passwords do not match
             elif ret == 5:

@@ -22,7 +22,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, execute_cmd, get_cli, close_cli
 
 import os
 
@@ -36,6 +36,114 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def run_option_network_connections(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'name')
 
+def run_option_cluster_clusters(option, run_opt, timeout=30):
+    #option = {
+    #    'name': 'clusters',
+    #    'suboptions': module.params['clusters'],
+    #    'cli_path': '/settings/cluster/cluster_clusters',
+    #    'func': run_option_cluster_clusters
+    #}
+    #run_opt = {
+    #    'skip_invalid_keys': module.params['skip_invalid_keys'],
+    #    'use_config_start_global' : use_config_start_global,
+    #    'check_mode': module.check_mode,
+    #    'debug': module.params.get('debug', False)
+    #}
+    
+    options = option['suboptions']
+    cmd_cli_show = get_cli(timeout=timeout)
+    #build cmd
+    cmd = {
+        'cmd' : "show /settings/cluster/cluster_clusters/",
+        'ignore_error': True
+    }
+    cmd_result = execute_cmd(cmd_cli_show, cmd)
+    close_cli(cmd_cli_show)
+    clusters = cmd_result['json'][0]['data']
+
+    result = dict(
+        changed=False,
+        failed=False,
+        message='',
+        msg=''
+    )
+    # Build out commands
+    cmds = []
+
+    cluster_found = False
+    for cluster in clusters:
+        if "cluster name" in cluster and cluster["cluster name"] == options['remote_cluster_name']:
+            cluster_found = True
+            if cluster['status'].lower() != "online":
+                cluster_found = False
+                cmds.append(dict(cmd=f"disjoin {options['remote_cluster_name']}"))
+
+    if not cluster_found:
+        cmds.append(dict(cmd="join"))
+        cmds.append(dict(cmd=f"set remote_cluster_name={options['remote_cluster_name']}"))
+        cmds.append(dict(cmd=f"set coordinator_address={options['coordinator_address']}"))
+        cmds.append(dict(cmd=f"set psk={options['psk']}"))
+
+    if run_opt['check_mode']:
+        # Display Changes
+        result['changed'] = False
+        result['message'] = "No changes where performed, running in check_mode"
+        result['cmds'] = cmds
+        return result
+    
+    if run_opt['debug']:
+        result['cmds'] = cmds
+    
+    # Apply Changes
+    if len(cmds) == 0:
+        result['changed'] = False
+        return result
+    else:
+        cmds.insert(0, {'cmd': f"cd /settings/cluster/cluster_clusters/"})
+        cmds.insert(0, {'cmd': f"config_start"})
+        cmds.append({'cmd': f"commit"})
+        cmds.append({'cmd': f"config_confirm"})
+    try:
+        cmd_results = []
+        cmd_cli = get_cli(timeout=timeout)
+        for cmd in cmds:
+            cmd_result = execute_cmd(cmd_cli, cmd)
+            if 'template' in cmd.keys():
+                cmd_result['template'] = cmd['template']
+            if 'set_fact' in cmd.keys():
+                cmd_result['set_fact'] = cmd['set_fact']
+            if 'ignore_error' in cmd.keys():
+                cmd_result['ignore_error'] = cmd['ignore_error']
+            if 'json' in cmd.keys():
+                cmd_result['json'] = cmd['json']
+            cmd_result['command'] = cmd.get('cmd')
+            cmd_results.append(cmd_result)
+            if cmd_result['error']:
+                result['failed'] = True
+                result['message'] = cmd_result['stdout'].split('\r\n\r\n')[1]
+                cmds.append(dict(cmd='cancel'))
+                cmds.append(dict(cmd='revert'))
+                cmds.append(dict(cmd='config_revert'))
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel'))
+                cmd_results.append(cmd_result)
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='revert'))
+                cmd_results.append(cmd_result)
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert'))
+                cmd_results.append(cmd_result)
+                break;
+            result['changed'] = True
+        if run_opt['debug']:
+            result['cmds_output'] = cmd_results
+    except Exception as exc:
+        result['failed'] = True
+        result['message'] = str(exc)
+    finally:
+        close_cli(cmd_cli)
+    #    result['cmds'] = cmds
+    return result
+
+    #return run_option_adding_field_in_the_path(option, run_opt, 'name')
+
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
@@ -44,7 +152,8 @@ def run_module():
         clusters=dict(type='dict', required=False),
         enrollment_range=dict(type='dict', required=False),
         management=dict(type='dict', required=False),
-        skip_invalid_keys=dict(type='bool', default=False, required=False)
+        skip_invalid_keys=dict(type='bool', default=False, required=False),
+        debug=dict(type='bool', default=False, required=False)
     )
 
     # seed the result dict in the object
@@ -85,7 +194,7 @@ def run_module():
             'name': 'clusters',
             'suboptions': module.params['clusters'],
             'cli_path': '/settings/cluster/cluster_clusters',
-            'func': run_option_network_connections
+            'func': run_option_cluster_clusters
         },
         {
             'name': 'enrollment_range',
@@ -124,7 +233,8 @@ def run_module():
     run_opt = {
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
-        'check_mode': module.check_mode
+        'check_mode': module.check_mode,
+        'debug': module.params.get('debug', False)
     }
 
     for option in option_list:

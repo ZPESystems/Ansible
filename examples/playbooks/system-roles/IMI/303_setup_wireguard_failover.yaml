@@ -1,0 +1,12 @@
+---
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Setup Wireguard failover 
+      include_role:
+        name: network_wg_site_to_site
+        tasks_from: 004_wireguard_failover
+      when: nodegrid_roles is defined and "wireguard_spoke" is in nodegrid_roles and wireguard_failover_status is defined and wireguard_failover_status == "yes"

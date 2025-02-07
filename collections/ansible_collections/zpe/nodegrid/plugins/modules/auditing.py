@@ -82,6 +82,7 @@ def run_module():
         events_file=dict(type='dict', required=False),
         events_syslog=dict(type='dict', required=False),
         events_snmp=dict(type='dict', required=False),
+        event_list=dict(type='dict', required=False),
         destinations_file=dict(type='dict', required=False),
         destinations_syslog=dict(type='dict', required=False),
         destinations_snmp=dict(type='dict', required=False),
@@ -133,12 +134,52 @@ def run_module():
         'events_syslog': {},
         'events_snmp': {},
         'events_email': {},
+        'event_list': {},
         'destinations_file': {},
         'destinations_syslog': {},
         'destinations_snmp': {},
         'destinations_email': {},
     }
     #Get Current NAT Data
+    
+    # ####################################################################################################
+    # Look at Event numbers and actions
+    if module.params['event_list']:
+        event_list = module.params['event_list']
+        for event_num, event_settings in event_list.items():
+            if not event_num.isdigit():
+                continue
+            event_number = int(event_num)
+            if event_number < 100 or event_number > 534:
+                continue
+          
+            event_settings_current = {}
+            # Get the current state of the event
+            event_settings_current.update(get_auditing(f"/auditing/event_list/{event_number}", module.params['timeout']))
+            if module.params['debug']:
+                if 'system_current' in result:
+                    result['system_current'].update({event_number: event_settings_current.copy()})
+                else:
+                    result['system_current'] = {event_number: event_settings_current.copy()}
+
+                if 'system_desired' in result:
+                    result['system_desired'].update({event_number: event_settings.copy()})
+                else:
+                    result['system_desired'] = {event_number: event_settings.copy()}
+            # Create a diff
+            diff = []
+            try:
+                for item in event_settings:
+                    if event_settings_current[item]:
+                        if event_settings[item] != event_settings_current[item]:
+                            diff.append({item: event_settings[item]})
+            except Exception as e:
+                result['failed'] = True
+                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
+            finally:
+                if len(diff) > 0:
+                    diff_chains['event_list'].update({event_number: diff})
+    ###########################################################################################################
 
     # Look at Auditing Settings details
     if module.params['auditing_settings']:
@@ -427,6 +468,16 @@ def run_module():
                 cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
+    
+    # Build Commands for Auditing Event list
+    if len(diff_chains['event_list']) > 0:
+        for event_number, event_settings in diff_chains['event_list'].items():
+            cmds.append({'cmd': f"cd /settings/auditing/event_list/{event_number}"})
+            for rule in event_settings:
+                for setting in rule:
+                    cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
+                    cmds.append(cmd)
+        cmds.append({'cmd': "commit"})
 
     # Build Commands for Auditing Destinations E-Mail
     if len(diff_chains['destinations_email']) > 0:
@@ -467,11 +518,6 @@ def run_module():
                 cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
-
-
-
-
-
 
     # as fail save add system roll back
     if len(cmds) > 0:

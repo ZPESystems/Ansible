@@ -12,3 +12,4 @@
     cluster_peers: "{{ hostvars[wg_lc.wireguard_hub].cluster_peers + cluster_peer_tmp }}"
   delegate_to: "{{ wg_lc.wireguard_hub }}"
   delegate_facts: true
+  when: wg_lc.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))

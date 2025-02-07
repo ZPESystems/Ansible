@@ -55,6 +55,7 @@
         wireguard_interfaces_peers: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_interfaces_peers + wireguard_interfaces_peer_tmp }}"
       delegate_to: "{{ wg_tunnel.wireguard_hub }}"
       delegate_facts: true
+      when: wg_tunnel.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))
 
     - name: check if wireguard interface exists
       tags: always
@@ -77,7 +78,9 @@
           - cmd: 'set keepalive=21'
           - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
           - cmd: 'commit'
-      when: ng_wireguard_peers_output.failed
+      when: 
+      - wg_tunnel.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))
+      - ng_wireguard_peers_output.failed
 
     - name: Spoke Update spoke-hub peering if it exists already
       tags: always
@@ -92,4 +95,6 @@
           - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
           - cmd: 'commit'
       loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
-      when: ng_wireguard_peers_output.failed == False
+      when: 
+      - wg_tunnel.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))
+      - ng_wireguard_peers_output.failed == False

@@ -50,7 +50,7 @@
         tags:
           - system_preferences
 
-      - name: Setup Super Coordinator Cluster
+      - name: Setup Local Coordinator Cluster
         include_role:
           name: cluster
         tags:

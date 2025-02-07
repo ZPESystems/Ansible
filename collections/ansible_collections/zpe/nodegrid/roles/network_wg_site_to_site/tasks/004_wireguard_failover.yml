@@ -8,9 +8,11 @@
 
 - name: Update Event Triggers
   tags: always
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/event_list/144 enable=yes"
-      - "/settings/auditing/event_list/144 action_script=wireguard_failover.sh"
-      - "/settings/auditing/event_list/145 enable=yes"
-      - "/settings/auditing/event_list/145 action_script=wireguard_failover.sh"
+  zpe.nodegrid.auditing:
+    event_list:
+      144:
+        enable: "yes"
+        action_script: "wireguard_failover.sh"
+      145:
+        enable: "yes"
+        action_script: "wireguard_failover.sh"

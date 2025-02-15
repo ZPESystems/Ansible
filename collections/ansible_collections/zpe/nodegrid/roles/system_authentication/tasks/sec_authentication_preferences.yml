@@ -1,4 +1,5 @@
 - name: Update Authentication Preferences
+  tags: always
   zpe.nodegrid.security:
     authentication:
       console:

@@ -25,6 +25,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, execute_cmd, get_cli, close_cli
 
 import os
+from collections import OrderedDict
+import traceback
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -32,6 +34,112 @@ if "DLITF_SID" in os.environ:
     del os.environ["DLITF_SID"]
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
+
+def run_option_cluster_settings(option, run_opt, timeout=60):
+    suboptions = option['suboptions']
+
+    # Settings dependencies
+    dependencies = OrderedDict()
+    dependencies = {
+        'enable_cluster': ['cluster_name', 'type', 'enable_clustering_access'],
+        'type': 
+        {
+            'coordinator': 
+            [
+                'allow_enrollment',
+                'psk',
+                'cluster_mode',
+                'polling_rate'
+            ],
+            'peer': 
+            [
+                'coordinator_address',
+                'psk'
+            ],
+        },
+    }
+
+    try:
+        settings_tobe_deleted = set()
+        for dependency in dependencies:
+            if isinstance(dependencies[dependency], dict):
+                for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
+                    for setting in dependencies[dependency][dep_rem]:
+                        if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
+                            settings_tobe_deleted.add(setting)
+
+            elif isinstance(dependencies[dependency], list) and dependency in suboptions and suboptions[dependency].lower() == "no":
+                for setting in dependencies[dependency]:
+                    settings_tobe_deleted.add(setting)
+
+        # Delete settings not required
+        for setting in settings_tobe_deleted:
+            suboptions.pop(setting, None)
+
+    except Exception as e:
+        return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
+
+    if suboptions['type'] == 'peer':
+        cmd_cli_show = get_cli(timeout=timeout)
+        #build cmd
+        cmd = {
+            'cmd' : "show /settings/cluster/cluster_peers/",
+            'ignore_error': True
+        }
+        cmd_result = execute_cmd(cmd_cli_show, cmd)
+        close_cli(cmd_cli_show)
+        cluster_peers = cmd_result['json'][0]['data']
+    
+        result = dict(
+            changed=False,
+            failed=False,
+            message='',
+            msg=''
+        )
+        for cluster in cluster_peers:
+            if "type" in cluster and cluster["type"].lower() == 'coordinator':
+                if cluster['status'].lower() != "online" or cluster['address'] != suboptions['coordinator_address']:
+                    # Build out commands to disable cluster and reconfigure
+                    cmds = [dict(cmd="cd /settings/cluster/settings"), dict(cmd="edit"), dict(cmd="set enable_cluster=no"), dict(cmd="commit")]
+                    if not run_opt['check_mode']:
+                        try:
+                            cmd_results = []
+                            cmd_cli = get_cli(timeout=timeout)
+                            for cmd in cmds:
+                                cmd_result = execute_cmd(cmd_cli, cmd)
+                                if 'ignore_error' in cmd.keys():
+                                    cmd_result['ignore_error'] = cmd['ignore_error']
+                                cmd_result['command'] = cmd.get('cmd')
+                                cmd_results.append(cmd_result)
+                                if cmd_result['error']:
+                                    result['failed'] = True
+                                    result['message'] = cmd_result['stdout'].split('\r\n\r\n')[1]
+                                    cmds.append(dict(cmd='cancel', ignore_error=True))
+                                    cmds.append(dict(cmd='revert', ignore_error=True))
+                                    cmds.append(dict(cmd='config_revert', ignore_error=True))
+                                    cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel'))
+                                    cmd_results.append(cmd_result)
+                                    cmd_result = execute_cmd(cmd_cli, dict(cmd='revert'))
+                                    cmd_results.append(cmd_result)
+                                    cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert'))
+                                    cmd_results.append(cmd_result)
+                                    break;
+                                result['changed'] = True
+                            if run_opt['debug']:
+                                result['cmds_output'] = cmd_results
+                        except Exception as exc:
+                            result['failed'] = True
+                            result['message'] = str(exc)
+                        finally:
+                            close_cli(cmd_cli)
+                    result = run_option(option, run_opt)
+                    if run_opt['check_mode']:
+                        result['cmds'] = cmds
+                    return result
+                else:
+                    result['message'] = cluster
+                    return result
+    return run_option(option, run_opt)
 
 def run_option_network_connections(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'name')
@@ -121,9 +229,9 @@ def run_option_cluster_clusters(option, run_opt, timeout=30):
             if cmd_result['error']:
                 result['failed'] = True
                 result['message'] = cmd_result['stdout'].split('\r\n\r\n')[1]
-                cmds.append(dict(cmd='cancel'))
-                cmds.append(dict(cmd='revert'))
-                cmds.append(dict(cmd='config_revert'))
+                cmds.append(dict(cmd='cancel', ignore_error=True))
+                cmds.append(dict(cmd='revert', ignore_error=True))
+                cmds.append(dict(cmd='config_revert', ignore_error=True))
                 cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel'))
                 cmd_results.append(cmd_result)
                 cmd_result = execute_cmd(cmd_cli, dict(cmd='revert'))
@@ -182,7 +290,7 @@ def run_module():
             'name': 'settings',
             'suboptions': module.params['settings'],
             'cli_path': '/settings/cluster/settings',
-            'func': run_option
+            'func': run_option_cluster_settings
         },
         # {
         #     'name': 'peers',

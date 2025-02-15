@@ -1,9 +1,11 @@
 # Nodegrid Network Settings
 nodegrid_hostname: "nodegrid"
 nodegrid_domain_name: "nodegrid.internal"
+nodegrid_dns_proxy: ""
 nodegrid_enable_ipv4_ip_forward: "no"
 nodegrid_enable_ipv6_ip_forward: "no"
+nodegrid_ipv4_loopback: ""
+nodegrid_ipv6_loopback: ""
 nodegrid_reverse_path_filtering: "strict_mode"
 nodegrid_enable_multiple_routing_tables: "yes"
-nodegrid_enable_dynamic_dns: "no"
 nodegrid_enable_bluetooth_network: "no"

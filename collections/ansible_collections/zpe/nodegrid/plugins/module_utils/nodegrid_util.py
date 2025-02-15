@@ -180,6 +180,7 @@ def import_settings(settings, use_config_start=True):
     import_p_timeout = _get_import_process_timeout(("\n").join(settings))
     output_buffer_flush_timeout = 5
     import_settings_file = f"/tmp/import_settings_{str(uuid.uuid4())}.cli"
+    import_settings_log = f"/tmp/import_settings_log_{str(uuid.uuid4())}.txt"
 
     with open(import_settings_file, "w") as f:
         for item in settings:
@@ -187,51 +188,45 @@ def import_settings(settings, use_config_start=True):
 
     cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
     cmd_cli.setwinsize(500, 250)
+    cmd_cli.logfile = open(import_settings_log, "w")
     cmd_cli.expect_exact('/]# ')
     if use_config_start:
         cmd_cli.sendline("config_start\n")
         cmd_cli.expect_exact('/]# ')
     cmd_cli.sendline(f"import_settings --file {import_settings_file}")
-    output = cmd_cli.before
+    output_cmd = cmd_cli.before
     cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
-    
+
     if use_config_start:
         cmd_cli.sendline("config_confirm")
         cmd_cli.expect_exact('/]# ')
-    try:
-        os.remove(import_settings_file)
-    except OSError:
-        pass
-
-    #    cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
-    #    cmd_cli.setwinsize(500, 250)
-    #    cmd_cli.expect_exact('/]# ')
-    #    cmd_cli.sendline('.sessionpageout undefined=no')
-    #    cmd_cli.expect_exact('/]# ')
-    #    if use_config_start:
-    #        cmd_cli.sendline('config_start')
-    #        cmd_cli.expect_exact('/]# ')
-    #    cmd_cli.sendline("import_settings")
-    #    cmd_cli.expect_exact('finish.')
-    #    for item in settings:
-    #        cmd_cli.sendline(item)
-    #        # Read the line was just sent by expecting a newline, because a big
-    #        # import_settings input can cause sendline to hang
-    #        cmd_cli.expect('\n', timeout=output_buffer_flush_timeout)
-    #    cmd_cli.sendcontrol('d')
-    #    cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
-    #    output = cmd_cli.before
-    #    if use_config_start:
-    #        cmd_cli.sendline('config_confirm')
-    #        cmd_cli.expect_exact('/]# ')
     cmd_cli.sendline('exit')
     cmd_cli.close()
+    
+    try:
+        file1 = open(import_settings_log, 'r')
+        output = file1.readlines()
+    except:
+        output = output_cmd
+        pass
+
+    try:
+        os.remove(import_settings_file)
+        os.remove(import_settings_log)
+    except OSError:
+        pass
 
     output_dict = {}
     import_status_details = []
     import_status = "succeeded"
     error_list = []
-    for line in output.splitlines():
+    if isinstance(output, str):
+        lines = output.splitlines()
+    elif isinstance(output, list):
+        lines = output
+    else:
+        lines = []
+    for line in lines: #output.splitlines():
         if "Error:" in line:
             error_list.append(line.strip().split(' ',1)[1])
         if "Result:" in line:
@@ -246,12 +241,12 @@ def import_settings(settings, use_config_start=True):
                     import_status_details.append(settings_status)
             else:
                 import_status = "unknown, result parsing error"
-    if "Error" in output or "error" in output:
+    if "Error" in output or "error" in output or len(error_list)>0:
         output_dict["state"] = 'error'
         import_status = "failed"
     else:
         output_dict["state"] = 'success'
-    #output_dict["output_raw"] = output
+#    output_dict["output_raw"] = output
     output_dict["import_list"] = settings
     output_dict["import_status"] = import_status
     output_dict["import_status_details"] = import_status_details
@@ -314,7 +309,7 @@ def compare_versions(version1, version2):
         version2 (str): Second version to compare
 
     Returns:
-        int: -1 (version1 < version2), 0 (version1 == version2), 1 (version1 > version2) 
+        int: -1 (version1 < version2), 0 (version1 == version2), 1 (version1 > version2)
     """
     v1 = tuple(map(int, version1.split('.')))
     v2 = tuple(map(int, version2.split('.')))
@@ -460,7 +455,7 @@ def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_fiel
 
     Args:
         option (dict): Option to apply
-        run_opt (dict): Dictionary with extra import options 
+        run_opt (dict): Dictionary with extra import options
         field_name (str): Field name to add in th CLI path
         delete_field_name (bool): If True, the field_name will be deleted from the options
 
@@ -482,14 +477,14 @@ def run_option(option, run_opt):
     Applies the option on the Nodegrid following these steps:
         1. Convert the option in a list of settings
         2. Export the settings of the path
-        3. Compare the settings to find the difference between them 
+        3. Compare the settings to find the difference between them
         4. Import new setttings on the Nodegrid
 
     Args:
         option (dict): Option to apply
             - cli_path (str): CLI path to import the settings
             - settings (list of str): Optional field, with a list of settings (path key=value). If undefined the list of settings will be created based on the option 'cli_path'
-        run_opt (dict): Dictionary with extra import options 
+        run_opt (dict): Dictionary with extra import options
             - skip_invalid_keys (bool): If True, ivalid field will be removed
             - check_mode (bool): If True, does not apply the diff
             - use_config_start_global (bool): If True, use the CLI feature config_start/config_end to apply the all settings if no error happened
@@ -624,7 +619,7 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
     state, exported_settings, exported_all_settings = export_settings(option['cli_path'])
     if "error" in state:
         return result_failed(f"Failed exporting settings on {option['cli_path']}. Error: {state[1]}")
-    
+
     # Remove invalid settings
     if remove_invalid_setting:
         for key, value in copied_options.items():
@@ -713,7 +708,7 @@ def read_table(cli_path):
                 elif cnt > 1:
                     table["rows"].append(row)
                 cnt += 1
-                
+
     return "successful", table
 
 def read_table_row(table, col_index, col_value):
@@ -752,12 +747,12 @@ def read_path_option(cli_path, option, separators=[":","="]):
     return "successful", result
 
 def settings_to_dict(settings_string_list):
-    groups = {}         
+    groups = {}
     for item in settings_string_list:
         path, key_value = item.split(" ", 1)    # Split by the first space to get path and key=value
         path = uncomment(path.strip())
         # In Python 3.7 and later, dictionaries maintain the insertion order of items.
-        # When you iterate over a dictionary using .items(), the items will appear 
+        # When you iterate over a dictionary using .items(), the items will appear
         # in the same order they were added.
         if path not in groups:
             groups[path] = {}

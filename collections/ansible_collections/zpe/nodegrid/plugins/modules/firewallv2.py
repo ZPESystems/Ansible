@@ -648,10 +648,10 @@ def insert_rule(table, chain, new_rule):
         if isinstance(dependencies[dependency], dict):
             for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule[dependency]]}:
                 for setting in dependencies[dependency][dep_rem]:
-                    new_rule.pop(setting)
+                    new_rule.pop(setting, None)
         elif isinstance(dependencies[dependency], list) and new_rule[dependency].lower() == "no":
             for setting in dependencies[dependency]:
-                new_rule.pop(setting)
+                new_rule.pop(setting, None)
 
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/"))
     cmds.append(dict(cmd="add"))
@@ -686,10 +686,10 @@ def append_rule(table, chain, new_rule):
         if isinstance(dependencies[dependency], dict):
             for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule[dependency]]}:
                 for setting in dependencies[dependency][dep_rem]:
-                    new_rule.pop(setting)
+                    new_rule.pop(setting, None)
         elif isinstance(dependencies[dependency], list) and new_rule[dependency].lower() == "no":
             for setting in dependencies[dependency]:
-                new_rule.pop(setting)
+                new_rule.pop(setting, None)
 
 
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/"))
@@ -714,7 +714,7 @@ def update_rule(table, chain, rule, new_rule):
 
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/{new_rule['rule_number']}"))
     for setting in diff_state:
-        if len(str(diff_state[setting]).strip()) > 0:
+        if isinstance(diff_state[setting], str) and len(str(diff_state[setting]).strip()) > 0:
             cmds.append(dict(cmd=f"set {setting}={diff_state[setting].replace(' ','_')}"))
     return diff_state, cmds
 
@@ -921,20 +921,24 @@ def run_module():
             if modify and int(parsed_rule['rule_number']) > len(rules_present['rules'])-1:
                 module.fail_json(msg=f"Rule modify error: rule number {module.params.get('rule_number', None)} is out of bounds. Current rules range from: 0,...,{len(rules_present['rules'])-1}.")
     
+            rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=insert)
             if modify:
-                rule_is_present = True
-                rule_present = rules_present['rules'][int(parsed_rule['rule_number'])]
-                result['changed'] = rule_is_present
-            else:
-                rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=insert)
-                result['changed'] = (rule_is_present != should_be_present)
+                if rule_is_present and rule_present['rule_number'] != parsed_rule['rule_number']:
+                    rule_is_present = False
+                    rule_present = rules_present['rules'][int(parsed_rule['rule_number'])]
+                    result['changed'] = True
     
-            if insert:
-                diff_state, cmds = insert_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
-            elif modify:
-                diff_state, cmds = update_rule(table=table, chain=module.params['chain'], rule=rule_present, new_rule=parsed_rule)
-            elif append:
-                diff_state, cmds = append_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
+            if rule_is_present:
+                result['changed'] = False
+                result['message'] = "Rule already configured."
+                module.exit_json(**result)
+            else:
+                if insert:
+                    diff_state, cmds = insert_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
+                elif modify:
+                    diff_state, cmds = update_rule(table=table, chain=module.params['chain'], rule=rule_present, new_rule=parsed_rule)
+                elif append:
+                    diff_state, cmds = append_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
         else:
             if module.params["rule_number"].isdigit() and int(parsed_rule['rule_number']) < len(rules_present['rules']):
                 rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=True)
@@ -959,19 +963,17 @@ def run_module():
                 result['message'] = "No rule match. Skipping!"
                 module.exit_json(**result)
                
+    if debug:
+        result['diff'] = diff_state
+        result['cmds'] = cmds
 
     if module.check_mode:
         # Display Changes
         result['diff'] = diff_state
         result['changed'] = False
         result['message'] = "No changes where performed, running in check_mode"
-        result['cmds'] = cmds
         module.exit_json(**result)
     
-    if debug:
-        result['diff'] = diff_state
-        result['cmds'] = cmds
-
     # Apply Changes
     if len(cmds) == 0:
         result['changed'] = False
@@ -998,7 +1000,8 @@ def run_module():
             if cmd_result['error']:
                 result['failed'] = True
                 result['message'] = cmd_result['stdout'].split('\r\n\r\n')[1]
-                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert'))
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel', ignore_error=True))
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert', ignore_error=True))
                 break;
             result['changed'] = True
         if debug:

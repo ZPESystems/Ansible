@@ -311,6 +311,14 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
+def run_option_network_settings(option, run_opt):
+    suboptions = option['suboptions']
+    # Delete option set_as_primary_connection if set to no 
+    if 'enable_network_failover' in suboptions and suboptions['enable_network_failover'] == "no":
+        suboptions.pop('enable_network_failover', None)
+    return run_option(option, run_opt)
+
+
 def run_option_network_connections(option, run_opt):
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = [
@@ -581,6 +589,10 @@ def run_option_network_connections(option, run_opt):
                 if setting in suboptions and suboptions[setting].strip() == "":
                     suboptions.pop(setting, None)
 
+            # Delete option set_as_primary_connection if set to no 
+            if 'set_as_primary_connection' in suboptions and suboptions['set_as_primary_connection'] == "no":
+                suboptions.pop('set_as_primary_connection', None)
+
         except Exception as e:
             return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
 
@@ -623,7 +635,7 @@ def run_module():
             'name': 'settings',
             'suboptions': module.params['settings'],
             'cli_path': '/settings/network_settings',
-            'func': run_option
+            'func': run_option_network_settings
         },
         {
             'name': 'connection',

@@ -121,6 +121,7 @@ def run_module():
         date_and_time=dict(type='dict', required=False),
         ntp_server=dict(type='dict', required=False),
         ntp_authentication=dict(type='dict', required=False),
+        system_logging=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False)
     )
 
@@ -175,6 +176,12 @@ def run_module():
             'suboptions': module.params['ntp_authentication'],
             'cli_path': '/settings/ntp_authentication',
             'func': run_option_ntp_authentication
+        },
+        {
+            'name': 'system_logging',
+            'suboptions': module.params['system_logging'],
+            'cli_path': '/settings/system_logging',
+            'func': run_option
         },
     ]
 

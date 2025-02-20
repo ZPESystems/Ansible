@@ -249,6 +249,9 @@ def run_authorization_profile(option, run_opt):
                     profile_result['failed'] = True
                     profile_result['msg'] = cmd_result['json']
                     profile_result['changed'] = False
+                    cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel', ignore_error=True))
+                    cmd_result = execute_cmd(cmd_cli, dict(cmd='revert', ignore_error=True))
+                    cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert', ignore_error=True))
                     break
             close_cli(cmd_cli)
             profile_result['cmds_output'] = cmd_results

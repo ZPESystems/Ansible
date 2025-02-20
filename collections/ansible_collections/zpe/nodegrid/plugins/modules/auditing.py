@@ -170,9 +170,12 @@ def run_module():
             diff = []
             try:
                 for item in event_settings:
-                    if event_settings_current[item]:
-                        if event_settings[item] != event_settings_current[item]:
+                    if item in event_settings_current:
+                        if event_settings[item].strip() != event_settings_current[item].strip():
                             diff.append({item: event_settings[item]})
+                    else:
+                        diff.append({item: event_settings[item]})
+
             except Exception as e:
                 result['failed'] = True
                 result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
@@ -553,6 +556,9 @@ def run_module():
             cmd_results.append(cmd_result)
             if cmd_result['error']:
                 result['failed'] = True
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel', ignore_error=True))
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='revert', ignore_error=True))
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert', ignore_error=True))
                 break;
             result['changed'] = True
         close_cli(cmd_cli)

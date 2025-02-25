@@ -22,6 +22,8 @@ from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import 
 
 
 import os, json, pexpect, re
+from collections import OrderedDict
+import traceback
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -39,6 +41,35 @@ def run_option_device(option, run_opt):
 
     if not ('access' in suboptions and field_exist(suboptions['access'], 'name')):
         return result_failed("Field 'access/name' is required")
+    
+    # Settings dependencies
+    dependencies = OrderedDict()
+    dependencies = {
+        'enable_device_state_detection_based_in_data_flow': ['data_flow_scan_interval'],
+        'skip_authentication_to_access_device': ['skip_authentication_in_raw_sessions', 'skip_authentication_in_ssh_sessions', 'skip_authentication_in_telnet_sessions', 'skip_authentication_in_web_sessions'],
+        'allow_ssh_protocol': ['ssh_port'],
+        'allow_telnet_protocol': ['telnet_port'],
+        'allow_binary_socket': ['tcp_socket_port']
+    }
+
+    try:
+        settings_tobe_deleted = set()
+        for dependency in dependencies:
+            if isinstance(dependencies[dependency], dict):
+                for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions['acces'] and key not in [suboptions['access'][dependency]]}:
+                    for setting in dependencies[dependency][dep_rem]:
+                        if (suboptions['access'][dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions['access'][dependency]]):
+                            settings_tobe_deleted.add(setting)
+
+            elif isinstance(dependencies[dependency], list) and dependency in suboptions['access'] and suboptions['access'][dependency].lower() == "no":
+                for setting in dependencies[dependency]:
+                    settings_tobe_deleted.add(setting)
+
+        # Delete settings not required
+        for setting in settings_tobe_deleted:
+            suboptions['access'].pop(setting, None)
+    except Exception as e:
+        return {'failed': True, 'changed': False, 'msg': f"{suboptions['access']} | Key/value error: {e} | {traceback.format_exc()}"}
 
     if ('port_name' in suboptions['access']):
         port_name = suboptions['access']['port_name']

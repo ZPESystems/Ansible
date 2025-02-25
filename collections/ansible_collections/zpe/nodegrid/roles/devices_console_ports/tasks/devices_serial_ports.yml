@@ -21,7 +21,9 @@
         icon: "{{ item.icon | default('terminal.png') }}"
         mode: "{{ item.mode | default('enabled') }}"
         allow_ssh_protocol: "{{ item.allow_ssh_protocol | default('yes') }}"
+        ssh_port: "{{ item.ssh_port | default('') }}"
         allow_telnet_protocol: "{{ item.allow_telnet_protocol | default('no') }}"
+        telnet_port: "{{ item.telnet_port | default('') }}"
   with_items: "{{ serial_ports }}"
   when:
     - ansible_facts is defined and ansible_facts.nodegrid_about is defined
@@ -34,7 +36,7 @@
     device:
       access:
         name: "{{ item.name }}"
-        port_name: "ttyS{{ item.slot_number | default('1') }}-{{ item.portnumber | default('1') }}"
+        port_name: "ttyS{{ item.slot_number | default('1') }}-{{ item.port_number | default('1') }}"
         type: "{{ item.type | default('local_serial') }}"
         baud_rate: "{{ item.baud_rate | default('Auto') }}"
         parity: "{{ item.parity | default('None') }}"
@@ -50,7 +52,9 @@
         icon: "{{ item.icon | default('terminal.png') }}"
         mode: "{{ item.mode | default('enabled') }}"
         allow_ssh_protocol: "{{ item.allow_ssh_protocol | default('yes') }}"
+        ssh_port: "{{ item.ssh_port | default('') }}"
         allow_telnet_protocol: "{{ item.allow_telnet_protocol | default('no') }}"
+        telnet_port: "{{ item.telnet_port | default('') }}"
   with_items: "{{ serial_ports }}"
   when:
     - ansible_facts is defined and ansible_facts.nodegrid_about is defined

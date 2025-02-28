@@ -60,6 +60,66 @@ class NodegridFactCollector(collector.BaseFactCollector):
 
         self.filter_spec = filter_spec
 
+    # #####################################################################################
+    # Wireguad config
+    def _get_wireguard_peer(self, interface_name, peer_name, cmd_cli) -> dict:
+        #build cmd
+        cmd: dict = {
+            'cmd' : f"show /settings/wireguard/{interface_name}/peers/{peer_name}"
+        }
+        cmd_result = execute_cmd(cmd_cli, cmd)
+        if cmd_result['error']:
+            return dict(error=True, msg=f"Error getting peer info {peer_name} for endpoint {interface_name}. Error: {cmd_result['stdout']}")
+        else:
+            return {peer_name: cmd_result['json'][0]['data']}
+    
+    def _get_wireguard_endpoint(self, interface_name, cmd_cli) -> dict:
+        #build cmd
+        cmd: dict = {
+            'cmd' : f"show /settings/wireguard/{interface_name}/interfaces"
+        }
+        cmd_result = execute_cmd(cmd_cli, cmd)
+        data = dict(interfaces={}, peers=[])
+        if cmd_result['error']:
+            return dict(error=True, msg=f"Error getting endpoint info for {interface_name}. Error: {cmd_result['stdout']}")
+        else:
+            data['interfaces'] = cmd_result['json'][0]['data']
+    
+        #build cmd
+        cmd: dict = {
+            'cmd' : f"show /settings/wireguard/{interface_name}/peers"
+        }
+        cmd_result = execute_cmd(cmd_cli, cmd)
+        if cmd_result['error']:
+            return dict(error=True, msg=f"Cannot get present wireguard peers for endpoint {interface_name}. Error: {cmd_result['error']}")
+        else:
+            for item in cmd_result['json']:
+                for peer in item['data']:
+                    if 'peer name' in peer.keys():
+                        peer_name = peer['peer name']
+                        data['peers'].extend([self._get_wireguard_peer(interface_name=interface_name, peer_name=peer_name, cmd_cli=cmd_cli) ])
+        return {interface_name: data}
+    
+    def get_wireguard_endpoints_present(self, timeout=60) -> dict:
+        cmd_cli = get_cli(timeout=timeout)
+        #build cmd
+        cmd = {
+            'cmd' : f"show /settings/wireguard"
+        }
+        cmd_result = execute_cmd(cmd_cli, cmd)
+        data = dict(error=False, endpoints=[], msg='')
+        if cmd_result['error']:
+            return dict(error=True, msg=f"Cannot get present wireguard endpoints. Error: {cmd_result['error']}")
+        else:
+            for item in cmd_result['json']:
+                for endpoint in item['data']:
+                    if 'interface name' in endpoint.keys():
+                        interface_name = endpoint['interface name']
+                        data['endpoints'].extend([self._get_wireguard_endpoint(interface_name=interface_name, cmd_cli=cmd_cli) ])
+        close_cli(cmd_cli)
+        return data
+    # #####################################################################################
+
     #def collect(self, module=None, collected_facts=None):
     def _run_commands(self, cmds, timeout=30):
         result = dict(
@@ -231,6 +291,11 @@ class NodegridFactCollector(collector.BaseFactCollector):
                             parsed_dict = dict()
                     else:
                         return dict(msg=f"Template file could not be found: {cmd_result.get('template')}")
-    
+
+
+        wireguard_endpoints_present = self.get_wireguard_endpoints_present(timeout=timeout)
+        if not wireguard_endpoints_present["error"]:
+            parsed_dict['wireguard'] = wireguard_endpoints_present['endpoints']
+
         return parsed_dict
 

@@ -398,6 +398,9 @@ def convert_to_json(cli_output):
             if '=' in line:
                 key, value = split_in_two(line, '=')
                 details[key] = value
+            if ':' in line:
+                key, value = split_in_two(line, ':')
+                details[key] = value
             elif "show" in line:
                 cmd, path = split_in_two(line, ' ')
         data.append({'path': path, 'data':details})
@@ -408,6 +411,9 @@ def convert_to_json(cli_output):
         for line in lines:
             if ':' in line:
                 key, value = split_in_two(line, ':')
+                details[key] = value
+            elif '=' in line:
+                key, value = split_in_two(line, '=')
                 details[key] = value
             elif "show" in line:
                 cmd, path = split_in_two(line, ' ')
@@ -449,6 +455,27 @@ def field_exist(suboptions, field_name):
     if field_name in suboptions and len(suboptions[field_name]) > 0:
         return True
     return False
+
+def run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, append_path, delete_field_name=False):
+    """Calls the function run_option adding the field name in the CLI path
+
+    Args:
+        option (dict): Option to apply
+        run_opt (dict): Dictionary with extra import options
+        field_name (str): Field name to add in th CLI path
+        delete_field_name (bool): If True, the field_name will be deleted from the options
+
+    Returns:
+        dict: Result of import
+    """
+    suboptions = option['suboptions']
+    if field_exist(suboptions, field_name):
+        option['cli_path'] += f"/{suboptions[field_name]}/{append_path}"
+        if delete_field_name:
+            del option['suboptions'][field_name]
+        return run_option(option, run_opt)
+    else:
+        return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
 
 def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_field_name=False):
     """Calls the function run_option adding the field name in the CLI path

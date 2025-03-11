@@ -209,10 +209,10 @@ def run_module():
     if module.params['debug']:
         result['cmds'] = cmds
         result['diff'] = diff_chains
-        result['service_current'] = services_current
-        result['services_desired'] = services_desired
-        result['zpe_cloud_current'] = zpe_cloud_current
-        result['zpe_cloud_desired'] = zpe_cloud_desired
+        result['service_current'] = services_current if module.params['services'] else ''
+        result['services_desired'] = services_desired if module.params['services'] else ''
+        result['zpe_cloud_current'] = zpe_cloud_current if module.params['zpe_cloud'] else ''
+        result['zpe_cloud_desired'] = zpe_cloud_desired if module.params['zpe_cloud'] else ''
  #       result['services_skipped'] = services_desired_org
 
     if module.check_mode:

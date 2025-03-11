@@ -167,7 +167,7 @@ def export_settings(cli_path):
                 all_settings.append(line[1:])
     return "successful", settings, all_settings
 
-def import_settings(settings, use_config_start=True):
+def import_settings(settings, use_config_start=True, timeout=60):
     """Runs the import settings.
 
     Args:
@@ -177,7 +177,7 @@ def import_settings(settings, use_config_start=True):
     Returns:
         dict: Import settings result
     """
-    import_p_timeout = _get_import_process_timeout(("\n").join(settings))
+    import_p_timeout = max([_get_import_process_timeout(("\n").join(settings)), timeout])
     output_buffer_flush_timeout = 5
     import_settings_file = f"/tmp/import_settings_{str(uuid.uuid4())}.cli"
     import_settings_log = f"/tmp/import_settings_log_{str(uuid.uuid4())}.txt"
@@ -232,6 +232,7 @@ def import_settings(settings, use_config_start=True):
         output_dict["import_status_details"] = f"{output}"
         output_dict["import_log_file"] = f"{import_settings_log}"
         output_dict["error_list"] = [f"{import_settings_error}"]
+        output_dict["import_timeout"] = [f"{import_p_timeout}"]
         return output_dict
 
     try:
@@ -583,7 +584,7 @@ def run_option(option, run_opt):
                 use_config_start=use_config_start_global
             ))
         else:
-            import_result = import_settings(diff, use_config_start=use_config_start_global)
+            import_result = import_settings(diff, use_config_start=use_config_start_global, timeout=run_opt.get('timeout',60))
 
         result['import_result'] = import_result
         if import_result['import_status'] == 'succeeded':

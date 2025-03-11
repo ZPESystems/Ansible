@@ -181,28 +181,44 @@ def import_settings(settings, use_config_start=True):
     output_buffer_flush_timeout = 5
     import_settings_file = f"/tmp/import_settings_{str(uuid.uuid4())}.cli"
     import_settings_log = f"/tmp/import_settings_log_{str(uuid.uuid4())}.txt"
+    
+    output_dict = {}
+    import_status_details = []
+    import_status = "succeeded"
+    error_list = []
 
     with open(import_settings_file, "w") as f:
         for item in settings:
             f.write(item + "\n")
 
-    cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
-    cmd_cli.setwinsize(500, 250)
-    cmd_cli.logfile = open(import_settings_log, "w")
-    cmd_cli.expect_exact('/]# ')
-    if use_config_start:
-        cmd_cli.sendline("config_start\n")
-        cmd_cli.expect_exact('/]# ')
-    cmd_cli.sendline(f"import_settings --file {import_settings_file}")
-    output_cmd = cmd_cli.before
-    cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
-
-    if use_config_start:
-        cmd_cli.sendline("config_confirm")
-        cmd_cli.expect_exact('/]# ')
-    cmd_cli.sendline('exit')
-    cmd_cli.close()
+    failed_to_import_settings = False
+    import_settings_error = None
+    try:
+        cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
+        cmd_cli.setwinsize(500, 250)
+        cmd_cli.logfile = open(import_settings_log, "w")
+        cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
+        if use_config_start:
+            cmd_cli.sendline("config_start\n")
+            cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
+        cmd_cli.sendline(f"import_settings --file {import_settings_file}")
+        output_cmd = cmd_cli.before
+        cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
     
+        if use_config_start:
+            cmd_cli.sendline("config_confirm")
+            cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
+        cmd_cli.sendline('exit')
+    except pexpect.TIMEOUT as e:
+        failed_to_import_settings = True
+        import_settings_error = e
+        output_dict['pexpect_timeout'] = f"{e}"
+    except Exception as e:
+        failed_to_import_settings = True
+        import_settings_error = e
+    finally:
+        cmd_cli.close()
+  
     try:
         file1 = open(import_settings_log, 'r')
         output = file1.readlines()
@@ -210,16 +226,20 @@ def import_settings(settings, use_config_start=True):
         output = output_cmd
         pass
 
+    if failed_to_import_settings:
+        output_dict["import_list"] = settings
+        output_dict["import_status"] = "failed"
+        output_dict["import_status_details"] = f"{output}"
+        output_dict["import_log_file"] = f"{import_settings_log}"
+        output_dict["error_list"] = [f"{import_settings_error}"]
+        return output_dict
+
     try:
         os.remove(import_settings_file)
         os.remove(import_settings_log)
     except OSError:
         pass
 
-    output_dict = {}
-    import_status_details = []
-    import_status = "succeeded"
-    error_list = []
     if isinstance(output, str):
         lines = output.splitlines()
     elif isinstance(output, list):
@@ -573,6 +593,7 @@ def run_option(option, run_opt):
                 result['message'] = ', '.join(import_result['error_list'])
             result['msg'] = 'Import failed'
             result['failed'] = True
+            result['import_settings_error'] = import_result
             return result
     else:
         result['changed'] = False

@@ -35,8 +35,9 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def run_option_cluster_settings(option, run_opt, timeout=60):
+def run_option_cluster_settings(option, run_opt):
     suboptions = option['suboptions']
+    timeout = run_opt.get('timeout', 60)
 
     # Settings dependencies
     dependencies = OrderedDict()
@@ -144,7 +145,7 @@ def run_option_cluster_settings(option, run_opt, timeout=60):
 def run_option_network_connections(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'name')
 
-def run_option_cluster_clusters(option, run_opt, timeout=30):
+def run_option_cluster_clusters(option, run_opt):
     #option = {
     #    'name': 'clusters',
     #    'suboptions': module.params['clusters'],
@@ -155,9 +156,11 @@ def run_option_cluster_clusters(option, run_opt, timeout=30):
     #    'skip_invalid_keys': module.params['skip_invalid_keys'],
     #    'use_config_start_global' : use_config_start_global,
     #    'check_mode': module.check_mode,
-    #    'debug': module.params.get('debug', False)
+    #    'debug': module.params.get('debug', False),
+    #    'timeout': module.params.get('timeout', 60)
     #}
     
+    timeout = run_opt.get('timeout', 60)
     options = option['suboptions']
     cmd_cli_show = get_cli(timeout=timeout)
     #build cmd
@@ -261,6 +264,7 @@ def run_module():
         enrollment_range=dict(type='dict', required=False),
         management=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
+        timeout=dict(type='int', default=60, required=False),
         debug=dict(type='bool', default=False, required=False)
     )
 
@@ -342,7 +346,8 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'debug': module.params.get('debug', False)
+        'debug': module.params.get('debug', False),
+        'timeout': module.params.get('timeout', 60)
     }
 
     for option in option_list:

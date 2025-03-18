@@ -12,7 +12,11 @@
 # some basic default values...
 
 inventory         = /etc/ansible/system_inventories,/etc/ansible/inventories
+{% if ansible_version.full is version("2.10", operator="gt", strict=True) %}
 collections_path = /etc/ansible/collections
+{% else %}
+collections_paths = /etc/ansible/collections
+{% endif %}
 facts_modules     = zpe.nodegrid.nodegrid_facts,smart
 #library        = /var/local/file_manager/admin_group/collections
 #module_utils   = /usr/share/my_module_utils/
@@ -319,7 +323,7 @@ hash_behaviour = merge
 # only update this setting if you know how this works, otherwise it can break module execution
 #network_group_modules=eos, nxos, ios, iosxr, junos, vyos
 
-# When enabled, this option allows lookups (via variables like {{lookup('foo')}} or when used as
+# When enabled, this option allows lookups (via variables like {{ '{{' }} lookup('foo') {{ '}}' }} or when used as
 # a loop with `with_foo`) to return data that is not marked "unsafe". This means the data may contain
 # jinja2 templating language which will be run through the templating engine.
 # ENABLING THIS COULD BE A SECURITY RISK

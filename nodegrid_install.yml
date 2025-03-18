@@ -141,7 +141,7 @@
 
         - name: update ansible.cfg
           tags: ansible_config
-          copy:
+          template:
             src: ./installation/nodegrid_ansible.cfg.j2
             dest: /etc/ansible/ansible.cfg
             owner: ansible

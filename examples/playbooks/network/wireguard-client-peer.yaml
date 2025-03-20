@@ -1,0 +1,20 @@
+- hosts: all
+  gather_facts: no
+  gather_timeout: 30
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+
+  tasks:
+    - name: Setup Wireguard Peer for interface_type=client
+      zpe.nodegrid.wireguard:
+        client_peer:
+          interface_name: wg-client1
+          interface_type: client # optional
+          peer_name: wg-peer-client1
+          allowed_ips: 10.1.1.2/32
+          external_address: 192.100.1.25
+          listening_port: 51820
+          keepalive: 10
+          public_key: '2Kl6LY2vAKzavX95HZiSNNRoLusi+fWDU5777777777='
+          description: "client peer to remote wireguard endpoint"

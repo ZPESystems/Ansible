@@ -5,34 +5,16 @@
   vars:
     _peer_name: "peer-{{ wg_tunnel.wireguard_hub }}"
   block:
-    - name: check if wireguard interface exists
-      tags: always
-      zpe.nodegrid.nodegrid_cmds:
-        cmds:
-          - cmd: "show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}"
-      ignore_errors: True
-      register: ng_wireguard_tunnels_output
-
-    - name: Add Spoke Wireguard VPN if it does not exist
-      tags: always
-      zpe.nodegrid.nodegrid_cmds:
-        cmds:
-          - cmd: 'cd /settings/wireguard/'
-          - cmd: 'add'
-          - cmd: 'set interface_name={{ wg_tunnel.wireguard_interface_name }}'
-          - cmd: 'set interface_type=client'
-          - cmd: 'set internal_address={{ wg_tunnel.wireguard_interface_address }}'
-          - cmd: 'commit'
-      when: ng_wireguard_tunnels_output.failed
-
-    - name: Update Spoke Wireguard VPN if it exists already
-      tags: always
-      zpe.nodegrid.nodegrid_cmds:
-        cmds:
-          - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/interfaces'
-          - cmd: 'set internal_address={{ wg_tunnel.wireguard_interface_address }}'
-          - cmd: 'commit'
-      when: ng_wireguard_tunnels_output.failed == False
+    - name: Setup Wireguard Client Endpoint
+      zpe.nodegrid.wireguard:
+        client_endpoint:
+          interface_type: client
+          interface_name: "{{ wg_tunnel.wireguard_interface_name }}"
+          internal_address: "{{ wg_tunnel.wireguard_interface_address }}"
+          keepalive: 10
+          keypair: 'auto_generate' # auto, input_manually
+          status: enabled # enabled (default) or disabled
+          description: "Client endpoint to peer with remote wireguard coordinator {{ wg_tunnel.wireguard_hub }}"
 
     - name: Get Spoke Wireguard Public Key
       tags: always
@@ -57,44 +39,15 @@
       delegate_facts: true
       when: wg_tunnel.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))
 
-    - name: check if wireguard interface exists
-      tags: always
-      zpe.nodegrid.nodegrid_cmds:
-        cmds:
-          - cmd: 'show /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ _peer_name }}'
-      ignore_errors: True
-      register: ng_wireguard_peers_output
-
-    - name: Spoke add spoke-hub peering if it does not exist
-      tags: always
-      zpe.nodegrid.nodegrid_cmds:
-        cmds:
-          - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers'
-          - cmd: 'add'
-          - cmd: 'set peer_name={{ _peer_name }}'
-          - cmd: 'set allowed_ips={{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_address}}'
-          - cmd: 'set public_key={{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}'
-          - cmd: 'set external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}:{{ hostvars[wg_tunnel.wireguard_hub].wireguard_udp_port }}'
-          - cmd: 'set keepalive=21'
-          - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
-          - cmd: 'commit'
-      when: 
-      - wg_tunnel.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))
-      - ng_wireguard_peers_output.failed
-
-    - name: Spoke Update spoke-hub peering if it exists already
-      tags: always
-      zpe.nodegrid.nodegrid_cmds:
-        cmds:
-          - cmd: 'cd /settings/wireguard/{{ wg_tunnel.wireguard_interface_name }}/peers/{{ _peer_name }} '
-          - cmd: 'set allowed_ips={{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_address}}'
-          - cmd: 'set public_key={{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}'
-          - cmd: 'set external_address={{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}'
-          - cmd: 'set listening_port={{ hostvars[wg_tunnel.wireguard_hub].wireguard_udp_port }}'
-          - cmd: 'set keepalive=21'
-          - cmd: "set description='{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}'"
-          - cmd: 'commit'
-      loop: "{{ hostvars[inventory_hostname].wireguard_interfaces }}"
-      when: 
-      - wg_tunnel.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))
-      - ng_wireguard_peers_output.failed == False
+    - name: Setup Wireguard Peer
+      zpe.nodegrid.wireguard:
+        client_peer:
+          interface_name: "{{ wg_tunnel.wireguard_interface_name }}"
+          interface_type: client # optional
+          peer_name: "{{ _peer_name }}"
+          allowed_ips: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_address}}"
+          external_address: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_external_address_main }}"
+          listening_port: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_udp_port }}"
+          keepalive: 10
+          public_key: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}"
+          description: "{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}"

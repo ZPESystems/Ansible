@@ -591,7 +591,7 @@ def _get_rule(table, chain, rule_number, cmd_cli) -> dict:
     if cmd_result['error']:
         return dict(error=True, msg=f"Error getting rule number {rule_number} in chain {chain}. Error: {cmd_result['stdout']}")
     else:
-       return cmd_result['json'][0]['data']
+        return cmd_result['json'][0]['data']
 
 
 def get_rules_present(table, chain, timeout=60) -> dict:

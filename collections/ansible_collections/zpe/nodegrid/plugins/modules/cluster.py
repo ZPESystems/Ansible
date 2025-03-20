@@ -165,6 +165,17 @@ def run_option_cluster_clusters(option, run_opt):
     cmd_cli_show = get_cli(timeout=timeout)
     #build cmd
     cmd = {
+        'cmd' : "show /settings/cluster/settings/ enable_cluster",
+        'ignore_error': True
+    }
+    cmd_result = execute_cmd(cmd_cli_show, cmd)
+    close_cli(cmd_cli_show)
+    cluster_enabled = cmd_result['json'][0]['data']['enable_cluster']
+    if cluster_enabled == "no":
+        return dict(changed=False, failed=True, msg=f"Cluster is not enabled. Current Cluster settings are: {cmd_result['json'][0]['data']}")
+
+    cmd_cli_show = get_cli(timeout=timeout)
+    cmd = {
         'cmd' : "show /settings/cluster/cluster_clusters/",
         'ignore_error': True
     }

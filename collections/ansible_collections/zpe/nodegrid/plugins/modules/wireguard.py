@@ -126,7 +126,6 @@ def get_wireguard_endpoints_present(timeout=60) -> dict:
 # Wireguard Server endpoint
 def run_option_wireguard_server_endpoint(option, run_opt):
     suboptions = option['suboptions']
-    cli_path = option['cli_path']
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = []
 
@@ -207,13 +206,7 @@ def run_option_wireguard_server_endpoint(option, run_opt):
         suboptions['public_key'] = wg_key['public']
 
     if field_exist(suboptions, field_name):
-        cli_path =  f"{cli_path}/{suboptions[field_name]}"
-        # Lets export the settings to the cli path
-        state, exported_settings, exported_all_settings = export_settings(cli_path)
-        
-        #
         # Remove invalid parameters
-        #
         try:
             settings_tobe_deleted = set()
             for dependency in dependencies:
@@ -244,10 +237,54 @@ def run_option_wireguard_server_endpoint(option, run_opt):
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
 
 # ##########################################################
+# Wireguard Server peer
+def run_option_wireguard_server_peer(option, run_opt):
+    suboptions = option['suboptions']
+    # Settings to be deleted/discarded if empty
+    settings_to_delete_if_empty = []
+
+    # Required fields 
+    required_fields = ['interface_name', 'peer_name', 'allowed_ips', 'public_key']
+    # Optional fields 
+    optional_fields = ['interface_type', 'description', 'keepalive']
+    
+    options_to_be_deleted = []
+    for key in suboptions.keys():
+        if not key in required_fields + optional_fields:
+            options_to_be_deleted.append(key)
+    for key in options_to_be_deleted:
+        suboptions.pop(key, None) 
+
+    for field in required_fields:
+        if field not in suboptions:
+            return {'failed': True, 'changed': False, 'msg': f"setting '{field}' is required!. Required settings: {required_fields}. Optional settings: {optional_fields}"}
+
+    if 'interface_type' in suboptions and suboptions['interface_type'] != 'server':
+        return {'failed': True, 'changed': False, 'msg': "'interface_type' must be 'server'!"}
+
+    # Check if wireguard interface_name exists and if it is interface_type=server
+    wireguard_endpoints_present = option['wireguard_endpoints_present']
+    wireguard_interface = None
+    for wg_endpoint in wireguard_endpoints_present:
+        if suboptions['interface_name'] in wg_endpoint.keys():
+            wireguard_interface = wg_endpoint
+            break
+
+    if wireguard_interface is None:
+        return {'failed': True, 'changed': False, 'msg': f"Wireguard interface '{suboptions['interface_name']}' does not exists."}
+    if wireguard_interface[suboptions['interface_name']]['interfaces']['interface_type'] != 'server':
+        return {'failed': True, 'changed': False, 'msg': f"Wireguard interface '{suboptions['interface_name']}' type is {wireguard_interface[suboptions['interface_name']]['interfaces']['interface_type']}, which is different than 'server'."}
+    
+    
+    path_append = f"peers/{suboptions['peer_name']}"
+    check_mode = run_opt['check_mode']
+    suboptions.pop('interface_type', None)
+    return run_option_adding_field_in_the_path_and_append_path(option, run_opt, 'interface_name', path_append, delete_field_name=True)
+
+# ##########################################################
 # Wireguard Client endpoint
 def run_option_wireguard_client_endpoint(option, run_opt):
     suboptions = option['suboptions']
-    cli_path = option['cli_path']
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = []
 
@@ -328,13 +365,7 @@ def run_option_wireguard_client_endpoint(option, run_opt):
         suboptions['public_key'] = wg_key['public']
 
     if field_exist(suboptions, field_name):
-        cli_path =  f"{cli_path}/{suboptions[field_name]}"
-        # Lets export the settings to the cli path
-        state, exported_settings, exported_all_settings = export_settings(cli_path)
-        
-        #
         # Remove invalid parameters
-        #
         try:
             settings_tobe_deleted = set()
             for dependency in dependencies:
@@ -365,10 +396,54 @@ def run_option_wireguard_client_endpoint(option, run_opt):
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
 
 # ##########################################################
+# Wireguard Client peer
+def run_option_wireguard_client_peer(option, run_opt):
+    suboptions = option['suboptions']
+    # Settings to be deleted/discarded if empty
+    settings_to_delete_if_empty = []
+
+    # Required fields 
+    required_fields = ['interface_name', 'peer_name', 'allowed_ips', 'public_key', 'external_address', 'listening_port']
+    # Optional fields 
+    optional_fields = ['interface_type', 'description', 'keepalive']
+    
+    options_to_be_deleted = []
+    for key in suboptions.keys():
+        if not key in required_fields + optional_fields:
+            options_to_be_deleted.append(key)
+    for key in options_to_be_deleted:
+        suboptions.pop(key, None) 
+
+    for field in required_fields:
+        if field not in suboptions:
+            return {'failed': True, 'changed': False, 'msg': f"setting '{field}' is required!. Required settings: {required_fields}. Optional settings: {optional_fields}"}
+
+    if 'interface_type' in suboptions and suboptions['interface_type'] != 'client':
+        return {'failed': True, 'changed': False, 'msg': "'interface_type' must be 'client'!"}
+
+    # Check if wireguard interface_name exists and if it is interface_type=server
+    wireguard_endpoints_present = option['wireguard_endpoints_present']
+    wireguard_interface = None
+    for wg_endpoint in wireguard_endpoints_present:
+        if suboptions['interface_name'] in wg_endpoint.keys():
+            wireguard_interface = wg_endpoint
+            break
+
+    if wireguard_interface is None:
+        return {'failed': True, 'changed': False, 'msg': f"Wireguard interface '{suboptions['interface_name']}' does not exists."}
+    if wireguard_interface[suboptions['interface_name']]['interfaces']['interface_type'] != 'client':
+        return {'failed': True, 'changed': False, 'msg': f"Wireguard interface '{suboptions['interface_name']}' type is {wireguard_interface[suboptions['interface_name']]['interfaces']['interface_type']}, which is different than 'client'."}
+    
+    
+    path_append = f"peers/{suboptions['peer_name']}"
+    check_mode = run_opt['check_mode']
+    suboptions.pop('interface_type', None)
+    return run_option_adding_field_in_the_path_and_append_path(option, run_opt, 'interface_name', path_append, delete_field_name=True)
+
+# ##########################################################
 # Wireguard Mesh endpoint
 def run_option_wireguard_mesh_endpoint(option, run_opt):
     suboptions = option['suboptions']
-    cli_path = option['cli_path']
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = []
 
@@ -449,13 +524,7 @@ def run_option_wireguard_mesh_endpoint(option, run_opt):
         suboptions['public_key'] = wg_key['public']
 
     if field_exist(suboptions, field_name):
-        cli_path =  f"{cli_path}/{suboptions[field_name]}"
-        # Lets export the settings to the cli path
-        state, exported_settings, exported_all_settings = export_settings(cli_path)
-        
-        #
         # Remove invalid parameters
-        #
         try:
             settings_tobe_deleted = set()
             for dependency in dependencies:
@@ -480,10 +549,57 @@ def run_option_wireguard_mesh_endpoint(option, run_opt):
 
         except Exception as e:
             return {'failed': True, 'changed': False, 'msg': f"{wireguard} | Key/value error: {e} | {traceback.format_exc()}"}
-
         return run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, 'interfaces')
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
+
+# ##########################################################
+# Wireguard Mesh peer
+def run_option_wireguard_mesh_peer(option, run_opt):
+    suboptions = option['suboptions']
+    # Settings to be deleted/discarded if empty
+    settings_to_delete_if_empty = []
+
+    # Required fields 
+    required_fields = ['interface_name', 'peer_name', 'allowed_ips', 'public_key', 'external_address', 'listening_port']
+    # Optional fields 
+    optional_fields = ['interface_type', 'description', 'keepalive']
+    
+    options_to_be_deleted = []
+    for key in suboptions.keys():
+        if not key in required_fields + optional_fields:
+            options_to_be_deleted.append(key)
+    for key in options_to_be_deleted:
+        suboptions.pop(key, None) 
+
+    for field in required_fields:
+        if field not in suboptions:
+            return {'failed': True, 'changed': False, 'msg': f"setting '{field}' is required!. Required settings: {required_fields}. Optional settings: {optional_fields}"}
+
+    if 'interface_type' in suboptions and suboptions['interface_type'] != 'mesh':
+        return {'failed': True, 'changed': False, 'msg': "'interface_type' must be 'mesh'!"}
+
+    # Check if wireguard interface_name exists and if it is interface_type=server
+    wireguard_endpoints_present = option['wireguard_endpoints_present']
+    wireguard_interface = None
+    for wg_endpoint in wireguard_endpoints_present:
+        if suboptions['interface_name'] in wg_endpoint.keys():
+            wireguard_interface = wg_endpoint
+            break
+
+    if wireguard_interface is None:
+        return {'failed': True, 'changed': False, 'msg': f"Wireguard interface '{suboptions['interface_name']}' does not exists."}
+    if wireguard_interface[suboptions['interface_name']]['interfaces']['interface_type'] != 'mesh':
+        return {'failed': True, 'changed': False, 'msg': f"Wireguard interface '{suboptions['interface_name']}' type is {wireguard_interface[suboptions['interface_name']]['interfaces']['interface_type']}, which is different than 'mesh'."}
+    
+    
+    path_append = f"peers/{suboptions['peer_name']}"
+    check_mode = run_opt['check_mode']
+    suboptions.pop('interface_type', None)
+    return run_option_adding_field_in_the_path_and_append_path(option, run_opt, 'interface_name', path_append, delete_field_name=True)
+
+# ######
+# Module
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
@@ -533,7 +649,7 @@ def run_module():
             'suboptions': module.params['server_peer'],
             'cli_path': '/settings/wireguard',
             'wireguard_endpoints_present': wireguard_endpoints_present,
-            'func': run_option_wireguard_server_endpoint
+            'func': run_option_wireguard_server_peer
         },
         {
             'name': 'client_endpoint',
@@ -547,7 +663,7 @@ def run_module():
             'suboptions': module.params['client_peer'],
             'cli_path': '/settings/wireguard',
             'wireguard_endpoints_present': wireguard_endpoints_present,
-            'func': run_option_wireguard_server_endpoint
+            'func': run_option_wireguard_client_peer
         },
         {
             'name': 'mesh_endpoint',
@@ -561,7 +677,7 @@ def run_module():
             'suboptions': module.params['mesh_peer'],
             'cli_path': '/settings/wireguard',
             'wireguard_endpoints_present': wireguard_endpoints_present,
-            'func': run_option_wireguard_server_endpoint
+            'func': run_option_wireguard_mesh_peer
         },
     ]
     

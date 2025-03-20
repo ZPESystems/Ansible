@@ -1,0 +1,21 @@
+- hosts: all
+  gather_facts: no
+  gather_timeout: 30
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+
+  tasks:
+    - name: Setup Wireguard Client Endpoint
+      zpe.nodegrid.wireguard:
+        client_endpoint:
+          interface_name: wg-client1
+          interface_type: client
+          internal_address: 10.1.1.2/32
+          keepalive: 10
+          keypair: 'auto_generate' # auto_generate, input_manually
+          private_key: 'KDjRVwxo1CQpjaRzz/WrFLpSex2HFlbwF7777777777=' # keypair = input_manually
+          public_key: '+oR/P4IZwC2/LvU7YbZ8LoXqSsjbKdljLb777777777=' # keypair = input_manually
+          generate_keys: no # yes: regenare the keys
+          status: enabled # enabled (default) or disabled
+          description: "Client endpoint to peer with remote wireguard server enpoints"

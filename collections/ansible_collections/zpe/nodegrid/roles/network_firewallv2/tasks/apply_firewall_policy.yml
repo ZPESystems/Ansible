@@ -1,0 +1,5 @@
+- name: Apply Firewall Policy on chain {{ rule.key }}
+  tags: always
+  zpe.nodegrid.firewallv2:
+    chain: "{{ rule.key }}"
+    policy: "{{ rule.value }}"

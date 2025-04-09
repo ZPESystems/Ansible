@@ -1,0 +1,24 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+    - name: Setup Network Switch VLAN
+      include_role:
+        name: network_switch_vlan
+      tags:
+        - net_switch_vlan
+
+    - name: Setup Network Switch Backplane
+      include_role:
+        name: network_switch_backplane
+      tags:
+        - net_switch_backplane
+
+    - name: Setup Network Switch Interfaces
+      include_role:
+        name: network_switch_interfaces
+      tags:
+        - net_switch_interfaces

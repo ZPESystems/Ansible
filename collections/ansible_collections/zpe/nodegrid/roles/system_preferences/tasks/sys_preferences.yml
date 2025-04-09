@@ -1,4 +1,5 @@
 - name: Update System Preferences
+  tags: always
   zpe.nodegrid.system:
       preferences:
         address_location: "{{ sys_address_location }}"
@@ -8,12 +9,14 @@
         idle_timeout: "{{ sys_idle_timeout }}"
 
 - name: Update Hostname in WebUI
+  tags: always
   zpe.nodegrid.system:
       preferences:
         show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"
   when: sys_show_hostname_on_webui_header == "no"
 
 - name: Update Hostname in WebUI
+  tags: always
   zpe.nodegrid.system:
       preferences:
         show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"

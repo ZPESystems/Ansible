@@ -1,43 +1,29 @@
 # ##############################
-# Hub - Create Hub Wireguard VPN
-- name: check if wireguard interface exists
-  zpe.nodegrid.nodegrid_cmds:
-    cmds:
-      - cmd: "show /settings/wireguard/{{ wireguard_interface_name }}"
-  ignore_errors: True
-  register: ng_wireguard_tunnels_output
-
-- name: Add Hub Wireguard VPN if not exists
-  zpe.nodegrid.nodegrid_cmds:
-    cmds:
-      - cmd: 'cd /settings/wireguard/'
-      - cmd: 'add'
-      - cmd: 'set interface_name={{ hostvars[inventory_hostname].wireguard_interface_name }}'
-      - cmd: 'set interface_type=server'
-      - cmd: 'set internal_address={{ hostvars[inventory_hostname].wireguard_interface_address }}'
-      - cmd: 'set listening_port={{ hostvars[inventory_hostname].wireguard_udp_port }}'
-      - cmd: 'commit'
-  when: ng_wireguard_tunnels_output.failed
-
-- name: Update Hub Wireguard VPN if exists
-  zpe.nodegrid.nodegrid_cmds:
-    cmds:
-      - cmd: 'cd /settings/wireguard/{{ hostvars[inventory_hostname].wireguard_interface_name }}/interfaces'
-      - cmd: 'set internal_address={{ hostvars[inventory_hostname].wireguard_interface_address }}'
-      - cmd: 'set listening_port={{ hostvars[inventory_hostname].wireguard_udp_port }}'
-      - cmd: 'commit'
-  when: ng_wireguard_tunnels_output.failed == False
+# Hub - Create Hub Wireguard Server endpoint - VPN
+- name: Setup wireguard Server Endpoint
+  zpe.nodegrid.wireguard:
+    server_endpoint:
+      interface_name: "{{ hostvars[inventory_hostname].wireguard_interface_name }}"
+      interface_type: server
+      internal_address: "{{ hostvars[inventory_hostname].wireguard_interface_address }}"
+      listening_port: "{{ hostvars[inventory_hostname].wireguard_udp_port }}"
+      keepalive: "{{ hostvars[inventory_hostname].wireguard_keepalive | default(20) }}"
+      keypair: 'auto'
+      status: enabled # enabled (default) or disabled
+      description: "Server endpoint for Coordinator {{ inventory_hostname }}"
 
 - name: Get Hub Wireguard Public Key
+  tags: always
   zpe.nodegrid.nodegrid_cmds:
     cmds:
     - cmd: 'show /settings/wireguard/{{ hostvars[inventory_hostname].wireguard_interface_name }}/interfaces/ public_key'
   register: wg_public_key
-
 - name: Export Hub Wireguard Public Key
+  tags: always
   set_fact:
     wireguard_public_key: "{{ wg_public_key.cmds_output[0]['stdout_lines'][1].split('= ')[1] }}"
 
 - name: Create empty fact for Peer List
+  tags: always
   set_fact:
     wireguard_interfaces_peers: []

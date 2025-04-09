@@ -4,12 +4,12 @@ ansible_host: 10.0.2.137
 nodegrid_hostname: la-lp1
 # Nodegrid Network Connections
 network_connections:
-  - nodegrid_connection_name: ETH0
-    nodegrid_interface: eth0
-    nodegrid_connect_description: "MGMT"
-    nodegrid_ipv4_mode: static
-    nodegrid_ipv4_address: 10.0.2.137
-    nodegrid_ipv4_bitmask: 24
+  - name: ETH0
+    ethernet_interface: eth0
+    description: "MGMT"
+    ipv4_mode: static
+    ipv4_address: 10.0.2.137
+    ipv4_bitmask: 24
 # Cluster Settings
 cluster_settings_name: LA-CLUSTER
 cluster_settings_psk: LA-NGCluster

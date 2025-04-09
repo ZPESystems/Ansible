@@ -6,6 +6,7 @@
   tasks:
 
   - name: Authentication 2-Factor
+    no_log: True
     zpe.nodegrid.security:
         authentication:
           2-factor:

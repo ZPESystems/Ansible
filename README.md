@@ -96,7 +96,7 @@ cd Ansible
 ```
 **Step 3** - Build the library running the script `build.py`
 ```shell script
-python3 build
+python3 build.py
 ```
 **Step 4** - Install the collection with `ansible-galaxy`
 ```shell script

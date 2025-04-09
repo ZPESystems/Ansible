@@ -1,0 +1,14 @@
+- name: Add DHCP Server
+  with_items: "{{ network_dhcp_server }}" 
+  zpe.nodegrid.dhcp_server:
+    settings:
+      protocol: "{{ item.protocol }}"
+      subnet: "{{ item.subnet | default( network_dhcp_server_subnet ) }}"
+      netmask: "{{ item.netmask | default( network_dhcp_server_netmask ) }}"
+      prefix: "{{ item.prefix | default( network_dhcp_server_prefix ) }}"
+      length: "{{ item.length | default( network_dhcp_server_length ) }}"
+      domain: "{{ item.domain | default( network_dhcp_server_domain ) }}"
+      domain_name_servers: "{{ item.domain_name_servers | default( network_dhcp_server_domain_name_servers ) }}"
+      router_ip: "{{ item.router_ip | default( network_dhcp_server_router_ip ) }}"
+      lease_time: "{{ item.lease_time | default( network_dhcp_server_lease_time ) }}"
+      wifi_controller_ip: "{{ item.wifi_controller_ip | default( network_dhcp_server_wifi_controller_ip ) }}"

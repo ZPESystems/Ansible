@@ -1,0 +1,36 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Read Connection ETH0 options
+      zpe.nodegrid.nodegrid_read_state:
+        read_options:
+          path: '/settings/network_connections/ETH0'
+          options: name
+      register: output
+
+    - name: Display Result
+      debug:
+        msg: "{{ item.value }}"
+      loop: "{{ output.output.read_options.results }}"
+      loop_control:
+        label: "{{ item.path }} {{ item.option }}"
+    
+    - name: Read Authentication Options
+      zpe.nodegrid.nodegrid_read_state:
+        read_options:
+          path: '/settings/authentication/servers/1'
+          options:
+            - method
+            - status
+            - remote_server
+      register: output
+
+    - name: Display Result
+      debug:
+        msg: "{{ item.value }}"
+      loop: "{{ output.output.read_options.results }}"
+      loop_control:
+        label: "{{ item.path }} {{ item.option }}"

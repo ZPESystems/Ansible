@@ -60,3 +60,5 @@ tlsv1_2: "yes"
 tlsv1_1: "no"
 tlsv1: "no"
 cipher_suite_level: medium
+enable_zpe_cloud: "no"
+enable_remote_access: "no"

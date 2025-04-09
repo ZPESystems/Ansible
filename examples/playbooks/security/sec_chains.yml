@@ -1,0 +1,37 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars:
+
+  tasks:
+    - name: Add Chain testing
+      zpe.nodegrid.firewallv2:
+        debug: yes
+        chain: testing
+        state: present
+        chain_management: yes
+    - name: Configure Firewall, testing chain
+      block:
+      - name: Define Rule 0
+        zpe.nodegrid.firewallv2:
+          chain: testing
+          action: insert # insert, append, modify
+          state: present # present, absent
+          target: ACCEPT # ACCEPT, DROP, LOG, REJECT, RETURN
+          rule_number: 0
+          input_interface: lo
+          description: DEFAULT_RULE_DO_NOT_REMOVE
+      - name: Define Rule 1
+        zpe.nodegrid.firewallv2:
+          chain: testing
+          action: append # insert, append, modify
+          state: present # present, absent
+          target: DROP # ACCEPT, DROP, LOG, REJECT, RETURN
+          input_interface: eth1
+          description: ETH1_RULE
+      - name: delete testing
+        zpe.nodegrid.firewallv2:
+          chain: testing
+          state: absent # present, absent
+          chain_management: yes

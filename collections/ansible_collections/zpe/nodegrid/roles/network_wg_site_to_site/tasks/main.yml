@@ -1,4 +1,3 @@
----
 # #########################################################
 # - Hub: host that acts as the Hub, i.e., listens for VPN wireguard connections
 # - Spoke: host that acts as the Spoke, i.e., initiates the VPN wireguard handshake connection
@@ -6,12 +5,14 @@
 # ##################################
 # Hub - Create Hub Wireguard VPN
 - name: Create Hub Wireguard VPN
+  tags: always
   include_tasks: 001_network_wireguard_hub_setup.yml
   when: nodegrid_roles is defined and "wireguard_hub" is in nodegrid_roles
 
 # #######################################################
 # Spoke - Create Wireguard VPN and get its Public Key
 - name: Create Spoke Wireguard VPN
+  tags: always
   include_tasks: 002_network_wireguard_spoke_setup.yml
   loop: "{{ wireguard_interfaces }}"
   loop_control:
@@ -21,6 +22,7 @@
 # ##############################
 # Hub - Add hub-spoke peering
 - name: Hub add hub-spokes peerings
+  tags: always
   include_tasks: 003_network_wireguard_hub_peering_setup.yml
   loop: "{{ wireguard_interfaces_peers }}"
   loop_control:
@@ -30,6 +32,6 @@
 # ##############################
 # Hub - Create Wireguard Failover on wg_peers
 - name: Setup Wireguard failover
+  tags: always
   include_tasks: 004_wireguard_failover.yml
   when: nodegrid_roles is defined and "wireguard_spoke" is in nodegrid_roles and wireguard_failover_status is defined and wireguard_failover_status == "yes"
-  tags: always

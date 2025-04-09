@@ -1,0 +1,9 @@
+
+- name: Configure Switch VLAN
+  with_items: "{{ network_switch_vlan }}"
+  zpe.nodegrid.network_switch:
+    vlan:
+      vlan: "{{ item.vlan }}"
+      tagged_ports: "{{ item.tagged_ports | default( network_switch_vlan_tagged_ports ) }}"
+      untagged_ports: "{{ item.untagged_ports | default( network_switch_vlan_untagged_ports ) }}"
+  

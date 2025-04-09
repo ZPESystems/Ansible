@@ -1,0 +1,102 @@
+- name: Download Disks from URL to images_cache
+  tags: 
+    - vm-disks
+    - always
+  include_tasks: download_file.yaml
+  loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
+  when: 
+    - "'disks' in vm"
+    - disk.type == "url"
+
+- name: Copy control node disk file to remote images_cache
+  tags: 
+    - vm-disks
+    - always
+  include_tasks: copy_file_to_remote.yaml
+  loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
+  when: 
+    - "'disks' in vm"
+    - disk.type == "copy_file_to_remote"
+  
+- name: Copy remote disk file to remote images_cache
+  tags: 
+    - vm-disks
+    - always
+  include_tasks: copy_local_file.yaml
+  loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
+  when: 
+    - "'disks' in vm"
+    - disk.type == "copy_local_file"
+
+- name: Copy VM Disks from images_cache to images (if the file does not exist in images)
+  when: "'disks' in vm"
+  tags: 
+    - vm-disks
+    - always
+  include_tasks: copy_disk_images.yaml
+  loop: "{{ vm.disks | list }}"
+  loop_control:
+    loop_var: disk
+    
+- name: Create cloud-init iso file
+  become: yes
+  become_user: root
+  when:
+    - "'cloud_init' in vm"
+    - "vm.cloud_init"
+  tags:
+    - always
+    - cloud-init
+  block:
+    - name: copy cloud-init user-data
+      ansible.builtin.copy:
+        src: "{{ vm.cloud_init.user_data_file }}"
+        dest: "{{ libvirt_resources_path }}/{{ cloudinit }}/user-data"
+    - name: copy cloud-init meta-data
+      ansible.builtin.copy:
+        src: "{{ vm.cloud_init.meta_data_file }}"
+        dest: "{{ libvirt_resources_path }}/{{ cloudinit }}/meta-data"
+    - name: create the cloud-init iso
+      shell:
+        cmd: "genisoimage -output {{ libvirt_resources_path }}/{{ cloudinit }}/{{ vm.cloud_init.iso_file }} -input-charset utf-8 -volid cidata -joliet -rock {{ libvirt_resources_path }}/{{ cloudinit }}/user-data {{ libvirt_resources_path }}/{{ cloudinit }}/meta-data"
+    - name: Remove cloud-init config files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ libvirt_resources_path }}/{{ cloudinit }}/user-data"
+        - "{{ libvirt_resources_path }}/{{ cloudinit }}/meta-data"
+
+- name: Create the VM 
+  tags: create-vm
+  block:
+    - name: Clear Bridge interfaces
+      set_fact:
+        bridge_interface: []
+    - name: Get Bridges interfaces
+      include_tasks: get_bridge_interface.yaml
+      loop: "{{ vm.network_bridges }}"
+      loop_control:
+        loop_var: connection
+      when: "'network_bridges' in vm and vm.network_bridges"
+    - name: show interfaces
+      debug:
+        msg: "{{ bridge_interface }}"
+ 
+    - name: Define the VM
+      community.libvirt.virt:
+        name: "{{ vm.name }}"
+        command: define
+        xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
+        uri: 'qemu:///system'
+    - name: Start the VM
+      community.libvirt.virt:
+        name: "{{ vm.name }}"
+        state: running
+        uri: 'qemu:///system'

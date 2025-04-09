@@ -1,0 +1,25 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+    - name: Add ipv4 DHCP Server
+      zpe.nodegrid.dhcp_server:
+        settings:
+          protocol: 'dhcp4'
+          subnet: '203.0.113.0'
+          netmask: '255.255.255.0'
+          #domain: 'mydomain'
+          #domain_name_servers: '203.0.113.0'
+          #router_ip: '203.0.113.0'
+          #lease_time: '86400'
+          #wifi_controller_ip: '203.0.113.0'
+
+    - name: Add ipv6 DHCP Server
+      zpe.nodegrid.dhcp_server:
+        settings:
+          protocol: 'dhcp6'
+          prefix: "2001:db8::"
+          length: '32'

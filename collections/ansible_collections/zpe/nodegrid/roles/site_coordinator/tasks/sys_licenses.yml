@@ -1,4 +1,5 @@
 - name: Add licences
+  tags: always
   zpe.nodegrid.system:
       license:
-        license_keys: "{{nodegrid_license_keys}}"
+        license_keys: "{{ nodegrid_license_keys }}"

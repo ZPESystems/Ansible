@@ -1,8 +1,9 @@
 ---
-# This playbook, requires a host called coordinator and a host or group called peers
+# This playbook, requires a host called coordinator and a host or group called peers.
+# Define the coordinator IP with the same IP of localhost if it is the Ansible Control node
 # purpose:
-# The playbook synchronizes defined systems settings from a coordinator to a peer
-# This can be used to ensure that all Nodegrids in a cluster contain the same system configuration and permissions
+# The playbook synchronizes defined systems settings from a coordinator to a peer.
+# This can be used to ensure that all Nodegrids in a cluster contain the same system configuration and permissions.
  - name: Nodegrid - Export Settings from Coordinator
    hosts: coordinator
    gather_facts: false

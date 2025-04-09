@@ -1,0 +1,12 @@
+- name: Bridges Connection 
+  tags: always
+  block:
+    - name: Get bridge interface name from a bridge connection
+      zpe.nodegrid.nodegrid_read_state:
+        read_options:
+          path: '/settings/network_connections/{{ connection }}'
+          options: interface
+      register: _connection_interface
+    - name: Create bridges interfaces list
+      set_fact:
+        bridge_interface: "{{ bridge_interface | default([]) + [(_connection_interface.output.read_options.results[0]).value] }}"

@@ -1,0 +1,15 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Apply System Services
+      zpe.nodegrid.services:
+        debug: yes
+        services:
+          enable_detection_of_usb_devices: "yes"
+        zpe_cloud:
+          enable_zpe_cloud: "yes"
+          enable_remote_access: "yes"
+        

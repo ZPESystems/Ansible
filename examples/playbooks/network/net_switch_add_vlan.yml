@@ -1,0 +1,13 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+    - name: Add Switch VLAN
+      zpe.nodegrid.network_switch:
+        vlan:
+          vlan: '1'
+          tagged_ports: ''
+          untagged_ports: ''

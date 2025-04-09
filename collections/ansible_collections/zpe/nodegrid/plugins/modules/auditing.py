@@ -32,7 +32,7 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def get_auditing( endpoint: str , timeout: int = 30 ) -> dict:
+def get_auditing( endpoint: str , timeout: int = 60 ) -> dict:
     cmd_cli = get_cli(timeout=timeout)
 
     #build cmd
@@ -82,11 +82,12 @@ def run_module():
         events_file=dict(type='dict', required=False),
         events_syslog=dict(type='dict', required=False),
         events_snmp=dict(type='dict', required=False),
+        event_list=dict(type='dict', required=False),
         destinations_file=dict(type='dict', required=False),
         destinations_syslog=dict(type='dict', required=False),
         destinations_snmp=dict(type='dict', required=False),
         destinations_email=dict(type='dict', required=False),
-        timeout=dict(type=int, default=30),
+        timeout=dict(type=int, default=60),
         debug=dict(type='bool', default=False)
     )
 
@@ -116,7 +117,7 @@ def run_module():
         try:
             timeout = int(module.params['timeout'])
         except:
-            timeout = 30
+            timeout = 60
     # Lets get the current status and check if it must be changed
     res, err_msg, nodegrid_os = check_os_version_support()
     if res == 'error' or res == 'unsupported':
@@ -133,12 +134,55 @@ def run_module():
         'events_syslog': {},
         'events_snmp': {},
         'events_email': {},
+        'event_list': {},
         'destinations_file': {},
         'destinations_syslog': {},
         'destinations_snmp': {},
         'destinations_email': {},
     }
     #Get Current NAT Data
+    
+    # ####################################################################################################
+    # Look at Event numbers and actions
+    if module.params['event_list']:
+        event_list = module.params['event_list']
+        for event_num, event_settings in event_list.items():
+            if not event_num.isdigit():
+                continue
+            event_number = int(event_num)
+            if event_number < 100 or event_number > 534:
+                continue
+          
+            event_settings_current = {}
+            # Get the current state of the event
+            event_settings_current.update(get_auditing(f"/auditing/event_list/{event_number}", module.params['timeout']))
+            if module.params['debug']:
+                if 'system_current' in result:
+                    result['system_current'].update({event_number: event_settings_current.copy()})
+                else:
+                    result['system_current'] = {event_number: event_settings_current.copy()}
+
+                if 'system_desired' in result:
+                    result['system_desired'].update({event_number: event_settings.copy()})
+                else:
+                    result['system_desired'] = {event_number: event_settings.copy()}
+            # Create a diff
+            diff = []
+            try:
+                for item in event_settings:
+                    if item in event_settings_current:
+                        if event_settings[item].strip() != event_settings_current[item].strip():
+                            diff.append({item: event_settings[item]})
+                    else:
+                        diff.append({item: event_settings[item]})
+
+            except Exception as e:
+                result['failed'] = True
+                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
+            finally:
+                if len(diff) > 0:
+                    diff_chains['event_list'].update({event_number: diff})
+    ###########################################################################################################
 
     # Look at Auditing Settings details
     if module.params['auditing_settings']:
@@ -336,9 +380,11 @@ def run_module():
             diff = []
             try:
                 for item in auditing_destinations_syslog:
-                    if auditing_destinations_syslog_current[item]:
+                    if item in auditing_destinations_syslog_current and auditing_destinations_syslog_current[item]:
                         if str(auditing_destinations_syslog[item]) != str(auditing_destinations_syslog_current[item]):
                             diff.append({item: auditing_destinations_syslog[item]})
+                    else:
+                        diff.append({item: auditing_destinations_syslog[item]})
             except Exception as e:
                 result['failed'] = True
                 result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
@@ -425,6 +471,16 @@ def run_module():
                 cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
+    
+    # Build Commands for Auditing Event list
+    if len(diff_chains['event_list']) > 0:
+        for event_number, event_settings in diff_chains['event_list'].items():
+            cmds.append({'cmd': f"cd /settings/auditing/event_list/{event_number}"})
+            for rule in event_settings:
+                for setting in rule:
+                    cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
+                    cmds.append(cmd)
+        cmds.append({'cmd': "commit"})
 
     # Build Commands for Auditing Destinations E-Mail
     if len(diff_chains['destinations_email']) > 0:
@@ -447,10 +503,14 @@ def run_module():
     # Build Commands for Auditing Destinations Syslog
     if len(diff_chains['destinations_syslog']) > 0:
         cmds.append({'cmd': f"cd /settings/auditing/destinations/syslog"})
+        cmd_line = []
         for rule in diff_chains['destinations_syslog']:
             for setting in rule:
-                cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
-                cmds.append(cmd)
+                cmd_line.append(f"{setting}='{rule[setting]}'")
+        # Add all fields in the same line because some fileds must be set in the
+        # same line (ipv4_remote_server and ipv4_address, ipv6_remote_server and ipv6_address)
+        cmd = {'cmd': f"set {' '.join(cmd_line)}"}
+        cmds.append(cmd)
         cmds.append({'cmd': "commit"})
 
     # Build Commands for Auditing Destinations SNMP
@@ -461,11 +521,6 @@ def run_module():
                 cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
-
-
-
-
-
 
     # as fail save add system roll back
     if len(cmds) > 0:
@@ -501,6 +556,9 @@ def run_module():
             cmd_results.append(cmd_result)
             if cmd_result['error']:
                 result['failed'] = True
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel', ignore_error=True))
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='revert', ignore_error=True))
+                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert', ignore_error=True))
                 break;
             result['changed'] = True
         close_cli(cmd_cli)

@@ -1,0 +1,12 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+    - name: Setup Network Connections
+      include_role:
+        name: network_connections
+      tags:
+        - net_connections

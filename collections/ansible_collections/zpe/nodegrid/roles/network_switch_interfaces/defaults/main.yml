@@ -1,0 +1,4 @@
+network_switch_interfaces_status: 'enabled'
+network_switch_interfaces_speed: 'auto'
+network_switch_interfaces_port_vlan_id: '1'
+network_switch_interfaces_description: ''

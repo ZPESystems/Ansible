@@ -1,0 +1,22 @@
+- hosts: all
+  gather_facts: no
+  gather_timeout: 30
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+
+  tasks:
+    - name: Setup Wireguard Mesh Endpoint
+      zpe.nodegrid.wireguard:
+        mesh_endpoint:
+          interface_name: wg-mesh1
+          interface_type: mesh
+          internal_address: 10.1.1.1/32
+          listening_port: 51830
+          keepalive: 10
+          keypair: 'auto_generate' # auto_generate, input_manually
+          private_key: 'KDjRVwxo1CQpjaRzz/WrFLpSex2HFlbwF7777777777=' # keypair = input_manually
+          public_key: '+oR/P4IZwC2/LvU7YbZ8LoXqSsjbKdljLb777777777=' # keypair = input_manually
+          generate_keys: no # yes: regenare the keys
+          status: enabled # enabled (default) or disabled
+          description: "Mesh endpoint to peer with remote wireguard mesh enpoints"

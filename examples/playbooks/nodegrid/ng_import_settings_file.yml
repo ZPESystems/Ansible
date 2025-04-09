@@ -1,0 +1,20 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars:
+    file_path: "/path/to/settings_file.txt"
+
+  tasks:
+    - name: Load cli commands from file
+      set_fact:
+        settings_list: "{{ lookup('file', file_path) | zpe.nodegrid.to_settings }}"
+
+    - name: Update zpecloud.com details on Nodegrid using import_settings
+      zpe.nodegrid.import_settings:
+        cmds: "{{ settings_list }}"
+      register: output
+
+    - name: output
+      debug:
+        var: output

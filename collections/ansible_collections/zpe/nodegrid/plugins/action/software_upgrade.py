@@ -37,7 +37,7 @@ class ActionModule(ActionBase):
         for key, value in action_module_args.items():
             cmds.append({'cmd': f"set {key}={value}"})
         cmds.append({'cmd': 'upgrade'})
-        return self._execute_module(module_name='nodegrid_cmds', module_args={'cmds':cmds})
+        return self._execute_module(module_name='nodegrid_cmds', module_args={'cmds':cmds}, task_vars=self._task_vars)
 
     def _ping_icmp(self, host, retries, wait_secs):
         tries = 1

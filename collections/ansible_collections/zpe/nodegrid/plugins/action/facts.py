@@ -16,7 +16,7 @@ class ActionModule(ActionBase):
     def _run_command(self, cmds):
         result = dict()
         if len(cmds) >0:
-            response = self._execute_module(module_name='nodegrid_cmds', module_args=cmds)
+            response = self._execute_module(module_name='nodegrid_cmds', module_args=cmds, task_vars=self._task_vars)
             if 'cmds_output' in response.keys():
                 result["failed"] = False
                 result['result'] = response

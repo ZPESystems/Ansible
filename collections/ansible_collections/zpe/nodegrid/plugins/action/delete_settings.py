@@ -61,7 +61,7 @@ class ActionModule(ActionBase):
                     cmds.append({'cmd': f"delete " + str(item), 'confirm':True } )
         cmd_args = dict(cmds=cmds)
         if len(cmds) > 0:
-            response = self._execute_module(module_name='nodegrid_cmds', module_args=cmd_args)
+            response = self._execute_module(module_name='nodegrid_cmds', module_args=cmd_args, task_vars=self._task_vars)
             if 'cmds_output' in response.keys():
                 return self._result_changed(msg=str(response['cmds_output']))
             else:

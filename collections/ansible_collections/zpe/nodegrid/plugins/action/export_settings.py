@@ -137,7 +137,7 @@ class ActionModule(ActionBase):
             cmd_args = dict(
                 cmds=cmds
             )
-        response = self._execute_module(module_name='nodegrid_cmds', module_args=cmd_args)
+        response = self._execute_module(module_name='nodegrid_cmds', module_args=cmd_args, task_vars=self._task_vars)
         if 'cmds_output' in response.keys():
             all_lines = list()
             for cmd_output in response['cmds_output']:

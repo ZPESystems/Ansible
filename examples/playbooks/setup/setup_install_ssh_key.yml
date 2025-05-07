@@ -50,6 +50,7 @@
        ansible.builtin.shell: ssh-keygen -lf {{ ssh_public_key_filepath }}
        register: ssh_keygen
        connection: local
+       changed_when: false
      
      - name: Get ssh_key_type
        set_fact:
@@ -77,5 +78,4 @@
          ansible_ssh_user: "{{ ssh_key_user }}" # Avoids conflict with the legacy variable
          ansible_ssh_private_key_file: "{{ ssh_private_key_filepath }}"
        ansible.builtin.raw: whoami
-       register: result
-       changed_when: False
+       changed_when: false

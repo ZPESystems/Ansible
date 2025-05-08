@@ -8,7 +8,7 @@ namespace: zpe
 name: nodegrid
 
 # The version of the collection. Must be compatible with semantic versioning
-version: 1.1.0
+version: 1.2.0
 
 # The path to the Markdown (.md) readme file. This path is relative to the root of the collection
 readme: README.md
@@ -18,12 +18,12 @@ readme: README.md
 authors:
 - Rene Neumann <rene.neumann@zpesystems.com>
 - Leonardo Fernandes <leonardo.fernandes@zpesystems.com>
-
+- Diego Monteiro <diego.montero@zpesystems.com>
 
 ### OPTIONAL but strongly recommended
 # A short summary description of the collection
 description: The collection enables users to configure system features of a Nodegrid appliance.
-  The collection is designed to be used with Nodegrid version 5.6.1 or higher
+  The collection is designed to be used with Nodegrid version 6.0.15 or higher
 
 
 # Either a single license or a list of licenses for content inside of a collection. Ansible Galaxy currently only

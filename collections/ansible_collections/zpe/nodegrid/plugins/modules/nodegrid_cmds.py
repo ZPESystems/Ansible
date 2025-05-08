@@ -23,6 +23,7 @@ RETURN = r'''
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support
 
+import traceback
 import pexpect
 import os
 import re
@@ -38,7 +39,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         cmds=dict(type='list', required=True),
-        timeout=dict(type=int, default=30)
+        timeout=dict(type=int, default=60)
     )
 
     # seed the result dict in the object
@@ -84,7 +85,7 @@ def run_module():
         try:
             timeout = int(module.params['timeout'])
         except:
-            timeout = 30
+            timeout = 60
     try:
         cmd_cli = get_cli(timeout=timeout)
         for cmd in module.params['cmds']:
@@ -95,6 +96,8 @@ def run_module():
                 cmd_result['set_fact'] = cmd['set_fact']
             if 'ignore_error' in cmd.keys():
                 cmd_result['ignore_error'] = cmd['ignore_error']
+            if 'json' in cmd.keys():
+                cmd_result['json'] = cmd['json']
             cmd_result['command'] = cmd.get('cmd')
             cmd_results.append(cmd_result)
             if cmd_result['error']:
@@ -102,9 +105,9 @@ def run_module():
                 break;
         close_cli(cmd_cli)
         result['cmds_output'] = cmd_results
-    except Exception as exc:
+    except Exception:
         result['failed'] = True
-        result['message'] = exc
+        result['message'] = traceback.format_exc()
 
     
     if result['failed']:

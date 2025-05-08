@@ -1,0 +1,23 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Apply SNMP System Settings
+      zpe.nodegrid.snmp:
+         system:
+           syscontact: "admin@nodegrid"
+           syslocation: "Nodegrid"
+
+    - name: Apply SNMP Rule Settings
+      zpe.nodegrid.snmp:
+         rules:
+           - version: "version_v1|v2"
+             community: "public"
+             source: ""
+             snmp_for_ipv6: "no"
+             oid: ""
+             access_type: "read_only"
+
+

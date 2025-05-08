@@ -1,0 +1,69 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Apply Auditing Settings
+      zpe.nodegrid.auditing:
+         auditing_settings:
+            event_timestamp_format: utc
+            datalog_add_timestamp: "no"
+            datalog_timestamp_format: utc
+            datalog_destination: file
+            enable_persistent_logs: "no"
+         events_zpe_cloud:
+           system_events: "yes"
+           aaa_events: "yes"
+           device_events: "yes"
+           logging_events: "yes"
+           zpe_cloud_events: "yes"
+         events_email:
+           system_events: "no"
+           aaa_events: "no"
+           device_events: "no"
+           logging_events: "no"
+           zpe_cloud_events: "no"
+         events_file:
+           system_events: "yes"
+           aaa_events: "yes"
+           device_events: "yes"
+           logging_events: "yes"
+           zpe_cloud_events: "yes"
+         events_syslog:
+           system_events: "yes"
+           aaa_events: "yes"
+           device_events: "yes"
+           logging_events: "yes"
+           zpe_cloud_events: "yes"
+         events_snmp:
+           system_events: "no"
+           aaa_events: "no"
+           device_events: "no"
+           logging_events: "no"
+           zpe_cloud_events: "no"
+         destinations_file:
+            destination: "local"
+            file_size: "256"
+            number_of_archives: "1"
+            nfs_file_size: "1024"
+            number_of_archives_in_nfs: "10"
+         destinations_syslog:
+            system_console: "no"
+            admin_session: "no"
+            ipv4_remote_server: "no"
+            ipv4_address: ""
+            ipv6_remote_server: "no"
+            ipv6_address: ""
+            event_facility: "log_local_0"
+            datalog_facility: "log_local_0"
+         destinations_snmp:
+           snmptrap_server: "127.0.0.1"
+           snmptrap_transport_protocol: "udp-ipv4"
+           snmptrap_port: 162
+           snmptrap_version: "version_2c"
+           snmptrap_community: ""
+           client_address: ""
+         destinations_email:
+           email_port: "25"
+           start_tls: "no"

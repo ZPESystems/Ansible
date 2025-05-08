@@ -4,16 +4,135 @@
     - zpe.nodegrid
 
   tasks:
-  - name: Add device
+  - name: Add ttyS1 device
+    zpe.nodegrid.managed_devices:
+      device:
+        access:
+          name: "ttyS1-router1"
+          port_name: "ttyS1"
+          description: "serial console to router1"
+          launch_url_via_html5: "yes"
+          password: "password"
+          allow_pre-shared_ssh_key: "no"
+          baud_rate: 9600
+          parity: "None"
+          flow_control: "None"
+          data_bits: 7
+          stop_bits: 1
+          rs-232_signal_for_device_state_detection: "Auto"
+          enable_device_state_detection_based_in_data_flow: "no"
+          enable_hostname_detection: "no"
+          multisession: "yes"
+          read-write_multisession: "no"
+          enable_serial_port_settings_via_escape_sequence: "yes"
+          icon: "terminal.png"
+          mode: "enabled"
+          skip_authentication_to_access_device: "no"
+          escape_sequence: "^Ec"
+          power_control_key: "^O"
+          show_text_information: "yes"
+          enable_ip_alias: "no"
+          enable_second_ip_alias: "no"
+          allow_ssh_protocol: "yes"
+          allow_telnet_protocol: "yes"
+          telnet_port: 7001
+          allow_binary_socket: "no"
+        management:
+          monitoring_nominal: "no"
+        logging:
+          data_logging: "yes"
+          enable_data_logging_alerts: "no"
+        custom_fields:
+          - field_name: "dummy1"
+            field_value: "1234"
+          - field_name: "dummy2"
+            field_value: "444"
+        commands:
+          - command: "console"
+            enabled: "yes"
+            launch_local_application: "no"
+          - command: "data_logging"
+            enabled: "yes"
+
+  - name: Add ttyS2 device
+    zpe.nodegrid.managed_devices:
+      device:
+        access:
+          name: "ttyS2-switch1"
+          port_name: "ttyS2"
+          description: "serial console to switch1"
+
+  - name: Add usbS0-1 device
+    zpe.nodegrid.managed_devices:
+      device:
+        access:
+          name: "TemperatureSensor"
+          port_name: "usbS0-1"
+          description: "Temperature Sensor"
+          address_location: "address"
+          launch_url_via_html5: "yes"
+          username: "<myusername>"
+          password: "<mypassword>"
+          allow_pre-shared_ssh_key: "no"
+          baud_rate: 9600
+          parity: "None"
+          flow_control: "None"
+          data_bits: 8
+          stop_bits: 1
+          rs-232_signal_for_device_state_detection: "Auto"
+          enable_device_state_detection_based_in_data_flow: "no"
+          enable_hostname_detection: "no"
+          multisession: "yes"
+          read-write_multisession: "no"
+          enable_serial_port_settings_via_escape_sequence: "yes"
+          map_to_virtual_machine: "no"
+          icon: "terminal.png"
+          escape_sequence: "^Ec"
+          power_control_key: "^O"
+          show_text_information: "yes"
+          enable_ip_alias: "no"
+          enable_second_ip_alias: "no"
+          allow_ssh_protocol: "yes"
+          ssh_port: 22102
+          allow_telnet_protocol: "yes"
+          telnet_port: 7009
+          allow_binary_socket: "no"
+        management:
+          monitoring_nominal: "no"
+        logging:
+          data_logging: "yes"
+          enable_data_logging_alerts: "no"
+        custom_fields:
+          - field_name: "dummy1"
+            field_value: "1234"
+          - field_name: "dummy2"
+            field_value: "444"
+        commands:
+          - command: "console"
+            enabled: "yes"
+            launch_local_application: "no"
+          - command: "data_logging"
+            enabled: "yes"
+
+  - name: Add usbS0-2 device
+    zpe.nodegrid.managed_devices:
+      device:
+        access:
+          name: "HumiditySensor"
+          port_name: "usbS0-2"
+          description: "Humidity Sensor"
+
+  - name: Add ilo device
     zpe.nodegrid.managed_devices:
       device:
         access:
           name: "NSC"
           type: "ilo"
-          ip_address: "10.0.0.1"
+          description: "NSC ilo managed device"
+          ip_address: "203.0.113.0"
           credential: "set_now"
-          username: "your_username"
-          password: "your_password"
+          username: "<myusername>"
+          password: "<mypassword>"
         management:
           ssh_and_telnet: "yes"
           monitoring_ipmi: "no"
@@ -36,4 +155,3 @@
             enabled: "yes"
           - command: "power"
             enabled: "yes"
-          

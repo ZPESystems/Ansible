@@ -1,0 +1,42 @@
+#cloud-config
+users:
+  - default
+  - name: admin
+    primary_group: admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin    
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: "$6$rounds=4096$kWal3yCGtfcN3KEr$vK4hc6siE1Qa/uoPu5YgquUSgwIxbgbXpi1jHfmUOtgNPuGzqe0u3BvVz7QgPO0gB6uKYbY8pQL4mCcvZcJG0/"
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA*****B sdp@zpesystems.com
+
+write_files:
+  - path: /etc/cloud/cloud.cfg.d/99-custom-networking.cfg
+    permissions: '0600'
+    content: |
+      network: {config: disabled}
+  - path: /etc/netplan/my-new-config.yaml
+    permissions: '0600'
+    content: |
+      network:
+        version: 2
+        ethernets:
+          alleths:
+            match:
+              name: en*
+            dhcp4: true
+          alleths2:
+            match:
+              name: eth*
+            dhcp4: true
+runcmd:
+  - rm -f /etc/netplan/50-cloud-init.yaml
+  - netplan generate
+  - netplan apply
+  - [ sh, -xc, "echo Here is the network routing for your instance" ]
+  - [ ip, r ]
+  - [ sh, -xc, "echo Here is the network config for your instance" ]
+  - [ ip, -br, add ]
+  - netplan status
+final_message: "============ Cloud init is done! ==============="

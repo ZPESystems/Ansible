@@ -1,0 +1,16 @@
+- become: true
+  block:
+  - name: Get destination disk file stats (in images path if exists)
+    ansible.builtin.stat:
+      path: "{{ libvirt_resources_path }}/{{ images }}/{{ disk.file_name }}"
+      get_checksum: "{{ disk.file_get_checksum | default('no') }}"
+    register: st_dest
+  - name: Copy file disk to images_cache
+    ansible.builtin.copy:
+      remote_src: true
+      src: "{{ libvirt_resources_path }}/{{ images_cache }}/{{ disk.file_cache_name }}"
+      dest: "{{ libvirt_resources_path }}/{{ images }}/{{ disk.file_name }}"
+    when: not st_dest.stat.exists
+  - name: Clear stats vars
+    ansible.builtin.set_fact:
+      st_dest:

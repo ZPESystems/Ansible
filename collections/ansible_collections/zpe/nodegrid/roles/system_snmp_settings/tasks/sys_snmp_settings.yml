@@ -1,9 +1,7 @@
 - name: Update System SNMP Settings
-  zpe.nodegrid.import_settings:
-        cmds:
-          - "/settings/snmp/system syscontact={{sys_snmp_syscontact}}"
-          - "/settings/snmp/system syslocation={{sys_snmp_syslocation}}"
-          - "/settings/snmp/v1_v2_v3/itsarostring_default community={{sys_snmp_two_community}}"
-          - "/settings/snmp/v1_v2_v3/itsarostring_default version={{sys_snmp_two_version}}"
-          - "/settings/snmp/v1_v2_v3/itsarostring_default source={{sys_snmp_two_source}}"
-          - "/settings/snmp/v1_v2_v3/itsarostring_default access_type={{sys_snmp_two_access_type}}"
+  tags: always
+  zpe.nodegrid.snmp:
+    rules: "{{ snmp_rules }}"
+    system:
+      syscontact: "{{ syscontact | default('admin@nodegrid') }}"
+      syslocation: "{{ syslocation | default('') }}"

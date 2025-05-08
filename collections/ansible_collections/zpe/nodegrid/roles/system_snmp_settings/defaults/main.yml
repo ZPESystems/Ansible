@@ -1,7 +1,5 @@
 # System SNMP Settings
-sys_snmp_syscontact: "noc@zpesystems.internal"
-sys_snmp_syslocation: "Nodegrid"
-sys_snmp_two_community: "public"
-sys_snmp_two_version: "version_v1|v2"
-sys_snmp_two_source: "default"
-sys_snmp_two_access_type: "read_only"
+snmp_rules: ""
+syscontact: "admin@nodegrid"
+syslocation: ""
+

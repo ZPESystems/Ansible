@@ -1,0 +1,84 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Apply Firewall Settings
+      zpe.nodegrid.firewall:
+         ipv4_nat:
+          clean_and_config: yes
+          policy:
+            PREROUTING: ACCEPT
+            INPUT: ACCEPT
+            OUTPUT: ACCEPT
+            POSTROUTING: ACCEPT
+          chains:
+            PREROUTING: []
+            INPUT: []
+            OUTPUT: []
+            POSTROUTING: 
+              - target: MASQUERADE
+                rule_number: 1
+                description: "masquerade_all"
+                output_interface: eth0
+         ipv4_firewall:
+           clean_and_config: yes
+           policy:
+             FORWARD: ACCEPT
+             INPUT: ACCEPT
+             OUTPUT: ACCEPT
+           chains:
+             INPUT:
+               - target: ACCEPT
+                 rule_number: 0
+                 input_interface: lo
+                 output_interface: any
+                 description: DEFAULT_RULE_DO_NOT_REMOVE
+               - target: ACCEPT
+                 rule_number: 1
+                 protocol: tcp
+                 destination_port: 22
+                 source_net4: ""
+                 destination_net4: ""
+                 description: 'NODEGRID_SSH'
+               - target: ACCEPT
+                 rule_number: 2
+                 protocol: tcp
+                 source_net4: ""
+                 destination_net4: ""
+                 destination_port: 9300
+                 description: 'NODEGRID_SEARCH_9300'
+               - target: ACCEPT
+                 rule_number: 3
+                 protocol: tcp
+                 destination_port: 9966
+                 description: 'NODEGRID_CLUSTER_9966'
+                 source_net4: ""
+                 destination_net4: ""
+               - target: ACCEPT
+                 rule_number: 4
+                 protocol: tcp
+                 destination_port: 443
+                 description: 'NODEGRID_HTTPS'
+                 source_net4: ""
+                 destination_net4: ""
+               - target: ACCEPT
+                 rule_number: 5
+                 protocol: udp
+                 destination_udp_port: 161
+                 description: 'NODEGRID_SNMP'
+                 source_net4: ""
+                 destination_net4: ""
+               - target: ACCEPT
+                 rule_number: 6
+                 protocol: udp
+                 destination_udp_port: 51820
+                 description: 'NODEGRID_WIREGUARD'
+                 source_net4: ""
+                 destination_net4: ""
+               - target: DROP
+                 rule_number: 7
+                 protocol: numeric
+                 description: 'DROP_ALL'
+                 source_net4: ""

@@ -1,0 +1,113 @@
+---
+# Requirements: inventory file with the required variables defined
+# Purpose:
+#  - Configure a nodegrid as Local Coordinator role
+#
+- hosts: all
+  name: Configure a Nodegrid as Local Coordinator
+  gather_facts: true
+  gather_timeout: 30
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+
+  tasks:
+    - name: Configure a Nodegrid as Local Coordinator
+      block:
+      - name: Setup Audit Settings
+        include_role:
+          name: auditing
+        tags:
+         - auditing
+
+      - name: Setup System Services
+        include_role:
+          name: system_services
+        tags:
+         - services
+
+      - name: Setup Network Settings
+        include_role:
+          name: network_settings
+        tags:
+         - network_settings
+
+      - name: Setup Network Connections
+        include_role:
+          name: network_connections
+        tags:
+          - network_connections
+
+      - name: Setup Network Failover
+        include_role:
+          name: network_failover
+        tags:
+          - network_failover
+
+      - name: Setup IPv4 Firewall Settings
+        include_role:
+          name: network_firewallv2
+        tags:
+          - firewall
+
+      - name: Setup System Preferences
+        include_role:
+          name: system_preferences
+        tags:
+          - system_preferences
+
+      - name: Setup Super Coordinator Cluster
+        include_role:
+          name: cluster
+        tags:
+          - cluster
+
+      - name: Setup System Authentication
+        include_role:
+          name: system_authentication
+        tags:
+          - authentication
+
+      - name: Setup System SNMP Settings
+        include_role:
+          name: system_snmp_settings
+        tags:
+          - snmp_settings
+      
+      - name: Configure Switch Interfaces (if device is a either a BoldSR or GateSR or NetSR)
+        vars:
+          network_switch_interfaces: "{{ switch.interfaces }}"
+        include_role:
+          name: network_switch_interfaces
+        when:
+          - ansible_facts is defined and "nodegrid_about" is in ansible_facts
+          - ansible_facts.nodegrid_about["system"] is in ["Nodegrid Gate SR", "Nodegrid Bold SR", "Nodegrid Net SR"]
+          - switch is defined and "interfaces" is in switch
+        tags:
+          - switch
+
+      - name: Configure Switch VLANs (if device is a either a BoldSR or GateSR or NetSR)
+        vars:
+          network_switch_vlan: "{{ switch.vlans }}"
+        include_role:
+          name: network_switch_vlan
+        when:
+          - ansible_facts is defined and "nodegrid_about" is in ansible_facts
+          - ansible_facts.nodegrid_about["system"] is in ["Nodegrid Gate SR", "Nodegrid Bold SR", "Nodegrid Net SR"]
+          - switch is defined and "vlans" is in switch
+        tags:
+          - switch
+      
+      - name: Configure Switch Backplane interfaces (if device is a either a BoldSR or GateSR or NetSR)
+        vars:
+          network_switch_backplane: "{{ switch.backplane }}"
+        include_role:
+          name: network_switch_backplane
+        when:
+          - ansible_facts is defined and "nodegrid_about" is in ansible_facts
+          - ansible_facts.nodegrid_about["system"] is in ["Nodegrid Gate SR", "Nodegrid Bold SR", "Nodegrid Net SR"]
+          - switch is defined and "backplane" is in switch
+        tags:
+          - switch
+
+      when: nodegrid_roles is defined and "local_coordinator" is in nodegrid_roles

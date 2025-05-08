@@ -1,0 +1,11 @@
+- hosts: all
+  gather_facts: true
+  gather_timeout: 30
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+
+  tasks:
+    - name: Ansible and Nodegrid Facts
+      debug:
+        var: ansible_facts

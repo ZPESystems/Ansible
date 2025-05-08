@@ -1,0 +1,93 @@
+- name: Configuring Firewall policies and rules
+  tags: always
+  when: ipv4_firewall is defined
+  block:
+    - name: Apply Firewall Policy
+      tags: always
+      include_tasks: apply_firewall_policy.yml
+      loop: "{{ ipv4_firewall.policy | dict2items }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_firewall is defined and "policy" is in ipv4_firewall
+    
+    - name: Apply Firewall INPUT rules
+      tags: always
+      include_tasks: apply_firewall_rule.yml
+      vars:
+        chain: "INPUT"
+      loop: "{{ ipv4_firewall.chains.INPUT }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and chain is in ipv4_firewall.chains
+      
+    - name: Apply Firewall OUTPUT rules
+      tags: always
+      include_tasks: apply_firewall_rule.yml
+      vars:
+        chain: "OUTPUT"
+      loop: "{{ ipv4_firewall.chains.OUTPUT }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and chain is in ipv4_firewall.chains
+    
+    - name: Apply Firewall FORWARD rules
+      include_tasks: apply_firewall_rule.yml
+      tags: always
+      vars:
+        chain: "FORWARD"
+      loop: "{{ ipv4_firewall.chains.FORWARD }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_firewall is defined and "chains" is in ipv4_firewall and chain is in ipv4_firewall.chains
+
+- name: Configuring NAT policies and rules
+  tags: always
+  when: ipv4_nat is defined
+  block:
+    - name: Apply NAT Policy
+      tags: always
+      include_tasks: apply_nat_policy.yml
+      loop: "{{ ipv4_nat.policy | dict2items }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_nat is defined and "policy" is in ipv4_firewall
+    
+    - name: Apply NAT INPUT rules
+      tags: always
+      include_tasks: apply_nat_rule.yml
+      vars:
+        chain: "INPUT"
+      loop: "{{ ipv4_nat.chains.INPUT }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains
+    
+    - name: Apply NAT OUTPUT rules
+      tags: always
+      include_tasks: apply_nat_rule.yml
+      vars:
+        chain: "OUTPUT"
+      loop: "{{ ipv4_nat.chains.OUTPUT }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains
+    
+    - name: Apply NAT PREROUTING rules
+      include_tasks: apply_nat_rule.yml
+      tags: always
+      vars:
+        chain: "PREROUTING"
+      loop: "{{ ipv4_nat.chains.PREROUTING }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains
+    
+    - name: Apply NAT POSTROUTING rules
+      include_tasks: apply_nat_rule.yml
+      tags: always
+      vars:
+        chain: "POSTROUTING"
+      loop: "{{ ipv4_nat.chains.POSTROUTING }}"
+      loop_control:
+        loop_var: rule
+      when: ipv4_nat is defined and "chains" is in ipv4_nat and chain is in ipv4_nat.chains

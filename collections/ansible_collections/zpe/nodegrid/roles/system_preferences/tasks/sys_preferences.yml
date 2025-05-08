@@ -1,5 +1,24 @@
 - name: Update System Preferences
+  tags: always
+  zpe.nodegrid.system:
+      preferences:
+        address_location: "{{ sys_address_location }}"
+        coordinates: "{{ sys_coordinates }}"
+        revision_tag: "{{ sys_revision_tag }}"
+        logo_image: "{{ sys_logo_image }}"
+        idle_timeout: "{{ sys_idle_timeout }}"
+
+- name: Update Hostname in WebUI
+  tags: always
   zpe.nodegrid.system:
       preferences:
         show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"
-        idle_timeout: "{{ sys_idle_timeout }}"
+  when: sys_show_hostname_on_webui_header == "no"
+
+- name: Update Hostname in WebUI
+  tags: always
+  zpe.nodegrid.system:
+      preferences:
+        show_hostname_on_webui_header: "{{ sys_show_hostname_on_webui_header }}"
+        webui_header_hostname_color: "{{ sys_webui_header_hostname_color }}"
+  when: sys_show_hostname_on_webui_header == "yes"

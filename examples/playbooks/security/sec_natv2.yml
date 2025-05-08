@@ -1,0 +1,121 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars:
+
+  tasks:
+    - name: Flush INPUT chain
+      tags:
+        - flush-INPUT
+      zpe.nodegrid.natv2:
+        chain: INPUT
+        flush: yes
+    - name: Flush OUTPUT chain
+      tags:
+        - flush-OUTPUT
+      zpe.nodegrid.natv2:
+        chain: OUTPUT
+        flush: yes
+    - name: Flush PREROUTING chain
+      tags:
+        - flush-PREROUTING
+      zpe.nodegrid.natv2:
+        chain: PREROUTING
+        flush: yes
+
+    - name: Create Chain DOCKER
+      zpe.nodegrid.natv2:
+        chain: DOCKER
+        chain_management: yes
+    
+          #    - name: Delete Chain DOCKER
+          #      zpe.nodegrid.natv2:
+          #        chain: DOCKER
+          #        state: absent
+          #        chain_management: yes
+
+    - name: Flush chain DOCKER
+      zpe.nodegrid.natv2:
+        chain: DOCKER
+        flush: yes
+
+    - name: Configure NAT, INPUT chain
+      tags:
+        - INPUT
+      block:
+      - name: Apply INPUT Policy
+        zpe.nodegrid.natv2:
+          chain: INPUT
+          policy: ACCEPT
+      - name: Define Rule 0
+        zpe.nodegrid.natv2:
+          debug: yes
+          state: present # present, absent
+          chain: INPUT
+          action: insert # insert, append, modify
+          target: ACCEPT
+          rule_number: 0
+          input_interface: lo
+          enable_state_match: yes
+          new: yes
+          snat: no
+          reverse_state_match: yes
+          description: RULE_0
+    - name: Configure NAT, user defined LIBVIRT chain
+      tags:
+        - LIBVIRT
+      block:
+      - name: Create the LIBVIRT chain
+        zpe.nodegrid.natv2:
+          chain: LIBVIRT
+          state: present
+          chain_management: yes
+      - name: Define Rule 0
+        zpe.nodegrid.natv2:
+          chain: LIBVIRT
+          action: insert
+          state: present
+          target: ACCEPT
+          rule_number: 0
+          input_interface: eth0
+          description: eth0_rule
+    - name: Configure NAT, PREROUTING chain
+      tags:
+        - PREROUTING
+      block:
+      - name: Apply PREROUTING Policy
+        zpe.nodegrid.natv2:
+          chain: PREROUTING
+          policy: ACCEPT
+      - name: Append a rule
+        zpe.nodegrid.natv2:
+          state: present # present, absent
+          chain: PREROUTING
+          action: insert # insert, append, modify
+          target: ACCEPT
+          rule_number: 0
+          input_interface: eth0
+          enable_state_match: yes
+          new: yes
+          related: yes
+          reverse_state_match: no
+          description: RULE_0_PREROUTING
+    - name: Configure NAT, POSTROUTING chain
+      tags:
+        - POSTROUTING
+      block:
+      - name: Apply POSTROUTING Policy
+        zpe.nodegrid.natv2:
+          chain: POSTROUTING
+          policy: ACCEPT
+      - name: Append a rule
+        zpe.nodegrid.natv2:
+          state: present # present, absent
+          chain: POSTROUTING
+          action: append # insert, append, modify
+          target: MASQUERADE
+          output_interface: eth0
+          enable_state_match: yes
+          snat: yes
+          description: RULE_0_POSTROUTING

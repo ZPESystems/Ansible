@@ -2,6 +2,56 @@
   gather_facts: false
   collections:
     - zpe.nodegrid
+  vars:
+    servers:
+      - number: 1
+        method: "tacacs+"
+        2-factor_authentication: "none"
+        status: "enabled"
+        fallback_if_denied_access: "yes"
+        remote_server: "192.168.0.100"
+        # authorize_ssh_pkey_users: "yes"
+        tacacs_plus_accounting_server: "192.168.0.100"
+        tacacs_plus_port: "49"
+        tacacs_plus_service: "raccess"
+        tacacs_plus_secret: "secret"
+        tacacs_plus_timeout: "2"
+        tacacs_plus_retries: "2"
+        tacacs_plus_version: "v0_v1"
+        # tacacs_plus_enforce_source_ip: ""
+        tacacs_plus_enable_user-level: "yes"
+        tacacs_plus_user_level_6: "admin"
+      - number: 2
+        method: "radius"
+        2-factor_authentication: "none"
+        status: "enabled"
+        fallback_if_denied_access: "yes"
+        remote_server: "192.168.0.100"
+        radius_accounting_server: "192.168.0.100"
+        radius_port: "default"
+        radius_accounting_port: "default"
+        radius_secret: "secret"
+        radius_timeout: "2"
+        radius_retries: "2"
+        radius_enable_servicetype: "no"
+      - number: 3
+        method: "ldap_or_ad"
+        status: "disabled"
+        fallback_if_denied_access: "yes"
+        remote_server: "10.1.1.7"
+        authorize_ssh_pkey_users: "yes"
+        ldap_ad_base: ""
+        ldap_ad_login_attribute: ""
+        ldap_ad_secure: "off"
+        ldap_ad_database_username: "db_username"
+        ldap_ad_database_password: "db_pass"
+        ldap_ad_group_attribute: ""
+        ldap_ad_search_filter: ""
+        ldap_port: "389"
+      - method: "local"
+        2-factor_authentication: "none"
+        status: "enabled"
+        apply_2-factor_auth_for_admin_and_root_users: "no"
 
   tasks:
   - name: Authentication setup
@@ -14,43 +64,12 @@
           realms:
             enable_authentication_server_selection_based_on_realms: "yes"
 
-  - name: Authentication add TACACS+ server
+  - name: Authentication Add Servers
     zpe.nodegrid.security:
         authentication:
-          servers:
-            1:
-              method: "tacacs+"
-              2-factor_authentication: "none"
-              status: "enabled"
-              fallback_if_denied_access: "yes"
-              remote_server: "192.168.0.100"
-              tacacs+_accounting_server: "192.168.0.100"
-              authorize_ssh_pkey_users: "yes"
-              tacacs_port: "49"
-              tacacs+_service: "raccess"
-              tacacs+_secret: "secret"
-              tacacs+_timeout: "2"
-              tacacs+_retries: "2"
-              tacacs+_version: "v0_v1"
-              # tacacs+_enforce_source_ip: ""
-              tacacs+_enable_user-level: "yes"
-              tacacs+_user_level_6: "admin"
-            2:
-              method: "radius"
-              2-factor_authentication: "none"
-              status: "enabled"
-              fallback_if_denied_access: "yes"
-              remote_server: "192.168.0.100"
-              radius_accounting_server: "192.168.0.100"
-              radius_port: "default"
-              radius_accounting_port: "default"
-              radius_secret: "secret"
-              radius_timeout: "2"
-              radius_retries: "2"
-              radius_enable_servicetype: "no"
-            3:
-              2-factor_authentication: "none"
-              status: "enabled"
-              apply_2-factor_auth_for_admin_and_root_users: "no"
-
-
+          servers: "{{ servers }}"
+  
+  - name: Validate Authentication Servers
+    zpe.nodegrid.security:
+        authentication_validate_servers:
+          servers: "{{ servers }}"

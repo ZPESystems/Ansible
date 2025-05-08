@@ -1,55 +1,74 @@
 - name: Setup Wireguard failover
+  tags: always
   import_tasks: wireguard_failover.yml
 
 - name: Setup Auditing
+  tags: always
   import_tasks: auditing.yml
 
 - name: Setup Network Connections
+  tags: always
   import_tasks: network_connections.yml
 
 - name: Setup Network Setting
+  tags: always
   import_tasks: network_settings.yml
 
 - name: Setup Network Failover
+  tags: always
   import_tasks: network_failover.yml
 
 - name: Update System Preferences
+  tags: always
   import_tasks: sys_preferences.yml
 
 - name: Update System Banner
+  tags: always
   import_tasks: sys_preferences_banner.yml
 
 - name: Update System Date and Time
+  tags: always
   import_tasks: sys_preferences_date_and_time.yml
 
 - name: Update License Keys
+  tags: always
   import_tasks: sys_licenses.yml
 
 - name: Setup Cluster
+  tags: always
   import_tasks: cluster_settings.yml
 
 - name: Update Authentication Preferences
+  tags: always
   import_tasks: sec_authentication_preferences.yml
 
 - name: Update Local User Accounts
+  tags: always
   import_tasks: sec_local_accounts.yml
 
 - name: Update Authentication Server
+  tags: always
   import_tasks: sec_authentication_servers.yml
 
 - name: Update User Groups
+  tags: always
   import_tasks: sec_authorization.yml
 
 - name: Update System Session Logging
+  tags: always
   import_tasks: sys_session_logging.yml
 
 - name: Update System SNMP Settings
+  tags: always
   import_tasks: sys_snmp_settings.yml
 
 - name: Update IPv4 Firewall
+  tags: always
   import_tasks: sec_ipv4_firewall.yml
 
 - name: Setup Default Settings for Serial Ports
+  tags: always
   import_tasks: devices_serial_ports.yml
   vars:
-    serial_ports: "{{ansible_facts['serial_connections_nsr']}}"
+    serial_ports: "{{ansible_facts['nodegrid_serial_connections_nsr']}}"
+  when: ansible_facts['nodegrid_serial_connections_nsr'] is defined

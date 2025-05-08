@@ -1,0 +1,24 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+
+    - name: Setup Network DHCP server
+      include_role:
+        name: network_dhcp_server
+      tags:
+        - net_dhcp_server
+
+    - name: Setup Network DHCP range
+      include_role:
+        name: network_dhcp_range
+      tags:
+        - net_dhcp_range
+
+    - name: Setup Network DHCP host
+      include_role:
+        name: network_dhcp_host
+      tags:
+        - net_dhcp_host

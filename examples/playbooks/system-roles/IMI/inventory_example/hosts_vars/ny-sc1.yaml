@@ -1,0 +1,32 @@
+# Generic Ansible Settings  (REQUIRED)
+ansible_host: 10.0.2.134  # IP address, which ansible will use to communicate with the host
+# Generic Nodegrid Roles (DO NOT CHANGE)
+nodegrid_roles:
+  - super_coordinator
+  - wireguard_hub
+
+# Nodegrid Network Settings:  (CHANGE)
+nodegrid_hostname: ny-sc1
+
+# Nodegrid Network Connections:  (REQUIRED)
+network_connections:
+- name: ETH0
+  ethernet_interface: eth0
+  description: "MGMT"
+  ipv4_mode: static
+  ipv4_address: 10.0.2.134
+  ipv4_bitmask: 24
+  block_unsolicited_incoming_packets: 'no'
+
+# Wireguard Settings:  (CHANGE)
+wireguard_interface_name: ny-sc1-hub                            # Wireguard interface and VPN name
+wireguard_interface_address: 10.21.1.1/32                     # Wireguard interface internal IP address
+wireguard_external_address_main: 10.0.2.134                     # Wireguard main external IP address (used on the spoke side)
+wireguard_external_address_backup: 10.0.2.134                    # Wireguard backup external IP address (used on the spoke side)
+wireguard_udp_port: 51820                                     # Wireguard UDP port
+
+# Cluster Settings:  (NO CHANGE REQUIRED)
+cluster_settings_name: NY
+cluster_settings_psk: NYCluster
+cluster_settings_type: coordinator
+cluster_settings_mode: star

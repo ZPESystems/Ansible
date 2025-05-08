@@ -1,0 +1,29 @@
+# Generic Ansible Settings
+ansible_host: 10.0.2.136
+# Generic Nodegrid Roles
+nodegrid_roles:
+    - super_coordinator
+    - wireguard_hub
+# Nodegrid Network Settings
+nodegrid_hostname: dub-sc1
+nodegrid_domain_name: emea.internal
+# Nodegrid Network Connections
+network_connections:
+    - name: ETH0
+      ethernet_interface: eth0
+      description: "MGMT"
+      ipv4_mode: static
+      ipv4_address: 10.0.2.136
+      ipv4_bitmask: 24
+# Wireguard Settings
+wireguard_interface_name: dub-sc1-hub      #VPN interface name
+wireguard_interface_address: 10.21.2.1/32  #VPN Internal IP address
+# The following settings are used to configure the Wireguard Spokes
+wireguard_external_address_main: 10.0.2.136  # VPN primary external IP
+wireguard_external_address_backup: 10.0.2.136 # VPN backup external IP
+wireguard_udp_port: 51820     # VPN UDP port
+# Cluster Settings
+cluster_settings_name: DUB
+cluster_settings_psk: DUBCluster
+cluster_settings_type: coordinator
+cluster_settings_mode: star

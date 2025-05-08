@@ -5,10 +5,11 @@
 
   tasks:
   - name: Add local account
+    no_log: True
     zpe.nodegrid.security:
         local_account:
-          username: "your_username"
-          password: "your_password"
+          username: "<myusername>"
+          password: "<mypassword>"
           account_type: "regular_account"
           password_change_at_login: "no"
           user_group: "admin"

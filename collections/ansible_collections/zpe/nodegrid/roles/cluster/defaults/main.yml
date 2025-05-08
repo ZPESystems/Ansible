@@ -1,13 +1,14 @@
 cluster_settings_enable_cluster: "yes"
-cluster_settings_cluster_name: "NGCluster"
+cluster_settings_name: "NGCluster"
 cluster_settings_type: "coordinator"
 cluster_settings_psk: "NGCluster"
 
 # Nodegrid Cluster Settings
 cluster_settings_allow_enrollment: "yes"
-cluster_settings_cluster_mode: "mesh"
+cluster_settings_mode: "mesh"
 cluster_settings_polling_rate: 30
 cluster_settings_enable_clustering_access: "yes"
 cluster_settings_auto_enroll: "no"
 cluster_settings_enable_peer_management: "yes"
 cluster_settings_enable_license_pool: "no"
+cluster_coordinator_address: ""

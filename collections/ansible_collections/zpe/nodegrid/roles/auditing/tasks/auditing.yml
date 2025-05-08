@@ -1,88 +1,13 @@
-- name: Setup Auditing Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/settings event_timestamp_format={{ auditing_event_timestamp_format }}"
-      - "/settings/auditing/settings datalog_add_timestamp={{ auditing_datalog_add_timestamp }}"
-      - "/settings/auditing/settings datalog_timestamp_format={{ auditing_datalog_timestamp_format }}"
-      - "/settings/auditing/settings datalog_destination={{ auditing_event_datalog_destination }}"
-      - "/settings/auditing/settings enable_persistent_logs={{ auditing_event_enable_persistent_logs }}"
-
-- name: Setup ZPE Cloud Auditing Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/events/zpe_cloud system_events={{ auditing_event_zpe_cloud_system_events }}"
-      - "/settings/auditing/events/zpe_cloud aaa_events={{ auditing_event_zpe_cloud_aaa_events }}"
-      - "/settings/auditing/events/zpe_cloud device_events={{ auditing_event_zpe_cloud_device_events }}"
-      - "/settings/auditing/events/zpe_cloud logging_events={{ auditing_event_zpe_cloud_logging_events }}"
-      - "/settings/auditing/events/zpe_cloud zpe_cloud_events={{ auditing_event_zpe_cloud_zpe_cloud_events }}"
-
-- name: Setup E-Mail Auditing Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/events/email system_events={{ auditing_event_email_system_events }}"
-      - "/settings/auditing/events/email aaa_events={{ auditing_event_email_aaa_events }}"
-      - "/settings/auditing/events/email device_events={{ auditing_event_email_device_events }}"
-      - "/settings/auditing/events/email logging_events={{ auditing_event_email_logging_events }}"
-      - "/settings/auditing/events/email zpe_cloud_events={{ auditing_event_email_zpe_cloud_events }}"
-
-- name: Setup File Auditing Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/events/file system_events={{ auditing_event_file_system_events }}"
-      - "/settings/auditing/events/file aaa_events={{ auditing_event_file_aaa_events }}"
-      - "/settings/auditing/events/file device_events={{ auditing_event_file_device_events }}"
-      - "/settings/auditing/events/file logging_events={{ auditing_event_file_logging_events }}"
-      - "/settings/auditing/events/file zpe_cloud_events={{ auditing_event_file_zpe_cloud_events }}"
-
-- name: Setup Syslog Auditing Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/events/syslog system_events={{ auditing_event_syslog_system_events }}"
-      - "/settings/auditing/events/syslog aaa_events={{ auditing_event_syslog_aaa_events }}"
-      - "/settings/auditing/events/syslog device_events={{ auditing_event_syslog_device_events }}"
-      - "/settings/auditing/events/syslog logging_events={{ auditing_event_syslog_logging_events }}"
-      - "/settings/auditing/events/syslog zpe_cloud_events={{ auditing_event_syslog_zpe_cloud_events }}"
-
-- name: Setup SNMP Auditing Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/events/snmp_trap system_events={{ auditing_event_snmp_trap_system_events }}"
-      - "/settings/auditing/events/snmp_trap aaa_events={{ auditing_event_snmp_trap_aaa_events }}"
-      - "/settings/auditing/events/snmp_trap device_events={{ auditing_event_snmp_trap_device_events }}"
-      - "/settings/auditing/events/snmp_trap logging_events={{ auditing_event_snmp_trap_logging_events }}"
-      - "/settings/auditing/events/snmp_trap zpe_cloud_events={{ auditing_event_snmp_trap_zpe_cloud_events }}"
-
-- name: Setup File Destination Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/destinations/file destination={{ auditing_destination_file_destination }}"
-      - "/settings/auditing/destinations/file file_size={{ auditing_destination_file_file_size }}"
-      - "/settings/auditing/destinations/file number_of_archives={{ auditing_destination_file_number_of_archives }}"
-      - "/settings/auditing/destinations/file nfs_file_size={{ auditing_destination_file_nfs_file_size }}"
-      - "/settings/auditing/destinations/file number_of_archives_in_nfs={{ auditing_destination_file_number_of_archives_in_nfs }}"
-
-- name: Setup Syslog Destination Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/destinations/syslog system_console={{ auditing_destination_syslog_system_console }}"
-      - "/settings/auditing/destinations/syslog admin_session={{ auditing_destination_syslog_admin_session }}"
-      - "/settings/auditing/destinations/syslog ipv4_remote_server={{ auditing_destination_syslog_ipv4_remote_server }}"
-      - "/settings/auditing/destinations/syslog ipv4_address={{ auditing_destination_syslog_ipv4_address }}"
-      - "/settings/auditing/destinations/syslog ipv6_remote_server={{ auditing_destination_syslog_ipv6_remote_server }}"
-      - "/settings/auditing/destinations/syslog event_facility={{ auditing_destination_syslog_event_facility }}"
-      - "/settings/auditing/destinations/syslog datalog_facility={{ auditing_destination_syslog_datalog_facility }}"
-
-- name: Setup E-Mail Destination Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/destinations/email email_port={{ auditing_destination_email_email_port }}"
-      - "/settings/auditing/destinations/email start_tls={{ auditing_destination_email_start_tls }}"
-
-- name: Setup SNMP Destination Settings
-  zpe.nodegrid.import_settings:
-    cmds:
-      - "/settings/auditing/destinations/snmptrap snmptrap_server={{ auditing_destination_snmptrap_snmptrap_server }}"
-      - "/settings/auditing/destinations/snmptrap snmptrap_transport_protocol={{ auditing_destination_snmptrap_snmptrap_transport_protocol }}"
-      - "/settings/auditing/destinations/snmptrap snmptrap_port={{ auditing_destination_snmptrap_snmptrap_port }}"
-      - "/settings/auditing/destinations/snmptrap snmptrap_version={{ auditing_destination_snmptrap_snmptrap_version }}"
-      - "/settings/auditing/destinations/snmptrap snmptrap_community={{ auditing_destination_snmptrap_snmptrap_community }}"
+- name: Apply Auditing Settings
+  tags: always
+  zpe.nodegrid.auditing:
+     auditing_settings: "{{ auditing_settings }}"
+     events_zpe_cloud: "{{ events_zpe_cloud }}"
+     events_email: "{{ events_email }}"
+     events_file: "{{ events_file }}"
+     events_syslog: "{{ events_syslog }}"
+     events_snmp: "{{ events_snmp }}"
+     destinations_file: "{{ destinations_file }}"
+     destinations_syslog: "{{ destinations_syslog }}"
+     destinations_snmp: "{{ destinations_snmp }}"
+     destinations_email: "{{ destinations_email }}"

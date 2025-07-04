@@ -1,0 +1,10 @@
+- name: Add managed devices
+  tags: always
+  when: managed_devices is defined
+  block:
+    - name: Add a managed device
+      include_tasks: add_managed_device.yml
+      tags: always
+      loop: "{{ managed_devices }}"
+      loop_control:
+        loop_var: device

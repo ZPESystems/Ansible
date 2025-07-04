@@ -1,0 +1,87 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  tasks:
+    - name: Create Managed Devices Templates
+      tags: managed-devices-templates
+      block:
+      - name: Create _template_nodegrid
+        zpe.nodegrid.managed_devices:
+          device:
+            access:
+              name: "_template_nodegrid"
+              type: "console_server_nodegrid"
+              description: "template console server nodegrid"
+              ip_address: "localhost"
+              port: ""
+              enable_device_state_detection_based_on_network_traffic: "yes"
+              multisession: "yes"
+              icon: "zpe.png"
+              mode: "disabled"
+              expiration: "never"
+              end_point: "serial_port"
+              expiration_date: ""
+              duration: ""
+      - name: Create _template_acs_6000
+        zpe.nodegrid.managed_devices:
+          device:
+            access:
+              name: "_template_acs_6000"
+              type: "console_server_acs6000"
+              description: "template console server acs6000"
+              ip_address: "localhost"
+              port: ""
+              enable_device_state_detection_based_on_network_traffic: "yes"
+              multisession: "yes"
+              icon: "ups.png"
+              mode: "disabled"
+              expiration: "never"
+              end_point: "serial_port"
+      - name: Create _template_dsx2
+        zpe.nodegrid.managed_devices:
+          device:
+            access:
+              name: "_template_dsx2"
+              type: "console_server_raritan"
+              description: "template console server dsx2 raritan"
+              ip_address: "localhost"
+              port: ""
+              enable_device_state_detection_based_on_network_traffic: "yes"
+              multisession: "yes"
+              icon: "raritan.png"
+              mode: "disabled"
+              expiration: "never"
+              end_point: "serial_port"
+
+    - name: Managed Devices - Auto Discovery - Discovery Rules
+      zpe.nodegrid.managed_devices:
+        auto_discovery:
+          discovery_rules:
+            - rule_name: "discovery_nodegrid"
+              status: "enabled"
+              method: "console_server_ports"
+              action: "clone_mode_on-demand"
+              clone_from: "_template_nodegrid"
+              enforce_device_type: "yes"
+              inherit_appliance_credentials: "yes"
+            - rule_name: "discovery_acs_6000"
+              status: "enabled"
+              method: "console_server_ports"
+              action: "clone_mode_on-demand"
+              clone_from: "_template_acs_6000"
+              enforce_device_type: "yes"
+              inherit_appliance_credentials: "yes"
+            - rule_name: "discovery_raritan"
+              status: "enabled"
+              method: "console_server_ports"
+              action: "clone_mode_on-demand"
+              clone_from: "_template_dsx2"
+              enforce_device_type: "yes"
+              inherit_appliance_credentials: "yes"
+  
+    - name: Create Managed devices
+      tags: import-managed-devices
+      include_role:
+        name: managed_devices

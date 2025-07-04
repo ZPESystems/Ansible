@@ -1,0 +1,5 @@
+- name: Add managed device
+  tags: always
+  zpe.nodegrid.managed_devices:
+    device:
+      access: "{{ device }}"

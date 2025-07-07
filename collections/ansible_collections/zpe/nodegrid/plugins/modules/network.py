@@ -599,23 +599,14 @@ def run_option_network_connections(option, run_opt):
                 # For those mismatched values, collect associated settings for deletion,
                 # but only if they aren’t already valid under the current suboption value.
                 if isinstance(dependencies[dependency], dict):
-                    for dep_rem in {
-                        key:value
-                        for key, value in dependencies[dependency].items()
-                        if dependency in suboptions and key not in [suboptions[dependency]]
-                    }:
+                    for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
                         for setting in dependencies[dependency][dep_rem]:
-                            if (suboptions[dependency] not in dependencies[dependency]) or \
-                               (setting not in dependencies[dependency][suboptions[dependency]]):
+                            if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
                                 settings_tobe_deleted.add(setting)
 
                 # Elif the dependency is a list and the suboption is explicitly set to "no",
                 # mark all associated settings for deletion.
-                elif (
-                        isinstance(dependencies[dependency], list)
-                        and dependency in suboptions
-                        and suboptions[dependency].lower() == "no"
-                    ):
+                elif isinstance(dependencies[dependency], list) and dependency in suboptions and suboptions[dependency].lower() == "no":
                     for setting in dependencies[dependency]:
                         settings_tobe_deleted.add(setting)
 

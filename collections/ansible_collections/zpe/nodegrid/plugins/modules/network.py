@@ -318,7 +318,6 @@ def run_option_network_settings(option, run_opt):
         suboptions.pop('enable_network_failover', None)
     return run_option(option, run_opt)
 
-
 def run_option_network_connections(option, run_opt):
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = [
@@ -444,7 +443,30 @@ def run_option_network_connections(option, run_opt):
                 'ethernet_connection',
                 'mac_address',
                 'port_intercepts'
+            ],
+            'bonding':
+            [
+                'bonding_mode',
+                'slaves',
+                'link_monitoring',
+                'monitoring_frequency',
+                'link_up_delay',
+                'link_down_delay',
+                'system_priority',
+                'actor_mac_address',
+                'user_port_key',
+                'lacp_rate',
+                'aggregation_selection_logic',
+                'transmit_hash_policy',
+                'bond_mac_configuration',
+                'bond_fail-over-mac_policy',
+                'bond_mac_address'
             ]
+        },
+        'bond_mac_configuration':
+        {
+            'bond_fail-over-mac': ['bond_fail-over-mac_policy'],
+            'bond_custom_mac': ['bond_mac_address']
         },
         'bridge_mac_configuration':
         {
@@ -568,15 +590,32 @@ def run_option_network_connections(option, run_opt):
         #
         try:
 
+            # Identifies and collects configuration settings that should be deleted
+            # based on a mismatch between current suboptions and their declared dependencies.
             settings_tobe_deleted = set()
             for dependency in dependencies:
+
+                # If the dependency is a dictionary, iterate over suboption values that do NOT match the current value in suboptions.
+                # For those mismatched values, collect associated settings for deletion,
+                # but only if they aren’t already valid under the current suboption value.
                 if isinstance(dependencies[dependency], dict):
-                    for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
+                    for dep_rem in {
+                        key:value
+                        for key, value in dependencies[dependency].items()
+                        if dependency in suboptions and key not in [suboptions[dependency]]
+                    }:
                         for setting in dependencies[dependency][dep_rem]:
-                            if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
+                            if (suboptions[dependency] not in dependencies[dependency]) or \
+                               (setting not in dependencies[dependency][suboptions[dependency]]):
                                 settings_tobe_deleted.add(setting)
 
-                elif isinstance(dependencies[dependency], list) and dependency in suboptions and suboptions[dependency].lower() == "no":
+                # Elif the dependency is a list and the suboption is explicitly set to "no",
+                # mark all associated settings for deletion.
+                elif (
+                        isinstance(dependencies[dependency], list)
+                        and dependency in suboptions
+                        and suboptions[dependency].lower() == "no"
+                    ):
                     for setting in dependencies[dependency]:
                         settings_tobe_deleted.add(setting)
 

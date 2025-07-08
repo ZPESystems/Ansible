@@ -318,6 +318,7 @@ def run_option_network_settings(option, run_opt):
         suboptions.pop('enable_network_failover', None)
     return run_option(option, run_opt)
 
+
 def run_option_network_connections(option, run_opt):
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = [

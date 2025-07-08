@@ -59,7 +59,7 @@
       ensure_connection_is_up: "{{ connection.ensure_connection_is_up | default('no') }}"
       ip_address: "{{ connection.ip_address | default('') }}"
       interval: "{{ connection.interval | default(24) }}" # between 1 and 24
-      # ---
+      # --
 
       # type: bonding
        # bonding_mode: '802.3ad(lacp)', 'adaptive_load_balancing, 'broadcast', 'xor_load_balancing', 'active_backup', 'adaptive_transmit_load_balancing', 'round-robin'

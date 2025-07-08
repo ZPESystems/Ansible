@@ -60,6 +60,26 @@
       ip_address: "{{ connection.ip_address | default('') }}"
       interval: "{{ connection.interval | default(24) }}" # between 1 and 24
       # --
+
+      # type: bonding
+       # bonding_mode: '802.3ad(lacp)', 'adaptive_load_balancing, 'broadcast', 'xor_load_balancing', 'active_backup', 'adaptive_transmit_load_balancing', 'round-robin'
+      bonding_mode: "{{ connection.bonding_mode | default('active_backup') }}"
+      slaves: "{{ connection.slaves | default('eth1') }}"
+      link_monitoring: "{{ connection.link_monitoring | default('mii') }}" # 'mii', 'arp'
+      monitoring_frequency: "{{ connection.monitoring_frequency | default('100') }}"
+      link_up_delay: "{{ connection.link_up_delay | default('0') }}"
+      link_down_delay: "{{ connection.link_down_delay | default('0') }}"
+      system_priority: "{{ connection.system_priority | default('0') }}"
+      actor_mac_address: "{{ connection.actor_mac_address | default('') }}"
+      user_port_key: "{{ connection.user_port_key | default('0') }}"
+      lacp_rate: "{{ connection.lacp_rate | default('slow') }}" # 'fast', 'slow'
+      aggregation_selection_logic: "{{ connection.aggregation_selection_logic | default('stable') }}" # 'bandwith', 'count', 'stable'
+      transmit_hash_policy: "{{ connection.transmit_hash_policy | default('layer_2') }}" # 'layer_2', 'layers_2_and_3', 'layers_2_and_3_and_encap', 'layers_3_and_4', 'layers_3_and_4_and_encap'
+      bond_mac_configuration: "{{ connection.bond_mac_configuration | default('bond_fail-over-mac') }}" # 'bond_custom_mac', 'bond_fail-over-mac'
+      bond_fail-over-mac_policy: "{{ connection['bond_fail-over-mac_policy'] | default('none') }}" # 'none', 'current_active_interface', 'follow_active_interface', primary_interface'
+      bond_mac_address: "{{ connection.bond_mac_address | default('') }}"
+      # ---
+
       # SIM-1
       sim-1_phone_number: "{{ connection['sim-1_phone_number'] | default('') }}"
       sim-1_apn_configuration: "{{ connection['sim-1_apn_configuration'] | default('manual') }}" # manual, automatic

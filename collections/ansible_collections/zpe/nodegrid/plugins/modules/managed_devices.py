@@ -466,7 +466,7 @@ def run_option_device(option, run_opt):
                 if not dependency in suboptions['access']:
                     continue
                 atuple = device_dependencies[dependency]
-                if atuple[0] == "validate":
+                if atuple[0] == "validate" and suboptions['access'][dependency] in atuple[1]:
                     if dependency in suboptions['access']:
                         valid_options = atuple[1][suboptions['access'][dependency]]
                         items_to_validate = {option:values for option,values in atuple[1].items() if not option == suboptions['access'][dependency]}
@@ -553,10 +553,26 @@ def run_option_device(option, run_opt):
     else:
         cli_path += f"/{suboptions['access']['name'].strip()}"
 
+    if 'access' in suboptions:
+        access_ordered = OrderedDict(suboptions['access'])
+        for ordered_setting, settings in {key:value for key,value in device_dependencies.items() if type(value) is list}.items():
+            if ordered_setting in access_ordered:
+                for setting in [key for key in settings if key in access_ordered]:
+                    tmp_value= access_ordered.pop(setting)
+                    access_ordered[setting] = tmp_value
+
+        for ordered_setting, atuple in {key:value for key,value in device_dependencies.items() if type(value) is tuple}.items():
+            if ordered_setting in access_ordered:
+                if atuple[0] == "validate" and access_ordered[ordered_setting] in atuple[1]:
+                    for setting in atuple[1][access_ordered[ordered_setting]]:
+                        tmp_value= access_ordered.pop(setting)
+                        access_ordered[setting] = tmp_value
+        suboptions['access'] = access_ordered
+        #return result_failed(f"Access: {suboptions['access']}")
+
     for key, value in suboptions.items():
         # commands, custom_fields
         if key in ['commands','custom_fields']:
-            
             if key == 'commands':
                 field_name = 'command'
             else:
@@ -576,9 +592,11 @@ def run_option_device(option, run_opt):
             if not suboptions['access']['type'] in device_type_not_support_management:
                 settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
         # Access 
-        else:
+        elif key in ['access']:
             settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
-        
+        else:
+            return result_failed(f"Suboption '{key}' not supported!")
+
     option['cli_path'] = cli_path
     option['settings'] = settings_list
     result = run_option(option, run_opt)

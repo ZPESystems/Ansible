@@ -313,9 +313,6 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 
 def run_option_network_settings(option, run_opt):
     suboptions = option['suboptions']
-    # Delete option set_as_primary_connection if set to no 
-    if 'enable_network_failover' in suboptions and suboptions['enable_network_failover'] == "no":
-        suboptions.pop('enable_network_failover', None)
     return run_option(option, run_opt)
 
 

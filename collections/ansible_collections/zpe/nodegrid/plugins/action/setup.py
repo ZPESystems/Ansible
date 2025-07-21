@@ -38,6 +38,8 @@ class PromptType(Enum):
 class ActionModule(ActionBase):
     """action module"""
 
+    _requires_connection = False
+
     def __init__(self, *args, **kwargs):
         super(ActionModule, self).__init__(*args, **kwargs)
         self._result = {}
@@ -302,9 +304,8 @@ class ActionModule(ActionBase):
         self._playhost = task_vars.get("inventory_hostname")
         action_module_args = self._task.args.copy()
 
-        host = task_vars.get("ansible_host")
-        ssh_port = task_vars.get("ansible_ssh_port", 22)
-        options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PubkeyAuthentication=no"
+        options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+        options += " -o PubkeyAuthentication=no -o KbdInteractiveAuthentication=yes"
 
         username = None
         password = 'admin'
@@ -331,15 +332,18 @@ class ActionModule(ActionBase):
                     return self._result_failed('The username to login can not be empty')
             else:
                 return self._result_failed('No username to login was provided')
-            
+            options += f" -l {username}"
+
             # password
             if OPTION_LOGIN_PASSWORD in login_args.keys():
                 password = login_args[OPTION_LOGIN_PASSWORD]
 
             # ssh port
+            ssh_port = self.get_connection_option('port')
             if OPTION_LOGIN_SSH_PORT in login_args.keys():
                 ssh_port = login_args[OPTION_LOGIN_SSH_PORT]
-            options = options + f" -p {ssh_port}"
+            if ssh_port:
+                options += f" -p {ssh_port}"
         else:
             return self._result_failed('No login attributes for the connection was provided')
 
@@ -437,12 +441,17 @@ class ActionModule(ActionBase):
         display.vvv("Grant Sudoer permissions: " + str(action_sudoers))
 
         if action_ssh_key or action_password_change or action_sudoers:
-            cmd = f"ssh {options} {username}@{host}"
+            ssh_executable = self.get_connection_option("ssh_executable")
+            ssh_common_args = self.get_connection_option("ssh_common_args")
+            ssh_extra_args = self.get_connection_option("ssh_extra_args")
+            ssh_host = self.get_connection_option("host")
+            cmd = f"{ssh_executable} {ssh_common_args} {ssh_extra_args} {options} {ssh_host}"
             display.vvv(f"{cmd}")
         else:
             return self._result_not_changed("No action was defined")
 
         # try connect
+        conn_obj = None
         try:
             msg = ""
             password_changed = False

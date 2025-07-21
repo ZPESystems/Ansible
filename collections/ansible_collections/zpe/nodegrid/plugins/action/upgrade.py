@@ -21,6 +21,8 @@ class ResultFailedException(Exception):
 class ActionModule(ActionBase):
     """action module"""
 
+    _requires_connection = False
+
     def __init__(self, *args, **kwargs):
         super(ActionModule, self).__init__(*args, **kwargs)
         self._result = {}
@@ -154,14 +156,21 @@ class ActionModule(ActionBase):
         self._task_vars = task_vars
         self._playhost = task_vars.get("inventory_hostname")
         action_module_args = self._task.args.copy()
-        host = task_vars.get("ansible_host")
-        ansible_ssh_user = task_vars.get('ansible_ssh_user')
 
-        options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o PubkeyAuthentication=yes"
+        ssh_options = "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+        if ssh_port := self.get_connection_option("port"):
+          ssh_options += f" -p {ssh_port}"
+        if ssh_user := self.get_connection_option("remote_user"):
+          ssh_options += f" -l {ssh_user}"
 
-        cmd = f"ssh {options} {ansible_ssh_user}@{host}"
+        ssh_executable = self.get_connection_option("ssh_executable")
+        ssh_common_args = self.get_connection_option("ssh_common_args")
+        ssh_extra_args = self.get_connection_option("ssh_extra_args")
+        host = self.get_connection_option("host")
+        cmd = f"{ssh_executable} {ssh_common_args} {ssh_extra_args} {ssh_options} {host}"
         display.vvv(f"{cmd}")
 
+        conn_obj = None
         try:
             # Connect
             conn_obj = pexpect.spawn(cmd, encoding="utf-8")

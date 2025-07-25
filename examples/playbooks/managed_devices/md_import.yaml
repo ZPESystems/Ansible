@@ -1,17 +1,19 @@
+# Process the CSV files on the localhost and create the Ansible inventory
 - hosts: localhost
   connection: local
   gather_facts: false
   collections:
     - zpe.nodegrid
-
   tasks:
-  - name: Import Managed Devices
+  - name: Process Managed Devices from CSVs
+    tags: process-managed-devices
     zpe.nodegrid.import_devices:
       csv_ansible_devices: ./example/csv_ansible_devices.csv
       csv_ip_based: ./example/csv_ip_based.csv
       csv_local: ./example/csv_local.csv
       csv_usb: ./example/csv_usb.csv
+      csv_discovery_rules: ./example/csv_discovery_rules.csv
       ansible_inventory_path: ./inventories
       ansible_inventory_hosts_filename: imported_managed_devices.yaml
+      ansible_group_name: imported_managed_devices
       custom_fields_prefix: cf_
-

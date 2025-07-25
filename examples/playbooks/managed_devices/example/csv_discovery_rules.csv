@@ -1,0 +1,4 @@
+rule_name,status,method,action,clone_from,enforce_device_type,inherit_appliance_credentials
+discovery_nodegrid,enabled,console_server_ports,clone_mode_on-demand,_template_nodegrid,yes,yes
+discovery_acs_6000,enabled,console_server_ports,clone_mode_on-demand,_template_acs_6000,yes,yes
+discovery_raritan,enabled,console_server_ports,clone_mode_on-demand,_template_dsx2,yes,yes

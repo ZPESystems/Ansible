@@ -571,15 +571,21 @@ def run_option_device(option, run_opt):
         #return result_failed(f"Access: {suboptions['access']}")
 
     for key, value in suboptions.items():
-        # commands, custom_fields
-        if key in ['commands','custom_fields']:
-            if key == 'commands':
-                field_name = 'command'
-            else:
-                field_name = 'field_name'
-
+        # commands
+        if key in ['commands']:
+            field_name = 'command'
             for item in to_list(value):
                 if field_exist(item, field_name):
+                    settings_list.extend( format_settings(f"{cli_path}/{key}/{item[field_name]}",item) )
+                else:
+                    return result_failed(f"Field '{key}/{field_name} is required")
+        # custom_fields
+        elif key in ['custom_fields']:
+            field_name = 'field_name'
+            for item in to_list(value):
+                if field_exist(item, field_name):
+                    if (not 'field_value' in item) or ('field_value' in item and str(item['field_value']).strip() == ""):
+                        item['field_value'] = "na"
                     settings_list.extend( format_settings(f"{cli_path}/{key}/{item[field_name]}",item) )
                 else:
                     return result_failed(f"Field '{key}/{field_name} is required")

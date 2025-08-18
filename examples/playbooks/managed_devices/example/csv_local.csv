@@ -1,0 +1,5 @@
+ansible_inventory_name,name,port_name,type,description,address_location,username,password,baud_rate,parity,flow_control,data_bits,stop_bits,rs-232_signal_for_device_state_detection,enable_device_state_detection_based_in_data_flow,data_flow_scan_interval,enable_hostname_detection,multisession,read-write_multisession,enable_serial_port_settings_via_escape_sequence,icon,mode
+gatesr-2,ttyS1-router1,ttyS1,local_serial,serial console to router1,fremont2,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,router_green.png,enabled
+gatesr-2,ttyS2-switch1,ttyS2,local_serial,serial console to switch1,fremont2,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,switch.png,enabled
+gatesr-3,ttyS1-router1,ttyS1,local_serial,serial console to router1,ireland2,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,router_green.png,enabled
+gatesr-3,ttyS2-switch1,ttyS2,local_serial,serial console to switch1,ireland2,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,switch.png,enabled

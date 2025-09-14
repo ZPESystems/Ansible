@@ -21,14 +21,24 @@
         device_list: "{{ device_list.facts }}"
         cacheable: yes
 
-    - name: 1.3 Export OnDemand Device Settings
+    - name: 1.3 Create List of device templates (Templates are expceted to be disabled)
+      set_fact:
+        device_template_list: "{{ device_list.device_disabled | select('search', '^_template') | list }}"
+        cacheable: yes
+
+    - name: 1.4 Create Export Device list
+      set_fact:
+        device_export_list: "{{ device_template_list + device_list.device_ondemand + device_list.device_enabled }}"
+        cacheable: yes
+
+    - name: 1.5 Export OnDemand Device Settings
       export_settings:
         settings:
           - devices/{{ item }}
-      with_items: "{{ device_list.device_ondemand}}"
+      with_items: "{{ device_export_list }}"
       register: ondemand_devices
 
-    - name: 1.4 Register Export
+    - name: 1.6 Register Export
       set_fact:
         ondemand_devices: "{{ ondemand_devices.results }}"
         cacheable: yes
@@ -49,50 +59,60 @@
         device_list: "{{ device_list.facts }}"
         cacheable: yes
 
-    - name: 2.3 Identify OnDemand Devices which must be removed
+    - name: 2.3 Create List of device templates (Templates are expceted to be disabled)
+      set_fact:
+        device_template_list: "{{ device_list.device_disabled | select('search', '^_template') | list }}"
+        cacheable: yes
+
+    - name: 2.4 Create Export Device list
+      set_fact:
+        device_export_list: "{{ device_template_list + device_list.device_ondemand + device_list.device_enabled }}"
+        cacheable: yes
+
+    - name: 2.5 Identify OnDemand Devices which must be removed
       config_diff:
-        before: "{{ hostvars['coordinator']['device_list']['device_ondemand'] }}"
-        after: "{{ device_list.device_ondemand }}"
+        before: "{{ hostvars['coordinator']['device_export_list'] }}"
+        after: "{{ device_export_list }}"
       register: diff_device_ondemand
 
-    - name: 2.4 Remove OnDemand Devices which have been identified
+    - name: 2.6 Remove OnDemand Devices which have been identified
       zpe.nodegrid.delete_settings:
         item: "{{ diff_device_ondemand['config_remove'] }}"
         path: "/settings/devices/"
       when: diff_device_ondemand.config_delete == true
 
-    - name: 2.5 Update Device List from Peer after devices where deleted
+    - name: 2.7 Update Device List from Peer after devices where deleted
       managed_devices:
         facts: True
       register: device_list_new
       when: diff_device_ondemand.config_delete == true
 
-    - name: 2.6 Register Device List as facts after devices where deleted
+    - name: 2.8 Register Device List as facts after devices where deleted
       set_fact:
         device_list: "{{ device_list_new.facts }}"
         cacheable: yes
       when: diff_device_ondemand.config_delete == true
 
-    - name: 2.7 Export OnDemand Device Settings
+    - name: 2.9 Export OnDemand Device Settings
       export_settings:
         settings:
           - devices/{{ item }}
-      with_items: "{{ device_list.device_ondemand}}"
+      with_items: "{{ device_export_list }}"
       register: ondemand_devices
 
-    - name: 2.8 Register Export
+    - name: 2.10 Register Export
       set_fact:
         ondemand_devices: "{{ ondemand_devices.results }}"
         cacheable: yes
 
-    - name: 2.9 Identify Configuration differences
+    - name: 2.11 Identify Configuration differences
       config_diff:
           before: "{{ hostvars['coordinator']['ondemand_devices'] }}"
           after: "{{ ondemand_devices }}"
           result_format: "dict"
       register: diff_ondemand_import
 
-    - name: 2.10 Import Settings
+    - name: 2.12 Import Settings
       zpe.nodegrid.import_settings:
                 cmds: "{{ diff_ondemand_import['config_difference'][item] }}"
       with_items: "{{ diff_ondemand_import['config_difference']  }}"
@@ -101,7 +121,7 @@
       register: output
       when: diff_ondemand_import.config_update == true
 
-    - name: 2.11 Remove Device Detail Settings, like custom_fields and commands
+    - name: 2.13 Remove Device Detail Settings, like custom_fields and commands
       zpe.nodegrid.delete_settings:
         fullpath: "{{ diff_ondemand_import['config_remove'] }}"
       when: diff_ondemand_import.config_delete == true
@@ -119,6 +139,7 @@
              - local_accounts
              - authentication
              - authorization
+          include_default: True
       register: export
 
     - name: 4.2 Set exported settings as host fact
@@ -138,6 +159,7 @@
              - local_accounts
              - authentication
              - authorization
+            include_default: True
         register: export
 
       - name: 5.2 Identify Configuration differences
@@ -158,8 +180,3 @@
                   cmds: "{{ diff_result['config_difference'] }}"
             register: output
             when: diff_result.config_update == true
-
-
-
-
-

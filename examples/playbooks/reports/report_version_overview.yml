@@ -1,0 +1,37 @@
+---
+- name: Gather information about all hosts and create a csv version report
+  hosts: all
+  gather_facts: yes
+  vars:
+    file_dest: ./version_report.csv
+  tasks:
+    - name: gather ansible facts
+      ansible.builtin.setup:
+      tags:
+      - always
+
+    - name: gather zpe facts
+      zpe.nodegrid.nodegrid_facts:
+      register: ng_facts
+      tags:
+      - always
+
+    - name: Add nodegrid facts to ansible facts
+      set_fact:
+        ansible_facts: "{{ ansible_facts | combine(ng_facts) }}"
+      tags:
+      - always
+      -
+    - name: Gather hostname, model, and version details
+      set_fact:
+        device_info: |
+          {{ ansible_hostname }},{{ ansible_facts.nodename }},{{ ansible_facts.system_vendor }},{{ ansible_facts.nodegrid_about.part_number }},{{ ansible_facts.nodegrid_about.serial_number }},{{ ansible_facts.nodegrid_about.version }}
+
+    - name: Create CSV report
+      local_action:
+        module: copy
+        content: |
+          ansible_hostname,hostname,vendor,part_number,serial_number,version
+          {% for host in play_hosts %}{{ hostvars[host].device_info }}{% endfor %}
+        dest: "{{ file_dest }}"
+      delegate_to: localhost

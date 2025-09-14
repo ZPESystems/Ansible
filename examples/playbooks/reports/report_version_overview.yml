@@ -1,5 +1,5 @@
 ---
-- name: Gather default Ansible facts and create CSV report
+- name: Gather information about all hosts and create a csv version report
   hosts: all
   gather_facts: yes
   vars:

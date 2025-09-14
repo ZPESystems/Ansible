@@ -22,7 +22,7 @@
       tags:
       - always
 
-    - name: Gather hostname, model, and version details
+    - name: Gather usb device details
       set_fact:
         device_info: |
           {% for device in ansible_facts.nodegrid_usb_devices %}

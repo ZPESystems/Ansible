@@ -1,0 +1,41 @@
+---
+- name: Gather USB device facts and create CSV report
+  hosts: all
+  gather_facts: no
+  vars:
+    file_dest: ./usb_report.csv
+  tasks:
+    - name: gather ansible facts
+      ansible.builtin.setup:
+      tags:
+      - always
+
+    - name: gather zpe facts
+      zpe.nodegrid.nodegrid_facts:
+      register: ng_facts
+      tags:
+      - always
+
+    - name: Add nodegrid facts to ansible facts
+      set_fact:
+        ansible_facts: "{{ ansible_facts | combine(ng_facts) }}"
+      tags:
+      - always
+
+    - name: Gather hostname, model, and version details
+      set_fact:
+        device_info: |
+          {% for device in ansible_facts.nodegrid_usb_devices %}
+          {% if 'WLAN' in device or 'Wireless' in device.detected_type %}
+          {{ ansible_hostname }},{{ ansible_facts.nodegrid_about.version }},{{ device.description }},{{ device.detected_type }},{{ device.kernel_device }},{{ device.usb_id }},{{ device.usb_path }},{{ device.usb_port }}
+          {% endif %}
+          {% endfor %}
+
+    - name: Create CSV report
+      local_action:
+        module: copy
+        content: |
+          hostname,description,detected_type,kernel_device,usb_id,usb_path,usb_port
+          {% for host in play_hosts %}{{ hostvars[host].device_info }}{% endfor %}
+        dest: "{{ file_dest }}"
+      delegate_to: localhost

@@ -13,7 +13,6 @@
           description: "serial console to router1"
           launch_url_via_html5: "yes"
           password: "password"
-          allow_pre-shared_ssh_key: "no"
           baud_rate: 9600
           parity: "None"
           flow_control: "None"
@@ -73,7 +72,6 @@
           launch_url_via_html5: "yes"
           username: "<myusername>"
           password: "<mypassword>"
-          allow_pre-shared_ssh_key: "no"
           baud_rate: 9600
           parity: "None"
           flow_control: "None"

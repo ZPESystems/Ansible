@@ -1,0 +1,15 @@
+- name: Add managed device
+  tags: always
+  vars:
+    device_access: "{{ device | combine({ 'custom_fields': omit, 'management': omit, 'logging': omit, 'commands': omit }) }}"
+    device_custom_fields: "{{ device.custom_fields | default([]) }}"
+    device_management: "{{ device.management | default({}) }}"
+    device_logging: "{{ device.logging | default({}) }}"
+    device_commands: "{{ device.commands | default([]) }}"
+  zpe.nodegrid.managed_devices:
+    device:
+      access: "{{ device_access }}"
+      custom_fields: "{{ device_custom_fields }}"
+      management: "{{ device_management }}"
+      logging: "{{ device_logging }}"
+      commands: "{{ device_commands }}"

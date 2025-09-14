@@ -1,0 +1,31 @@
+# Process the CSV files on the localhost and create the Ansible inventory
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  tasks:
+  - name: Process Managed Devices from CSVs
+    tags: process-managed-devices
+    zpe.nodegrid.import_devices:
+      csv_ansible_devices: ./zpe_ngm_ansible_devices.csv
+      csv_ip_based: ./zpe_ngm_local_ip.csv
+      # csv_local: ./example/csv_local.csv
+      # csv_usb: ./example/csv_usb.csv
+      csv_discovery_rules: ./zpe_ngm_discovery_rules.csv
+      ansible_inventory_path: /etc/ansible/inventories
+      ansible_inventory_hosts_filename: imported_managed_devices.yaml
+      ansible_group_name: imported_managed_devices
+      custom_fields_prefix: cf_
+
+# Create the managed devices on all the target devices included in the ansible group 'imported_managed_devices'.
+# NOTE: the hosts parameter must be adapted to the group name defined in the above parameter 'ansible_group_name'
+- hosts: imported_managed_devices 
+  gather_facts: false
+  tags: import-managed-devices
+  collections:
+    - zpe.nodegrid
+  tasks:
+  - name: Create Managed devices
+    include_role:
+      name: managed_devices

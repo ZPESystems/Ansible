@@ -1,0 +1,12 @@
+ansible_inventory_name,name,type,description,address_location,ip_address,port,username,password,enable_device_state_detection_based_on_network_traffic,multisession,icon,mode,end_point,port_number,cf_custom_field1,cf_custom_field2
+gatesr-1,_template_nodegrid,console_server_nodegrid,template console server nodegrid,,localhost,,admin,,yes,yes,nodegrid.png,disabled,appliance,,,
+gatesr-1,_template_acs_6000,console_server_acs6000,template console server acs6000,,localhost,,admin,,yes,yes,serial_console.png,disabled,appliance,,,
+gatesr-1,_template_dsx2,console_server_raritan,template console server dsx2 raritan,,localhost,,admin,,yes,yes,raritan.png,disabled,appliance,,,
+gatesr-1,NSR-1,console_server_nodegrid,NSR-1 console server nodegrid,fremont,192.168.1.1,,admin,,yes,yes,,on-demand,appliance,,,
+gatesr-1,ttyS1-router1,console_server_nodegrid,Router 1 on NSR-1 ttyS1,fremont,192.168.1.1,,admin,,yes,yes,,on-demand,serial_port,1,,
+gatesr-2,_template_nodegrid,console_server_nodegrid,template console server nodegrid,,localhost,,admin,,yes,yes,nodegrid.png,disabled,appliance,,a,a
+gatesr-2,_template_acs_6000,console_server_acs6000,template console server acs6000,,localhost,,admin,,yes,yes,serial_console.png,disabled,appliance,,a,a
+gatesr-2,_template_dsx2,console_server_raritan,template console server dsx2 raritan,,localhost,,admin,,yes,yes,raritan.png,disabled,appliance,,a,a
+gatesr-2,NSR-2,console_server_nodegrid,NSR-2 console server nodegrid,ireland,192.168.1.2,,admin,,yes,yes,,on-demand,appliance,,cf_100,value200
+gatesr-2,ttyS1-router1,console_server_nodegrid,Router 1 on NSR-2 ttyS1,ireland,192.168.1.2,,admin,,yes,yes,,on-demand,serial_port,1,cf_1000,value2000
+gatesr-3,ttyS1-router1,console_server_nodegrid,Router 1 on NSR-3 ttyS1,cuenca,192.168.1.3,,admin,,yes,yes,,on-demand,serial_port,1,cf_1ab,value2ab

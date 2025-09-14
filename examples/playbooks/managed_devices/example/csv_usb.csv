@@ -1,0 +1,5 @@
+ansible_inventory_name,name,port_name,type,description,address_location,username,password,baud_rate,parity,flow_control,data_bits,stop_bits,rs-232_signal_for_device_state_detection,enable_device_state_detection_based_in_data_flow,data_flow_scan_interval,enable_hostname_detection,multisession,read-write_multisession,enable_serial_port_settings_via_escape_sequence,icon,mode,map_to_virtual_machine,virtual_machine_name
+gatesr-1,usbS0-1-dev1,usbS0-1,usb_serialb,Usb serial console to dev1,fremont,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,router_green.png,enabled,,
+gatesr-1,usbS0-2-dev2,usbS0-2,usb_serialb,Usb serial console to dev2,fremont,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,switch.png,enabled,,
+gatesr-2,usbS0-1-dev1,usbS0-1,usb_serialb,Usb serial console to dev1,ireland,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,router_green.png,enabled,,
+gatesr-2,usbS0-2-dev2,usbS0-2,usb_serialb,Usb serial console to dev2,ireland,,,9600,None,None,7,1,Auto,yes,3,,yes,,yes,switch.png,enabled,,

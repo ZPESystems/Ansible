@@ -238,8 +238,8 @@ class ActionModule(ActionBase):
         self._expect_for(conn_obj, [':~$ ', ':~# '])
 
         # Check if the ssh key is already installed
-        conn_obj.sendline(f"grep -q '{ssh_key}' /home/{ssh_key_user}/.ssh/authorized_keys ; echo $?")
-        ret = self._expect_for(conn_obj, ['0', '1', ':~$ ', ':~# '])
+        conn_obj.sendline(f"grep -q '{ssh_key}' /home/{ssh_key_user}/.ssh/authorized_keys && echo _SUCCESS_ >&2 || echo _FAIL_ >&2")
+        ret = self._expect_for(conn_obj, ['_SUCCESS_', '_FAIL_', ':~$ ', ':~# '])
         if ret == 0:
             display.vvv(f"SSH key already installed")
             self._expect_for(conn_obj, [':~$ ', ':~# '])
@@ -272,8 +272,8 @@ class ActionModule(ActionBase):
             self._expect_for(conn_obj, [':~$ ', ':~# '])
 
         # Check if sudo permissions is granted
-        conn_obj.sendline(f"[ -f /etc/sudoers.d/{sudo_user} ] ; echo $?")
-        ret = self._expect_for(conn_obj, ['0', '1', ':~$ ', ':~# '])
+        conn_obj.sendline(f"[ -f /etc/sudoers.d/{sudo_user} ] && echo _SUCCESS_ >&2 || echo _FAIL_ >&2")
+        ret = self._expect_for(conn_obj, ['_SUCCESS_', '_FAIL_', ':~$ ', ':~# '])
         if ret == 0:
             display.vvv(f"Sudo permissions already granted")
             self._expect_for(conn_obj, [':~$ ', ':~# '])

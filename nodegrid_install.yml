@@ -109,6 +109,9 @@
         - name: install collections
           shell: 'ansible-galaxy collection install -r ./build/collections/requirements.yml -p /etc/ansible/collections'
 
+        - name: install community collections
+          shell: 'ansible-galaxy collection install community.libvirt'
+
         - name: install dependencies
           shell: 'sudo -H -u ansible python3 -m pip install ttp --no-index --find-links=./installation/ttp-0.9.1-py2.py3-none-any.whl'
 

@@ -1,17 +1,36 @@
-# Process the CSV files on the localhost and create the Ansible inventory
+# Process the xlsx file on the localhost and create the Ansible inventory
 - hosts: localhost
   connection: local
   gather_facts: false
   collections:
+    - ansible.builtin
     - zpe.nodegrid
   tasks:
+  - name: Process the xlsx file block
+    tags: process-xlsx-managed-devices
+    block:
+      - name: Install Pandas Python module in virtual environment
+        ansible.builtin.pip:
+          name: pandas, openpyxl
+          virtualenv: /tmp/device_importer/venv
+          virtualenv_command: "python3 -m venv"
+          state: present
+      - name: Run Python Process xlsx managed devices script
+        ansible.builtin.script: 
+          cmd: ./process_xlsx_managed_devices.py --nodegrid_importer_xlsx Nodegrid_Importer_Template.xlsx
+          executable: /tmp/device_importer/venv/bin/python3 
+      - name: Clean the Python Virtual Environment
+        ansible.builtin.file:
+          path: /tmp/device_importer
+          state: absent
+    
   - name: Process Managed Devices from CSVs
     tags: process-managed-devices
     zpe.nodegrid.import_devices:
       csv_ansible_devices: ./zpe_ngm_ansible_devices.csv
-      csv_ip_based: ./zpe_ngm_local_ip.csv
-      # csv_local: ./example/csv_local.csv
-      # csv_usb: ./example/csv_usb.csv
+      csv_ip_based: ./zpe_ngm_ip_devices.csv
+      csv_serial: ./zpe_ngm_serial_devices.csv
+      csv_usb: ./zpe_ngm_usb_devices.csv
       csv_discovery_rules: ./zpe_ngm_discovery_rules.csv
       ansible_inventory_path: /etc/ansible/inventories
       ansible_inventory_hosts_filename: imported_managed_devices.yaml

@@ -37,8 +37,8 @@ class ActionModule(ActionBase):
         del tmp
         self._task_vars = task_vars
         action_module_args = self._task.args.copy()
-        if len(set(['csv_ip_based','csv_local','csv_usb']).intersection(set(action_module_args.keys()))) == 0:
-            return self._result_failed(msg="Neither ip-based, local, nor usb CSV file were provided.")
+        if len(set(['csv_ip_based','csv_serial','csv_usb']).intersection(set(action_module_args.keys()))) == 0:
+            return self._result_failed(msg="Neither IP-based, Serial, nor USB CSV files were provided.")
         if not 'ansible_inventory_path' in action_module_args:
             action_module_args['ansible_inventory_path'] = '/etc/ansible/inventories'
         if not 'ansible_inventory_hosts_filename' in action_module_args:
@@ -47,27 +47,58 @@ class ActionModule(ActionBase):
             action_module_args['ansible_group_name'] = 'imported_managed_devices'
         if not 'csv_ansible_devices' in action_module_args:
             return self._result_failed(msg="Ansible devices CSV file is required.")
-        validate, msg = self.validate_args(args=action_module_args)
-        if not validate:
-            display.vvv(f"{msg}")
-            return self._result_failed(msg=msg)
+
+        if 'csv_ip_based' in action_module_args:
+            if not self.validate_file(action_module_args['csv_ip_based']):
+                display.vvv(f"Error accessing IP-based file {action_module_args['csv_ip_based']}")
+                action_module_args.pop('csv_ip_based', None)
+        if 'csv_serial'in action_module_args:
+            if not self.validate_file(action_module_args['csv_serial']):
+                display.vvv(f"Error accessing serial-devices file {action_module_args['csv_serial']}")
+                action_module_args.pop('csv_serial', None)
+        if 'csv_usb' in action_module_args:
+            if not self.validate_file(action_module_args['csv_usb']):
+                display.vvv(f"Error accessing usb-devices file {action_module_args['csv_usb']}")
+                action_module_args.pop('csv_usb', None)
+        if 'csv_discovery_rules' in action_module_args:
+            if not self.validate_file(action_module_args['csv_discovery_rules']):
+                display.vvv(f"Error accessing discovery rules file {action_module_args['csv_discovery_rules']}")
+                action_module_args.pop('csv_discovery_rules', None)
+        
+        if len(set(['csv_ip_based','csv_serial','csv_usb']).intersection(set(action_module_args.keys()))) == 0:
+            return self._result_failed(msg=f"Neither IP-based, Serial, nor USB CSV files were accesible.")
+    
+        if not self.validate_file(action_module_args['csv_ansible_devices']):
+            return self._result_failed(msg=f"Error accessing ansible devices file {action_module_args['csv_ansible_devices']}")
+        if not self.validate_directory(action_module_args['ansible_inventory_path']):
+            return self._result_failed(msg=f"Error accessing ansible inventory path {action_module_args['ansible_inventory_path']}")
+        if not self.validate_directory(os.path.join(action_module_args['ansible_inventory_path'],'host_vars')):
+            display.vvv(f"Creating the host_vars directory {os.path.join(action_module_args['ansible_inventory_path'],'host_vars')}")
+            os.makedirs(os.path.join(action_module_args['ansible_inventory_path'], 'host_vars'), exist_ok=True)
+
+
+        #        validate, msg = self.validate_args(args=action_module_args)
+        #        if not validate:
+        #            display.vvv(f"{msg}")
+        #            return self._result_failed(msg=msg)
+
         target_devices = self.process_ansible_devices(action_module_args['csv_ansible_devices'],action_module_args['ansible_inventory_path'], action_module_args['ansible_inventory_hosts_filename'], ansible_group_name=action_module_args['ansible_group_name'])
         if target_devices:
             custom_fields_prefix = action_module_args.get('custom_fields_prefix', 'cf_')
             ip_based_devices = {}
-            local_devices = {}
+            serial_devices = {}
             usb_devices = {}
             if 'csv_ip_based' in action_module_args:
                 ip_based_devices = self.process_ip_based_devices(file_name=action_module_args['csv_ip_based'], custom_fields_prefix=custom_fields_prefix)
-            if 'csv_local' in action_module_args:
-                local_devices = self.process_local_devices(file_name=action_module_args['csv_local'], custom_fields_prefix=custom_fields_prefix)
+            if 'csv_serial' in action_module_args:
+                serial_devices = self.process_serial_devices(file_name=action_module_args['csv_serial'], custom_fields_prefix=custom_fields_prefix)
             if 'csv_usb' in action_module_args:
                 usb_devices = self.process_usb_devices(file_name=action_module_args['csv_usb'], custom_fields_prefix=custom_fields_prefix)
             discovery_rules = []
             if 'csv_discovery_rules' in action_module_args:
                 discovery_rules = self.process_discovery_rules(file_name=action_module_args['csv_discovery_rules'])
 
-            devices = self.merge_devices(ip_based_devices, local_devices, usb_devices)
+            devices = self.merge_devices(ip_based_devices, serial_devices, usb_devices)
             ansible_inventory_path = action_module_args.get('ansible_inventory_path', '/etc/ansible/inventories')
             self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules)
             return self._result_changed(msg=f"Managed devices inventory successfully created at {action_module_args['ansible_inventory_path']}. The list of ansible target devices is = {list(target_devices)}. The hosts/group file is {action_module_args['ansible_inventory_path']}/{action_module_args['ansible_inventory_hosts_filename']}. The group name is: {action_module_args['ansible_group_name']}")
@@ -97,7 +128,7 @@ class ActionModule(ActionBase):
                     custom_fields=set([k for k in fieldnames if re.match(f"^{custom_fields_prefix}.*", k)])
                 if fields_validate:
                     undefined_fields = set(fieldnames) - fields_validate - custom_fields - {device_key_id}
-                    display.vvv(f"Undefined columns to be ignored: {undefined_fields}")
+                    display.vvv(f"[{file_name}] Undefined columns to be ignored: {undefined_fields}")
                 # Parse the devices information
                 for device in reader_obj:
                     settings_to_be_deleted = set()
@@ -124,7 +155,7 @@ class ActionModule(ActionBase):
                             new_device["custom_fields"].append({"field_name":cf_key.removeprefix(custom_fields_prefix) ,"field_value": cf_value})
                             new_device.pop(cf_key, None)
                         device = new_device
-                        display.vvv(f"Device with custom fields: {device}")
+                        #display.vvv(f"Device with custom fields: {device}")
     
                     if not ansible_device in devices and device_type is list:
                         devices[ansible_device] = []
@@ -192,7 +223,7 @@ class ActionModule(ActionBase):
             display.vvv(f"Error Processing the Ansible Devices!.")
             return None
         group = {}
-        display.vvv(f"Ansible devices: {devices}")
+        #display.vvv(f"Ansible devices: {devices}")
         display.vvv(f"Number of Ansible devices to be processed: {len(devices.keys())}")
         for device_name, ansible_device in devices.items():
             group[device_name] = None
@@ -218,23 +249,23 @@ class ActionModule(ActionBase):
     # Process the IP-based managed devices
     def process_ip_based_devices(self, file_name, custom_fields_prefix=""):
         devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_ip_based)
-        display.vvv(f"IP-based managed devices: {devices}")
+        #display.vvv(f"IP-based managed devices: {devices}")
         display.vvv(f"Number of IP-based devices to be processed: {len(devices.keys())}")
         return devices
     
     # ###################################
-    # Process the Local managed devices
-    def process_local_devices(self, file_name, custom_fields_prefix=""):
+    # Process the Serial managed devices
+    def process_serial_devices(self, file_name, custom_fields_prefix=""):
         devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_serial)
-        display.vvv(f"Local managed devices: {devices}")
-        display.vvv(f"Number of Local devices to be processed: {len(devices.keys())}")
+        #display.vvv(f"Serial managed devices: {devices}")
+        display.vvv(f"Number of Serial devices to be processed: {len(devices.keys())}")
         return devices
     
     # ###################################
     # Process the USB managed devices
     def process_usb_devices(self, file_name, custom_fields_prefix=""):
         devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_usb)
-        display.vvv(f"Usb managed devices: {devices}")
+        #display.vvv(f"Usb managed devices: {devices}")
         display.vvv(f"Number of Usb devices to be processed: {len(devices.keys())}")
         return devices
     
@@ -258,11 +289,11 @@ class ActionModule(ActionBase):
 
     # ###################################
     # Merde the managed devices dict into a single dict
-    def merge_devices(self, ip_based_devices, local_devices, usb_devices):
+    def merge_devices(self, ip_based_devices, serial_devices, usb_devices):
         merged_devices = defaultdict(list)
-        for key in ip_based_devices.keys() | local_devices.keys() | usb_devices.keys():
+        for key in ip_based_devices.keys() | serial_devices.keys() | usb_devices.keys():
             merged_devices[key].extend(ip_based_devices.get(key,[]))
-            merged_devices[key].extend(local_devices.get(key,[]))
+            merged_devices[key].extend(serial_devices.get(key,[]))
             merged_devices[key].extend(usb_devices.get(key,[]))
         return dict(merged_devices)
 
@@ -323,16 +354,28 @@ class ActionModule(ActionBase):
     def validate_args(self, args):
         if 'csv_ip_based' in args:
             if not self.validate_file(args['csv_ip_based']):
-                return False, f"Error accessing IP-based file {args['csv_ip_based']}"
-        if 'csv_local'in args:
-            if not self.validate_file(args['csv_local']):
-                return False, f"Error accessing local-devices file {args['csv_local']}"
+                args.pop('csv_ip_based', None)
+                display.vvv(f"Error accessing IP-based file {args['csv_ip_based']}")
+                #return False, f"Error accessing IP-based file {args['csv_ip_based']}"
+        if 'csv_serial'in args:
+            if not self.validate_file(args['csv_serial']):
+                display.vvv(f"Error accessing serial-devices file {args['csv_serial']}")
+                #args.pop('csv_serial', None)
+                display.vvv(f"Error accessing serial-devices file {args['csv_serial']}")
+                #return False, f"Error accessing serial-devices file {args['csv_serial']}"
         if 'csv_usb' in args:
             if not self.validate_file(args['csv_usb']):
-                return False, f"Error accessing usb-devices file {args['csv_usb']}"
+                args.pop('csv_usb', None)
+                display.vvv(f"Error accessing usb-devices file {args['csv_usb']}")
+                #return False, f"Error accessing usb-devices file {args['csv_usb']}"
         if 'csv_discovery_rules' in args:
             if not self.validate_file(args['csv_discovery_rules']):
-                return False, f"Error accessing discovery rules file {args['csv_discovery_rules']}"
+                args.pop('csv_discovery_rules', None)
+                display.vvv(f"Error accessing discovery rules file {args['csv_discovery_rules']}")
+                #return False, f"Error accessing discovery rules file {args['csv_discovery_rules']}"
+        
+        if len(set(['csv_ip_based','csv_serial','csv_usb']).intersection(set(action_module_args.keys()))) == 0:
+            return False, "Neither IP-based, Serial, nor USB CSV files were accesible."
     
         if not self.validate_file(args['csv_ansible_devices']):
             return False, f"Error accessing ansible devices file {args['csv_ansible_devices']}"

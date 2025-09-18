@@ -109,8 +109,18 @@
         - name: install collections
           shell: 'ansible-galaxy collection install -r ./build/collections/requirements.yml -p /etc/ansible/collections'
 
-        - name: install community collections
-          shell: 'ansible-galaxy collection install community.libvirt'
+        - name: Install community.libvirt collection
+          ansible.builtin.ansible_galaxy:
+            command: collection
+            name: community.libvirt
+            state: present
+          register: galaxy_result
+          ignore_errors: yes
+
+        - name: Warn if collection installation failed
+          ansible.builtin.debug:
+            msg: "Failed to install community.libvirt, but the playbook will continue"
+          when: galaxy_result.failed
 
         - name: install dependencies
           shell: 'sudo -H -u ansible python3 -m pip install ttp --no-index --find-links=./installation/ttp-0.9.1-py2.py3-none-any.whl'

@@ -110,10 +110,7 @@
           shell: 'ansible-galaxy collection install -r ./build/collections/requirements.yml -p /etc/ansible/collections'
 
         - name: Install community.libvirt collection
-          ansible.builtin.ansible_galaxy:
-            command: collection
-            name: community.libvirt
-            state: present
+          shell: ansible-galaxy collection install this.collection.doesnotexist
           register: galaxy_result
           ignore_errors: yes
 

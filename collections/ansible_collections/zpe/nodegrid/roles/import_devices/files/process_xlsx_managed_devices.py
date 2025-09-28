@@ -12,15 +12,28 @@ sheets = {
     'Serial_Ports': 'zpe_ngm_serial_devices.csv',
     'USB_Ports': 'zpe_ngm_usb_devices.csv',
     'Discovery_Rules': 'zpe_ngm_discovery_rules.csv',
+    'Groups': 'zpe_ngm_groups.csv',
+    'Device_Permissions': 'zpe_ngm_device_permissions.csv',
 }
 
 def process_xlsx_to_csv_files(excel_filename):
     try:
+        ansible_nodes = []
         all_sheets = pd.read_excel(excel_filename, sheet_name=None)
         for sheet_name, filename in sheets.items():
             if not sheet_name in all_sheets:
                 continue
-            all_sheets[sheet_name].to_csv(filename, index=False)
+            df = all_sheets[sheet_name]
+            print(f"{sheet_name}")
+            if "Export" in df.columns:
+                df = df[df['Export'].str.fullmatch('yes', case=False)]
+            if sheet_name == "NGM":
+                df = df.drop_duplicates(subset=['ansible_inventory_name'], keep='first')
+                ansible_nodes = df['ansible_inventory_name'].unique()
+            elif 'ansible_inventory_name' in df.columns:
+                df = df[df['ansible_inventory_name'].isin(ansible_nodes)]
+            df = df.drop('Export', axis=1, errors='ignore')
+            df.to_csv(filename, index=False)
         return True
 
     except Exception as e:

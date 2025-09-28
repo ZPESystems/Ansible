@@ -107,10 +107,10 @@ end
 
 The desired migration tool, will facilitate two distinct and independent phases:
 
-1. Replacement of existing management solution, without replacement of any available physical appliance.
+1. Replacement of existing management solution, without replacement of any available physical appliances.
 2. Replacement of individual hardware appliances.
 
-### Phase 1: Replacement of Management Solution
+### Phase 1: Replacement of the Management Solution
 
 On this section, we consider the current infrastructure example of customer **ACME-A** and the replacement of their current Management Solution, i.e., *Lighthouse*. The following diagram depicts the before and after once the migration process is deployed:
 
@@ -246,9 +246,9 @@ end
 ---
 
 ## Migration process for the use case ACME-A.
-### Phase 1: Replacement of Management Solution
+### Phase 1: Replacement of the Management Solution
 
-In a nutshell to deploy the migration process, the following steps are required:
+In a nutshell, to deploy the migration process the following steps are required:
 
 #### Step 1: Prepare the `NGM-Coordinator`
 This step assumes that the new ZPE device `NGM - Coordinator` has been deployed and the customer have remote SSH access.
@@ -265,17 +265,23 @@ The following pictures depict the use case:
 ![](figs/NGM.png)
 ![](figs/IP_Devices.png)
 ![](figs/Discovery_Rules.png)
+![](figs/Device_Permissions.png)
 
 2. Copy the `xslx` file to the `NGM-Coordinator` (Replace the IP-address accordingly).
 ```shell
 scp Nodegrid_Importer_Template.xlsx ansible@<<NGM-Coordinator IP>>:~/
 ```
-3. Copy the Ansible playbook [process_xlsx_managed_devices.yaml](process_xlsx_managed_devices.yaml) into the NGM-Coordinator. **Note**: this playbook expects the file `Nodegrid_Importer_Template.xlsx` to be on the same path. 
+3. Copy the Ansible playbooks [process_xlsx_managed_devices.yaml](process_xlsx_managed_devices.yaml) and [configure_managed_devices.yaml](configure_managed_devices.yaml) into the NGM-Coordinator. **Note**: this playbook expects the file `Nodegrid_Importer_Template.xlsx` to be on the same path as the playbook. 
 ```shell
 scp process_xlsx_managed_devices.yaml ansible@<<NGM-Coordinator IP>>:~/
+scp configure_managed_devices.yaml ansible@<<NGM-Coordinator IP>>:~/
 ```
-4. Execute the Ansible playbook
+4. Execute the Ansible playbooks as follows.
 ```shell
 ansible-playbook process_xlsx_managed_devices.yaml
 ```
+```shell
+ansible-playbook configure_managed_devices.yaml
+```
+
 

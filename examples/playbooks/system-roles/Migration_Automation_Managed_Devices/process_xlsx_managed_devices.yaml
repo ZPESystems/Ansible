@@ -6,45 +6,9 @@
     - ansible.builtin
     - zpe.nodegrid
   tasks:
-  - name: Process the xlsx file block
+  - name: Process the Nodegrid Importer Template xlsx file
     tags: process-xlsx-managed-devices
-    block:
-      - name: Install Pandas Python module in virtual environment
-        ansible.builtin.pip:
-          name: pandas, openpyxl
-          virtualenv: /tmp/device_importer/venv
-          virtualenv_command: "python3 -m venv"
-          state: present
-      - name: Run Python Process xlsx managed devices script
-        ansible.builtin.script: 
-          cmd: ./process_xlsx_managed_devices.py --nodegrid_importer_xlsx Nodegrid_Importer_Template.xlsx
-          executable: /tmp/device_importer/venv/bin/python3 
-      - name: Clean the Python Virtual Environment
-        ansible.builtin.file:
-          path: /tmp/device_importer
-          state: absent
-    
-  - name: Process Managed Devices from CSVs
-    tags: process-managed-devices
-    zpe.nodegrid.import_devices:
-      csv_ansible_devices: ./zpe_ngm_ansible_devices.csv
-      csv_ip_based: ./zpe_ngm_ip_devices.csv
-      csv_serial: ./zpe_ngm_serial_devices.csv
-      csv_usb: ./zpe_ngm_usb_devices.csv
-      csv_discovery_rules: ./zpe_ngm_discovery_rules.csv
-      ansible_inventory_path: /etc/ansible/inventories
-      ansible_inventory_hosts_filename: imported_managed_devices.yaml
-      ansible_group_name: imported_managed_devices
-      custom_fields_prefix: cf_
-
-# Create the managed devices on all the target devices included in the ansible group 'imported_managed_devices'.
-# NOTE: the hosts parameter must be adapted to the group name defined in the above parameter 'ansible_group_name'
-- hosts: imported_managed_devices 
-  gather_facts: false
-  tags: import-managed-devices
-  collections:
-    - zpe.nodegrid
-  tasks:
-  - name: Create Managed devices
+    vars:
+      nodegrid_importer_template_xlsx: './Nodegrid_Importer_Template.xlsx'
     include_role:
-      name: managed_devices
+      name: import_devices

@@ -1,0 +1,12 @@
+csv_ansible_devices: ./zpe_ngm_ansible_devices.csv
+csv_ip_based: ./zpe_ngm_ip_devices.csv
+csv_serial: ./zpe_ngm_serial_devices.csv
+csv_usb: ./zpe_ngm_usb_devices.csv
+csv_discovery_rules: ./zpe_ngm_discovery_rules.csv
+csv_device_permissions: ./zpe_ngm_device_permissions.csv
+ansible_inventory_path: /etc/ansible/inventories
+ansible_inventory_hosts_filename: imported_managed_devices.yaml
+ansible_group_name: imported_managed_devices
+custom_fields_prefix: cf_
+nodegrid_importer_template_xlsx: '~/Nodegrid_Importer_Template.xlsx'
+

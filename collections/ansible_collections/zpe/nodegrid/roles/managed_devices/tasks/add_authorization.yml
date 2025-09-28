@@ -1,0 +1,6 @@
+- name: Add Discovery Rule
+  tags: always
+  zpe.nodegrid.security:
+    authorization:
+      name: "{{ group['name'] }}"
+      devices:  "{{ group['devices'] }}"

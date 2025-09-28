@@ -18,11 +18,13 @@ display = Display()
 # Supported Fields by device type 
 fields_ip_based = set(['end_point', 'port_number', 'skip_authentication_in_web_sessions', 'enable_hostname_detection', 'coordinates', 'ssh_port', 'read-write_multisession', 'credential', 'sec_ip_alias_binary_port', 'ip_alias_telnet', 'enable_send_break', 'method', 'enable_device_state_detection_based_on_network_traffic', 'mode', 'description', 'expiration_date', 'icon', 'username', 'duration', 'allow_telnet_protocol', 'allow_binary_socket', 'show_text_information', 'ip_address', 'allow_pre-shared_ssh_key', 'sec_ip_alias', 'enable_ip_alias', 'ip_alias_binary_port', 'sec_ip_alias_telnet', 'ip_alias_browser_action', 'sec_ip_alias_telnet_port', 'allow_ssh_protocol', 'type', 'address_location', 'ip_alias', 'port', 'telnet_port', 'password', 'skip_authentication_in_raw_sessions', 'multisession', 'sec_interface', 'sec_ip_alias_browser_action', 'expiration', 'skip_authentication_in_ssh_sessions', 'skip_authentication_in_telnet_sessions', 'sec_ip_alias_binary', 'tcp_socket_port', 'escape_sequence', 'interface', 'skip_authentication_to_access_device', 'name', 'power_control_key', 'web_url', 'ip_alias_telnet_port', 'enable_second_ip_alias', 'break_sequence', 'ip_alias_binary', 'launch_url_via_html5'])
 
-fields_serial = set(['type', 'sec_interface', 'power_control_key', 'interface', 'sec_ip_alias_telnet_port', 'parity', 'flow_control', 'data_bits', 'allow_binary_socket', 'skip_authentication_in_web_sessions', 'mode', 'enable_second_ip_alias', 'sec_ip_alias_telnet', 'rs-232_signal_for_device_state_detection', 'escape_sequence', 'sec_ip_alias_browser_action', 'ip_alias_binary', 'password', 'coordinates', 'ip_alias_telnet_port', 'skip_authentication_in_ssh_sessions', 'username', 'name', 'show_text_information', 'data_flow_scan_interval', 'icon', 'description', 'sec_ip_alias_binary_port', 'enable_serial_port_settings_via_escape_sequence', 'allow_telnet_protocol', 'enable_ip_alias', 'telnet_port', 'ip_alias_browser_action', 'enable_hostname_detection', 'ip_alias_binary_port', 'skip_authentication_in_telnet_sessions', 'launch_url_via_html5', 'address_location', 'skip_authentication_to_access_device', 'sec_ip_alias_binary', 'tcp_socket_port', 'skip_authentication_in_raw_sessions', 'ssh_port', 'enable_device_state_detection_based_in_data_flow', 'sec_ip_alias', 'web_url', 'allow_ssh_protocol', 'stop_bits', 'read-write_multisession', 'ip_alias', 'multisession', 'baud_rate', 'ip_alias_telnet'])
+fields_serial = set(['type', 'sec_interface', 'power_control_key', 'interface', 'sec_ip_alias_telnet_port', 'parity', 'flow_control', 'data_bits', 'allow_binary_socket', 'skip_authentication_in_web_sessions', 'mode', 'enable_second_ip_alias', 'sec_ip_alias_telnet', 'rs-232_signal_for_device_state_detection', 'escape_sequence', 'sec_ip_alias_browser_action', 'ip_alias_binary', 'password', 'coordinates', 'ip_alias_telnet_port', 'skip_authentication_in_ssh_sessions', 'username', 'name', 'port_name', 'show_text_information', 'data_flow_scan_interval', 'icon', 'description', 'sec_ip_alias_binary_port', 'enable_serial_port_settings_via_escape_sequence', 'allow_telnet_protocol', 'enable_ip_alias', 'telnet_port', 'ip_alias_browser_action', 'enable_hostname_detection', 'ip_alias_binary_port', 'skip_authentication_in_telnet_sessions', 'launch_url_via_html5', 'address_location', 'skip_authentication_to_access_device', 'sec_ip_alias_binary', 'tcp_socket_port', 'skip_authentication_in_raw_sessions', 'ssh_port', 'enable_device_state_detection_based_in_data_flow', 'sec_ip_alias', 'web_url', 'allow_ssh_protocol', 'stop_bits', 'read-write_multisession', 'ip_alias', 'multisession', 'baud_rate', 'ip_alias_telnet'])
 
-fields_usb = set(['type', 'map_to_virtual_machine', 'sec_interface', 'power_control_key', 'interface', 'sec_ip_alias_telnet_port', 'parity', 'flow_control', 'data_bits', 'allow_binary_socket', 'skip_authentication_in_web_sessions', 'mode', 'enable_second_ip_alias', 'sec_ip_alias_telnet', 'rs-232_signal_for_device_state_detection', 'escape_sequence', 'sec_ip_alias_browser_action', 'ip_alias_binary', 'password', 'coordinates', 'ip_alias_telnet_port', 'skip_authentication_in_ssh_sessions', 'username', 'name', 'show_text_information', 'data_flow_scan_interval', 'icon', 'virtual_machine_name', 'description', 'sec_ip_alias_binary_port', 'enable_serial_port_settings_via_escape_sequence', 'allow_telnet_protocol', 'enable_ip_alias', 'telnet_port', 'ip_alias_browser_action', 'enable_hostname_detection', 'ip_alias_binary_port', 'skip_authentication_in_telnet_sessions', 'launch_url_via_html5', 'address_location', 'skip_authentication_to_access_device', 'sec_ip_alias_binary', 'tcp_socket_port', 'skip_authentication_in_raw_sessions', 'ssh_port', 'enable_device_state_detection_based_in_data_flow', 'sec_ip_alias', 'web_url', 'allow_ssh_protocol', 'stop_bits', 'read-write_multisession', 'ip_alias', 'multisession', 'baud_rate', 'ip_alias_telnet'])
+fields_usb = set(['type', 'map_to_virtual_machine', 'sec_interface', 'power_control_key', 'interface', 'sec_ip_alias_telnet_port', 'parity', 'flow_control', 'data_bits', 'allow_binary_socket', 'skip_authentication_in_web_sessions', 'mode', 'enable_second_ip_alias', 'sec_ip_alias_telnet', 'rs-232_signal_for_device_state_detection', 'escape_sequence', 'sec_ip_alias_browser_action', 'ip_alias_binary', 'password', 'coordinates', 'ip_alias_telnet_port', 'skip_authentication_in_ssh_sessions', 'username', 'name', 'port_name', 'show_text_information', 'data_flow_scan_interval', 'icon', 'virtual_machine_name', 'description', 'sec_ip_alias_binary_port', 'enable_serial_port_settings_via_escape_sequence', 'allow_telnet_protocol', 'enable_ip_alias', 'telnet_port', 'ip_alias_browser_action', 'enable_hostname_detection', 'ip_alias_binary_port', 'skip_authentication_in_telnet_sessions', 'launch_url_via_html5', 'address_location', 'skip_authentication_to_access_device', 'sec_ip_alias_binary', 'tcp_socket_port', 'skip_authentication_in_raw_sessions', 'ssh_port', 'enable_device_state_detection_based_in_data_flow', 'sec_ip_alias', 'web_url', 'allow_ssh_protocol', 'stop_bits', 'read-write_multisession', 'ip_alias', 'multisession', 'baud_rate', 'ip_alias_telnet'])
 
 fields_discovery_rules = set(['host_identifier', 'inherit_appliance_credentials', 'appliance_identifier', 'rule_name', 'port_list', 'port_uri', 'scan_id', 'clone_from', 'enforce_device_type', 'status', 'action', 'cluster', 'mac_address', 'datacenter', 'method'])
+
+fields_device_permission = set(['Group_Name', 'Device_Name', 'name', 'devices', 'session', 'power', 'door', 'mks', 'kvm', 'reset_device', 'sp_console', 'virtual_media', 'access_log_audit', 'access_log_clear', 'event_log_audit', 'event_log_clear', 'sensors_data', 'monitoring', 'custom_commands'])
 # ------------------------------------------
 
 # Add representer for 'None' type in Yaml
@@ -64,6 +66,10 @@ class ActionModule(ActionBase):
             if not self.validate_file(action_module_args['csv_discovery_rules']):
                 display.vvv(f"Error accessing discovery rules file {action_module_args['csv_discovery_rules']}")
                 action_module_args.pop('csv_discovery_rules', None)
+        if 'csv_device_permissions' in action_module_args:
+            if not self.validate_file(action_module_args['csv_device_permissions']):
+                display.vvv(f"Error accessing device permissions file {action_module_args['csv_device_permissions']}")
+                action_module_args.pop('csv_device_permissions', None)
         
         if len(set(['csv_ip_based','csv_serial','csv_usb']).intersection(set(action_module_args.keys()))) == 0:
             return self._result_failed(msg=f"Neither IP-based, Serial, nor USB CSV files were accesible.")
@@ -94,13 +100,17 @@ class ActionModule(ActionBase):
                 serial_devices = self.process_serial_devices(file_name=action_module_args['csv_serial'], custom_fields_prefix=custom_fields_prefix)
             if 'csv_usb' in action_module_args:
                 usb_devices = self.process_usb_devices(file_name=action_module_args['csv_usb'], custom_fields_prefix=custom_fields_prefix)
-            discovery_rules = []
+            discovery_rules = {}
             if 'csv_discovery_rules' in action_module_args:
                 discovery_rules = self.process_discovery_rules(file_name=action_module_args['csv_discovery_rules'])
 
             devices = self.merge_devices(ip_based_devices, serial_devices, usb_devices)
+            
+            device_permissions = {}
+            if 'csv_device_permissions' in action_module_args:
+                device_permissions = self.process_device_permissions(file_name=action_module_args['csv_device_permissions'], devices=devices)
             ansible_inventory_path = action_module_args.get('ansible_inventory_path', '/etc/ansible/inventories')
-            self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules)
+            self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules, device_permissions=device_permissions)
             return self._result_changed(msg=f"Managed devices inventory successfully created at {action_module_args['ansible_inventory_path']}. The list of ansible target devices is = {list(target_devices)}. The hosts/group file is {action_module_args['ansible_inventory_path']}/{action_module_args['ansible_inventory_hosts_filename']}. The group name is: {action_module_args['ansible_group_name']}")
 
     # #########################################
@@ -128,7 +138,8 @@ class ActionModule(ActionBase):
                     custom_fields=set([k for k in fieldnames if re.match(f"^{custom_fields_prefix}.*", k)])
                 if fields_validate:
                     undefined_fields = set(fieldnames) - fields_validate - custom_fields - {device_key_id}
-                    display.vvv(f"[{file_name}] Undefined columns to be ignored: {undefined_fields}")
+                    if undefined_fields:
+                        display.vvv(f"[{file_name}] Undefined columns to be ignored: {undefined_fields}")
                 # Parse the devices information
                 for device in reader_obj:
                     settings_to_be_deleted = set()
@@ -178,9 +189,10 @@ class ActionModule(ActionBase):
     
     # #########################################
     # Read a CSV file and return a list with the discovery rules to be applied to each Nodegrid device. 
-    def read_csv_discovery_rules(self, file_name, fields_validate=set()):
+    def read_csv_discovery_rules(self, file_name, device_key_id='ansible_inventory_name', fields_validate=set()):
         discovery_rules = []
         undefined_fields = {}
+        devices = {}
         try:
             with open(file_name, mode='r', newline='') as file_obj:
                 reader_obj = csv.DictReader(file_obj)
@@ -190,10 +202,15 @@ class ActionModule(ActionBase):
                 # Filter custom field names, if exists.
                 fieldnames = reader_obj.fieldnames
                 if fields_validate:
-                    undefined_fields = set(fieldnames) - fields_validate
-                    display.vvv(f"Columns to be ignored: {undefined_fields}")
+                    undefined_fields = set(fieldnames) - fields_validate - {device_key_id}
+                    if undefined_fields:
+                        display.vvv(f"Columns to be ignored: {undefined_fields}")
                 # Parse the devices information
                 for discovery_rule in reader_obj:
+                    ansible_device = discovery_rule.pop(device_key_id, None)
+                    if not ansible_device:
+                        display.vvv(f"Following discovery rule does not have a device key ID, defined in the '{device_key_id}' setting. It will not be configured. Discovery rule info: {discovery_rule}")
+                        continue
                     settings_to_be_deleted = set()
                     for key,value in discovery_rule.items():
                         if value.strip() == "":
@@ -201,8 +218,76 @@ class ActionModule(ActionBase):
                     settings_to_be_deleted = settings_to_be_deleted | undefined_fields
                     for setting in settings_to_be_deleted:
                         discovery_rule.pop(setting, None)
-                    discovery_rules.append(discovery_rule)
-            return discovery_rules
+
+                    if not ansible_device in devices:
+                        devices[ansible_device] = []
+                    devices[ansible_device].append(discovery_rule)
+                    #discovery_rules.append(discovery_rule)
+            return devices
+        except FileNotFoundError:
+            display.vvv(f"The file '{file_name}' was not found. Interrumping the execution.")
+        except IOError as e:
+            display.vvv(f"Error: An I/O error occurred while accessing '{file_name}'. Error: {e}")
+        except csv.Error as e:
+            # Handle general CSV-related errors (e.g., malformed CSV)
+            display.vvv(f"Error reading CSV file: {file_name}. Error: {e}")
+        except Exception as e:
+            # Catch any other unexpected exceptions
+            display.vvv(f"An unexpected error occurred: {e}")
+        return None
+    
+    # #########################################
+    # Read a CSV file and return a list with the device permissions to be applied to each Nodegrid device. 
+    def read_csv_device_permissions(self, file_name, devices, device_key_id='ansible_inventory_name', fields_validate=set()):
+        undefined_fields = {}
+        _devices = {}
+        try:
+            with open(file_name, mode='r', newline='') as file_obj:
+                reader_obj = csv.DictReader(file_obj)
+                if not reader_obj:
+                    display.vvv(f"File {file_name} does not contain Device Permission information!")
+                    return None
+                # Filter custom field names, if exists.
+                fieldnames = reader_obj.fieldnames
+                if fields_validate:
+                    undefined_fields = set(fieldnames) - fields_validate - {device_key_id}
+                    if undefined_fields:
+                        display.vvv(f"Columns to be ignored: {undefined_fields}")
+                # Parse the devices information
+                for device_permission in reader_obj:
+                    ansible_device = device_permission.pop(device_key_id, None)
+                    if not ansible_device:
+                        display.vvv(f"Following device permission rule does not have a device key ID, defined in the '{device_key_id}' setting. It will not be configured. Device permission info: {device_permission}")
+                        continue
+                    settings_to_be_deleted = set()
+                    for key,value in device_permission.items():
+                        if value.strip() == "":
+                            settings_to_be_deleted.add(key)
+                    settings_to_be_deleted = settings_to_be_deleted | undefined_fields
+                    for setting in settings_to_be_deleted:
+                        device_permission.pop(setting, None)
+
+                    group_name = device_permission.pop('Group_Name', None)
+                    if not group_name:
+                        display.vvv(f"Following device permission rule does not have a group name defined. It will not be configured. Device permission info: {device_permission}")
+                        continue
+                    device_name = device_permission.pop('Device_Name', None)
+                    if not device_name:
+                        display.vvv(f"Following device permission rule does not have a device name defined. It will not be configured. Device permission info: {device_permission}")
+                        continue
+
+                    if not device_name in [device['name'] for device in devices[ansible_device]]:
+                        display.vvv(f"Device_Name '{device_name}' not found as a managed device for target device '{ansible_device}'. It will not be configured. Device permission info: {device_permission}. Managed devices: {[device['name'] for device in devices[ansible_device]]}")
+                        continue
+
+                    device_permission['name'] = device_name
+                    if not ansible_device in _devices:
+                        _devices[ansible_device] = {}
+                    if not group_name in _devices[ansible_device]:
+                        _devices[ansible_device][group_name]={'devices': []}
+
+                    _devices[ansible_device][group_name]['devices'].append(device_permission)
+            return _devices
         except FileNotFoundError:
             display.vvv(f"The file '{file_name}' was not found. Interrumping the execution.")
         except IOError as e:
@@ -230,19 +315,27 @@ class ActionModule(ActionBase):
             file_name = os.path.join(ansible_inventory_path,'host_vars',f"{device_name}.yaml")
             display.vvv(f"Writting Ansible device config into: {file_name}")
             with open(file_name, 'w') as device_file:
-                yaml.safe_dump(ansible_device, device_file)
+                yaml.safe_dump(ansible_device, device_file, sort_keys=False, default_flow_style=False)
         file_name = os.path.join(ansible_inventory_path,ansible_inventory_hosts_filename)
         display.vvv(f"Writting hosts file into: {file_name}")
         with open(file_name, 'w') as device_file:
-            yaml.safe_dump({f"{ansible_group_name}": {"hosts": group}}, device_file)
+            yaml.safe_dump({f"{ansible_group_name}": {"hosts": group}}, device_file, sort_keys=False, default_flow_style=False)
         return devices.keys()
     
+    # ###################################
+    # Process Device Permissions o be applied to Nodegrid Devices
+    def process_device_permissions(self, file_name, devices):
+        device_permissions = self.read_csv_device_permissions(file_name, devices, fields_validate=fields_device_permission)
+        #display.vvv(f"Device Permissions: {device_permissions}")
+        display.vvv(f"Number of Ansible devices to which Device Permissions are going to be configured: {len(device_permissions.keys())}")
+        return device_permissions
     # ###################################
     # Process Discovery Rules to be applied to Nodegrid Devices
     def process_discovery_rules(self, file_name):
         # def read_csv_discovery_rules(self, file_name, fields_validate=set()):
         discovery_rules = self.read_csv_discovery_rules(file_name, fields_validate=fields_discovery_rules)
-        display.vvv(f"Discovery Rules: {discovery_rules}")
+        #display.vvv(f"Discovery Rules: {discovery_rules}")
+        display.vvv(f"Number of Discovery Rules to be processed: {len(discovery_rules.keys())}")
         return discovery_rules
 
     # ###################################
@@ -271,7 +364,7 @@ class ActionModule(ActionBase):
     
     # ###################################
     # Save Managed devices
-    def save_managed_devices(self, devices, target_devices, ansible_inventory_path, discovery_rules=[]):
+    def save_managed_devices(self, devices, target_devices, ansible_inventory_path, discovery_rules={}, device_permissions={}):
         for device_name, managed_devices in devices.items():
             if not device_name in target_devices:
                 display.vvv(f"Target device {device_name} is not defined on the list of ansible target devices. Ignoring managed devices: {managed_devices}")
@@ -280,18 +373,26 @@ class ActionModule(ActionBase):
                 display.vvv(f"Target device {device_name} does not have any managed device defined.")
                 continue
             file_name = os.path.join(ansible_inventory_path,'host_vars',f"{device_name}.yaml")
+            device_info = {"managed_devices": managed_devices}
             display.vvv(f"Writting Managed devices info into: {file_name}")
+            
+            if device_name in discovery_rules:
+                device_info["discovery_rules"] = discovery_rules[device_name]
+            if device_name in device_permissions:
+                dev_permissions=[]
+                for group_name, devices in device_permissions[device_name].items():
+                    dev_permissions.append({'name': group_name, 'devices': devices['devices']})
+
+                #device_info["authorization"] = device_permissions[device_name]
+                device_info["authorization"] = dev_permissions
             with open(file_name, 'a') as device_file:
-                if discovery_rules:
-                    yaml.safe_dump({"discovery_rules": discovery_rules, "managed_devices": managed_devices}, device_file)
-                else:
-                    yaml.safe_dump({"managed_devices": managed_devices}, device_file)
+                yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
 
     # ###################################
     # Merde the managed devices dict into a single dict
-    def merge_devices(self, ip_based_devices, serial_devices, usb_devices):
+    def merge_devices(self, ip_based_devices, serial_devices, usb_devices, discovery_rules={}):
         merged_devices = defaultdict(list)
-        for key in ip_based_devices.keys() | serial_devices.keys() | usb_devices.keys():
+        for key in ip_based_devices.keys() | serial_devices.keys() | usb_devices.keys() | discovery_rules.keys():
             merged_devices[key].extend(ip_based_devices.get(key,[]))
             merged_devices[key].extend(serial_devices.get(key,[]))
             merged_devices[key].extend(usb_devices.get(key,[]))

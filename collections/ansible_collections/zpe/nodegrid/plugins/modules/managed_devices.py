@@ -429,7 +429,9 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def run_option_device(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
+    check_mode = run_opt['check_mode']
     settings_list = []
+    cmds = None
     cmd_results = None
     change_name_message = None
 
@@ -531,21 +533,22 @@ def run_option_device(option, run_opt):
                 suboptions["access"].pop(setting, None)
 
             if new_name != current_name:
-                cmds = [{'confirm': True,'cmd': f"cd /settings/devices; rename {port_name}; set new_name={new_name}"}]
+                cmds = [{'confirm': True,'cmd': f"cd /settings/devices; rename {current_name}; set new_name={new_name}"}]
                 cmd_results = list()
                 cmd_result = dict()
-                try:
-                    cmd_cli = get_cli(timeout=60)
-                    for cmd in cmds:
-                        cmd_result = execute_cmd(cmd_cli, cmd)
-                        if cmd_result['error']:
-                            return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_result}")
-                        cmd_results.append(cmd_result)
-                    close_cli(cmd_cli)
-                    change_name_message = f"managed_device_name: {current_name} -> {new_name}"
-                    cli_path += f"/{new_name}"
-                except Exception as exc:
-                    return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_results}")
+                if not check_mode:
+                    try:
+                        cmd_cli = get_cli(timeout=60)
+                        for cmd in cmds:
+                            cmd_result = execute_cmd(cmd_cli, cmd)
+                            if cmd_result['error']:
+                                return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_result}")
+                            cmd_results.append(cmd_result)
+                        close_cli(cmd_cli)
+                        change_name_message = f"managed_device_name: {current_name} -> {new_name}"
+                        cli_path += f"/{new_name}"
+                    except Exception as exc:
+                        return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_results}")
             else:
                 cli_path += f"/{current_name}"
         else:
@@ -606,6 +609,11 @@ def run_option_device(option, run_opt):
     option['cli_path'] = cli_path
     option['settings'] = settings_list
     result = run_option(option, run_opt)
+
+    if check_mode:
+        if cmds:
+            result['cmds'] = cmds
+        return result
 
     # If device named was changed, update the return result
     if cmd_results:

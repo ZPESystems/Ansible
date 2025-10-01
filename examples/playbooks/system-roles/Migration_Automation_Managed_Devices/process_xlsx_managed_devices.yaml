@@ -11,4 +11,4 @@
     vars:
       nodegrid_importer_template_xlsx: './Nodegrid_Importer_Template.xlsx'
     include_role:
-      name: import_devices
+      name: process_managed_devices_into_inventory

@@ -1,13 +1,31 @@
 - name: Process the xlsx file block
   tags: always
   block:
-    - name: Install Pandas Python module in virtual environment
+    - name: Attempt to reach a public website
+      ansible.builtin.uri:
+        url: https://zpesystems.com/
+        method: GET
+        status_code: 200
+        timeout: 5 # Set a reasonable timeout
+      register: internet_check_result
+      ignore_errors: true # Continue playbook execution even if
+    - name: Install Pandas Python module in virtual environment from Internet
       tags: always
       ansible.builtin.pip:
         name: pandas, openpyxl
         virtualenv: /tmp/device_importer/venv
         virtualenv_command: "python3 -m venv"
         state: present
+      when: internet_check_result is success
+    - name: Install Pandas Python module in virtual environment from local repo
+      tags: always
+      ansible.builtin.pip:
+        requirements: "{{ role_path }}/files/requirements.txt"
+        virtualenv: /tmp/device_importer/venv
+        virtualenv_command: "python3 -m venv"
+        extra_args: "--no-index --find-links {{ role_path }}/files/python_packages/"
+        state: present
+      when: internet_check_result is failed
     - name: Run Python Process xlsx managed devices script
       tags: always
       ansible.builtin.script: 

@@ -542,13 +542,13 @@ def run_option_device(option, run_opt):
                         for cmd in cmds:
                             cmd_result = execute_cmd(cmd_cli, cmd)
                             if cmd_result['error']:
-                                return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_result}")
+                                return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{cmd_result}")
                             cmd_results.append(cmd_result)
                         close_cli(cmd_cli)
                         change_name_message = f"managed_device_name: {current_name} -> {new_name}"
                         cli_path += f"/{new_name}"
                     except Exception as exc:
-                        return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_results}")
+                        return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{exc}")
             else:
                 cli_path += f"/{current_name}"
         else:

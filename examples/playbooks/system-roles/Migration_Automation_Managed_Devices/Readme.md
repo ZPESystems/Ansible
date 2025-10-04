@@ -267,20 +267,22 @@ The following pictures depict the use case:
 ![](figs/Discovery_Rules.png)
 ![](figs/Device_Permissions.png)
 
-2. Copy the `xslx` file to the `NGM-Coordinator` (Replace the IP-address accordingly).
+2. Copy the `Nodegrid_Importer_Template.xslx` file to the `NGM-Coordinator` `admin_group` folder (**Note: do not change the file name**).
+![](figs/copy_template.png)
+
+3. Copy the Ansible playbooks [process_xlsx_managed_devices.yaml](process_xlsx_managed_devices.yaml) and [configure_managed_devices.yaml](configure_managed_devices.yaml). 
+
 ```shell
-scp Nodegrid_Importer_Template.xlsx ansible@<<NGM-Coordinator IP>>:~/
-```
-3. Copy the Ansible playbooks [process_xlsx_managed_devices.yaml](process_xlsx_managed_devices.yaml) and [configure_managed_devices.yaml](configure_managed_devices.yaml) into the NGM-Coordinator. **Note**: this playbook expects the file `Nodegrid_Importer_Template.xlsx` to be on the same path as the playbook. 
-```shell
-scp process_xlsx_managed_devices.yaml ansible@<<NGM-Coordinator IP>>:~/
-scp configure_managed_devices.yaml ansible@<<NGM-Coordinator IP>>:~/
+cp /etc/ansible/playbooks/examples/system-roles/Migration_Automation_Managed_Devices/process_xlsx_managed_devices.yaml /etc/ansible/playbooks/examples/system-roles/Migration_Automation_Managed_Devices/configure_managed_devices.yaml /etc/ansible/playbooks/
 ```
 4. Execute the Ansible playbooks as follows.
 ```shell
+cd /etc/ansible/playbooks/
 ansible-playbook process_xlsx_managed_devices.yaml
 ```
+
 ```shell
+cd /etc/ansible/playbooks/
 ansible-playbook configure_managed_devices.yaml
 ```
 

@@ -9,6 +9,6 @@
   - name: Process the Nodegrid Importer Template xlsx file
     tags: process-xlsx-managed-devices
     vars:
-      nodegrid_importer_template_xlsx: './Nodegrid_Importer_Template.xlsx'
+      nodegrid_importer_template_xlsx: '/var/local/file_manager/admin_group/Nodegrid_Importer_Template.xlsx'
     include_role:
       name: process_managed_devices_into_inventory

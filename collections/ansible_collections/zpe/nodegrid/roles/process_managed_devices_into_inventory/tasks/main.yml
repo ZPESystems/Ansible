@@ -17,13 +17,18 @@
         virtualenv_command: "python3 -m venv"
         state: present
       when: internet_check_result is success
+    - name: Get ansible user Python site-packages path using command
+      tags: always
+      command: sudo su ansible -c "python -m site --user-site"
+      register: site_packages_path      
+      when: internet_check_result is failed
     - name: Install Pandas Python module in virtual environment from local repo
       tags: always
       ansible.builtin.pip:
         requirements: "{{ role_path }}/files/requirements.txt"
         virtualenv: /tmp/device_importer/venv
         virtualenv_command: "python3 -m venv"
-        extra_args: "--no-index --find-links {{ role_path }}/files/python_packages/"
+        extra_args: "--no-index --find-links {{ site_packages_path | first }}"
         state: present
       when: internet_check_result is failed
     - name: Run Python Process xlsx managed devices script

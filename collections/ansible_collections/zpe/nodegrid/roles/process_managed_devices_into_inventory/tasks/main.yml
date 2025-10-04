@@ -28,7 +28,7 @@
         requirements: "{{ role_path }}/files/requirements.txt"
         virtualenv: /tmp/device_importer/venv
         virtualenv_command: "python3 -m venv"
-        extra_args: "--no-index --find-links {{ site_packages_path | first }}"
+        extra_args: "--no-index --find-links {{ site_packages_path.stdout }}"
         state: present
       when: internet_check_result is failed
     - name: Run Python Process xlsx managed devices script

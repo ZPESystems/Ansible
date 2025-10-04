@@ -63,7 +63,7 @@
         - name: Copy the python packages to local site directory
           ansible.builtin.copy:
             src: installation/python_packages/  # Relative path to the directory in the role's files directory, ending with a slash
-            dest: "{{ site_packages_path | first }}"
+            dest: "{{ site_packages_path.stdout }}"
             owner: ansible
             group: ansible
             mode: '0644'

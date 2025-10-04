@@ -1,4 +1,4 @@
-- name: Process the xlsx file block
+- name: Process the Nodegrid_Importer_Template.xlsx file
   tags: always
   block:
     - name: Attempt to reach a public website
@@ -8,7 +8,7 @@
         status_code: 200
         timeout: 5 # Set a reasonable timeout
       register: internet_check_result
-      ignore_errors: true # Continue playbook execution even if
+      ignore_errors: true # Continue playbook execution even if it fails
     - name: Install Pandas Python module in virtual environment from Internet
       tags: always
       ansible.builtin.pip:
@@ -17,7 +17,7 @@
         virtualenv_command: "python3 -m venv"
         state: present
       when: internet_check_result is success
-    - name: Get ansible user Python site-packages path using command
+    - name: Get ansible user Python site-packages path using command if Internet is not reachable
       tags: always
       command: sudo su ansible -c "python -m site --user-site"
       register: site_packages_path      
@@ -31,7 +31,7 @@
         extra_args: "--no-index --find-links {{ site_packages_path.stdout }}"
         state: present
       when: internet_check_result is failed
-    - name: Run Python Process xlsx managed devices script
+    - name: Run python script to process the Nodegrid_Importer_Template.xlsx file into CSV files
       tags: always
       ansible.builtin.script: 
         cmd: files/process_xlsx_managed_devices.py --nodegrid_importer_xlsx "{{ nodegrid_importer_template_xlsx | default('~/Nodegrid_Importer_Template.xlsx') }}"

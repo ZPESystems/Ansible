@@ -18,11 +18,11 @@
       loop: "{{ discovery_rules }}"
       loop_control:
         loop_var: discovery_rule
-- name: Add Authorization Rules
+- name: Add Authorizations Groups and Devices Permissions
   tags: always
   when: authorization is defined
   block:
-    - name: Add Autorization Group Rules
+    - name: Add Autorization Group and Devices Permissions
       include_tasks: add_authorization.yml
       tags: always
       loop: "{{ authorization }}"

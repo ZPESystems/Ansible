@@ -1,4 +1,4 @@
-- name: Add Discovery Rule
+- name: Add Authorization Group and Devices Permissions
   tags: always
   zpe.nodegrid.security:
     authorization:

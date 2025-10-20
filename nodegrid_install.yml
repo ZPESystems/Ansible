@@ -119,7 +119,7 @@
           when: not build_dir.stat.exists
 
         - name: install collections
-          shell: 'ansible-galaxy collection install -r ./build/collections/requirements.yml -p /etc/ansible/collections'
+          shell: 'ansible-galaxy collection install --force -r ./build/collections/requirements.yml -p /etc/ansible/collections'
 
         - name: install dependencies
           shell: 'sudo -H -u ansible python3 -m pip install ttp --no-index --find-links=./installation/ttp-0.9.1-py2.py3-none-any.whl'

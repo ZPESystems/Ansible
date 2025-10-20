@@ -1,4 +1,4 @@
-- name: Add Authorization Group and Devices Permissions
+- name: Add Authorization Group "{{ group['name'] | default('') }}" and Devices Permissions
   tags: always
   zpe.nodegrid.security:
     authorization:

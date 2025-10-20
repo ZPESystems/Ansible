@@ -1,4 +1,4 @@
-- name: Add Discovery Rule
+- name: Add Discovery Rule "{{ discovery_rule['rule_name'] | default('') }}"
   tags: always
   zpe.nodegrid.managed_devices:
     auto_discovery:

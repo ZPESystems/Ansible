@@ -1,0 +1,25 @@
+- name: Generate Managed Device "{{ device['name'] | default('') }}" ssh key
+  tags: always
+  zpe.nodegrid.managed_devices_ssh_key:
+    device: "{{ device }}"
+  when:
+    - "'ssh_key_type' in device"
+    - "'ssh_private_key' in device"
+    - "'ssh_public_key' in device"
+- name: Copy Public and Private SSH keys for device "{{ device['name'] | default('') }}"
+  block:
+  - name: Copy Private key 
+    ansible.builtin.copy:
+      content: "{{ device.ssh_private_key | replace('<br>','\n') | replace(\"'\", '') + '\n'}}"
+      dest: "/etc/devices_keys/{{device.name}}"
+      mode: '0600'
+  - name: Copy Public key 
+    ansible.builtin.copy:
+      content: "{{ device.ssh_public_key | replace(\"'\", '') }}"
+      dest: "/etc/devices_keys/{{device.name}}.pub"
+      mode: '0600'
+  become: yes
+  when:
+    - "'ssh_key_type' in device"
+    - "'ssh_private_key' in device"
+    - "'ssh_public_key' in device"

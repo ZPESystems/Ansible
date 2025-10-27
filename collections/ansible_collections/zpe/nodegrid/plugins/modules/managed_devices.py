@@ -453,7 +453,7 @@ def run_option_device(option, run_opt):
     
     # Clean the required options
     try:
-        settings_tobe_deleted = set()
+        settings_tobe_deleted = set(['ssh_key_type', 'ssh_private_key', 'ssh_public_key'])
         for dependency in device_dependencies:
             if isinstance(device_dependencies[dependency], dict):
                 for dep_rem in {key:value for key, value in device_dependencies[dependency].items() if dependency in suboptions['access'] and key not in [suboptions['access'][dependency]]}:

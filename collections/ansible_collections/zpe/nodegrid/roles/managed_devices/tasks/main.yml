@@ -6,6 +6,20 @@
   loop_control:
     loop_var: device
 
+- name: Configure SSH keys
+  tags: always
+  when: managed_devices is defined
+  include_tasks: setup_ssh_keys.yml
+  loop: "{{ managed_devices }}"
+  loop_control:
+    loop_var: device
+
+- name: Restart 'spmmulticonn' servcice
+  ansible.builtin.service:
+    name: spmmulticonn
+    state: restarted
+  become: true
+
 - name: Add Discovery Rules
   tags: always
   when: discovery_rules is defined

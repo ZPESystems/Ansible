@@ -3,6 +3,8 @@
   zpe.nodegrid.managed_devices_ssh_key:
     device: "{{ device }}"
   when:
+    - "'allow_pre-shared_ssh_key' in device"
+    - "device['allow_pre-shared_ssh_key'] | lower == 'yes'"
     - "'ssh_key_type' in device"
     - "'ssh_private_key' in device"
     - "'ssh_public_key' in device"
@@ -20,6 +22,8 @@
       mode: '0600'
   become: yes
   when:
+    - "'allow_pre-shared_ssh_key' in device"
+    - "device['allow_pre-shared_ssh_key'] | lower == 'yes'"
     - "'ssh_key_type' in device"
     - "'ssh_private_key' in device"
     - "'ssh_public_key' in device"

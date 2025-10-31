@@ -163,7 +163,7 @@ class ActionModule(ActionBase):
                             cf_value = new_device[cf_key]
                             if cf_value.strip() == "":
                                 cf_value = "na"
-                            new_device["custom_fields"].append({"field_name":cf_key.removeprefix(custom_fields_prefix) ,"field_value": cf_value})
+                            new_device["custom_fields"].append({"field_name":cf_key.removeprefix(custom_fields_prefix) ,"field_value": cf_value.replace("'", "")})
                             new_device.pop(cf_key, None)
                         device = new_device
                         #display.vvv(f"Device with custom fields: {device}")

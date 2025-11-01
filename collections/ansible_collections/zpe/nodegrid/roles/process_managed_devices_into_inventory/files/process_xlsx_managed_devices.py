@@ -14,7 +14,7 @@ ng_invalid_character = [ '"', '/', '\\', '\'' ]
 ng_ignore_columns = set(['ssh_private_key', 'ssh_public_key'])
 ng_cols_replace = {'ssh_private_key':[r'[\n\r]+', '<br>']}
 
-colnames = set(['Export', 'ansible_inventory_name', 'ansible_host', 'ansible_port', 'ansible_user',
+colnames = set(['Export', 'ansible_inventory_name', 'ansible_host', 'ansible_port', 'ansible_user', 'ansible_ssh_private_key_file',
             'name', 'type', 'ip_address', 'port', 'username', 'password', 'enable_device_state_detection_based_on_network_traffic', 'multisession', 'icon', 'mode', 'end_point', 'port_number',
             'port_name', 'type', 'description', 'address_location', 'username', 'password', 'baud_rate', 'parity', 'flow_control', 'data_bits', 'stop_bits', 'rs-232_signal_for_device_state_detection', 'enable_device_state_detection_based_in_data_flow', 'data_flow_scan_interval', 'enable_hostname_detection', 'multisession', 'read-write_multisession', 'enable_serial_port_settings_via_escape_sequence', 'icon', 'mode', 'allow_ssh_protocol', 'ssh_port', 'ssh_key_type', 'allow_pre-shared_ssh_key',
             'name', 'port_name', 'type', 'description', 'address_location', 'username', 'password', 'baud_rate', 'parity', 'flow_control', 'data_bits', 'stop_bits', 'rs-232_signal_for_device_state_detection', 'enable_device_state_detection_based_in_data_flow', 'data_flow_scan_interval', 'enable_hostname_detection', 'multisession', 'read-write_multisession', 'enable_serial_port_settings_via_escape_sequence', 'icon', 'mode', 'map_to_virtual_machine', 'virtual_machine_name',

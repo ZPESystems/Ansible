@@ -14,7 +14,7 @@
   loop_control:
     loop_var: device
 
-- name: Restart 'spmmulticonn' servcice
+- name: Restart 'spmmulticonn' service
   ansible.builtin.service:
     name: spmmulticonn
     state: restarted

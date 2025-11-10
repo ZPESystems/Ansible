@@ -14,11 +14,11 @@
   loop_control:
     loop_var: device
 
-- name: Restart 'spmmulticonn' service
-  ansible.builtin.service:
-    name: spmmulticonn
-    state: restarted
-  become: true
+    #- name: Restart 'spmmulticonn' service
+    #  ansible.builtin.service:
+    #    name: spmmulticonn
+    #    state: restarted
+    #  become: true
 
 - name: Add Discovery Rules
   tags: always
@@ -35,3 +35,19 @@
   loop: "{{ authorization }}"
   loop_control:
     loop_var: group
+
+- name: Disable Managed Devices before Rebounce
+  tags: always
+  when: rebounce is defined
+  include_tasks: disable_managed_devices.yml
+  loop: "{{ rebounce }}"
+  loop_control:
+    loop_var: device
+
+- name: Rebounce Managed Devices
+  tags: always
+  when: rebounce is defined
+  include_tasks: rebounce_managed_devices.yml
+  loop: "{{ rebounce }}"
+  loop_control:
+    loop_var: device

@@ -116,6 +116,8 @@ def get_nodegrid_os_details():
                 details['software_minor'] = minorversion.strip()
                 details['software_sub'] = subversion.strip()
             details[key.strip()] = value.strip()
+    if not 'version' in details:
+        details["error"] = f"Error getting Nodegrid Version. CLI output: {output}"
     return details
 
 def get_system_details():

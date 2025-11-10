@@ -1,0 +1,10 @@
+- name: Rebounce Managed Device "{{ device['name'] | default('') }}" mode to "{{ device['mode'] | default('') }}"
+  tags: always
+  zpe.nodegrid.nodegrid_cmds:
+    cmds:
+      - cmd: "cd /settings/devices/{{ device['name'] }}/access"
+      - cmd: "set mode={{ device['mode'] }}"
+      - cmd: "commit"
+  when:
+    - "'name' in device"
+    - "'mode' in device"

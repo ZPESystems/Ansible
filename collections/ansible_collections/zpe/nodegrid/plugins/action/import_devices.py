@@ -16,7 +16,7 @@ display = Display()
 
 # ------------------------------------------
 # Supported Fields by device type 
-fields_ip_based = set(['end_point', 'port_number', 'skip_authentication_in_web_sessions', 'enable_hostname_detection', 'coordinates', 'ssh_port', 'read-write_multisession', 'credential', 'sec_ip_alias_binary_port', 'ip_alias_telnet', 'enable_send_break', 'method', 'enable_device_state_detection_based_on_network_traffic', 'mode', 'description', 'expiration_date', 'icon', 'username', 'duration', 'allow_telnet_protocol', 'allow_binary_socket', 'show_text_information', 'ip_address', 'allow_pre-shared_ssh_key', 'sec_ip_alias', 'enable_ip_alias', 'ip_alias_binary_port', 'sec_ip_alias_telnet', 'ip_alias_browser_action', 'sec_ip_alias_telnet_port', 'allow_ssh_protocol', 'type', 'address_location', 'ip_alias', 'port', 'telnet_port', 'password', 'skip_authentication_in_raw_sessions', 'multisession', 'sec_interface', 'sec_ip_alias_browser_action', 'expiration', 'skip_authentication_in_ssh_sessions', 'skip_authentication_in_telnet_sessions', 'sec_ip_alias_binary', 'tcp_socket_port', 'escape_sequence', 'interface', 'skip_authentication_to_access_device', 'name', 'power_control_key', 'web_url', 'ip_alias_telnet_port', 'enable_second_ip_alias', 'break_sequence', 'ip_alias_binary', 'launch_url_via_html5', 'ssh_private_key', 'ssh_public_key', 'ssh_key_type'])
+fields_ip_based = set(['end_point', 'port_number', 'skip_authentication_in_web_sessions', 'enable_hostname_detection', 'coordinates', 'ssh_port', 'read-write_multisession', 'credential', 'sec_ip_alias_binary_port', 'ip_alias_telnet', 'enable_send_break', 'method', 'enable_device_state_detection_based_on_network_traffic', 'mode', 'description', 'expiration_date', 'icon', 'username', 'duration', 'allow_telnet_protocol', 'allow_binary_socket', 'show_text_information', 'ip_address', 'allow_pre-shared_ssh_key', 'sec_ip_alias', 'enable_ip_alias', 'ip_alias_binary_port', 'sec_ip_alias_telnet', 'ip_alias_browser_action', 'sec_ip_alias_telnet_port', 'allow_ssh_protocol', 'type', 'address_location', 'ip_alias', 'port', 'telnet_port', 'password', 'skip_authentication_in_raw_sessions', 'multisession', 'sec_interface', 'sec_ip_alias_browser_action', 'expiration', 'skip_authentication_in_ssh_sessions', 'skip_authentication_in_telnet_sessions', 'sec_ip_alias_binary', 'tcp_socket_port', 'escape_sequence', 'interface', 'skip_authentication_to_access_device', 'name', 'power_control_key', 'web_url', 'ip_alias_telnet_port', 'enable_second_ip_alias', 'break_sequence', 'ip_alias_binary', 'launch_url_via_html5', 'ssh_private_key', 'ssh_public_key', 'ssh_key_type', 'rebounce'])
 
 fields_serial = set(['type', 'sec_interface', 'power_control_key', 'interface', 'sec_ip_alias_telnet_port', 'parity', 'flow_control', 'data_bits', 'allow_binary_socket', 'skip_authentication_in_web_sessions', 'mode', 'enable_second_ip_alias', 'sec_ip_alias_telnet', 'rs-232_signal_for_device_state_detection', 'escape_sequence', 'sec_ip_alias_browser_action', 'ip_alias_binary', 'password', 'coordinates', 'ip_alias_telnet_port', 'skip_authentication_in_ssh_sessions', 'username', 'name', 'port_name', 'show_text_information', 'data_flow_scan_interval', 'icon', 'description', 'sec_ip_alias_binary_port', 'enable_serial_port_settings_via_escape_sequence', 'allow_telnet_protocol', 'enable_ip_alias', 'telnet_port', 'ip_alias_browser_action', 'enable_hostname_detection', 'ip_alias_binary_port', 'skip_authentication_in_telnet_sessions', 'launch_url_via_html5', 'address_location', 'skip_authentication_to_access_device', 'sec_ip_alias_binary', 'tcp_socket_port', 'skip_authentication_in_raw_sessions', 'ssh_port', 'enable_device_state_detection_based_in_data_flow', 'sec_ip_alias', 'web_url', 'allow_ssh_protocol', 'stop_bits', 'read-write_multisession', 'ip_alias', 'multisession', 'baud_rate', 'ip_alias_telnet'])
 
@@ -25,6 +25,9 @@ fields_usb = set(['type', 'map_to_virtual_machine', 'sec_interface', 'power_cont
 fields_discovery_rules = set(['host_identifier', 'inherit_appliance_credentials', 'appliance_identifier', 'rule_name', 'port_list', 'port_uri', 'scan_id', 'clone_from', 'enforce_device_type', 'status', 'action', 'cluster', 'mac_address', 'datacenter', 'method'])
 
 fields_device_permission = set(['Group_Name', 'Device_Name', 'name', 'devices', 'session', 'power', 'door', 'mks', 'kvm', 'reset_device', 'sp_console', 'virtual_media', 'access_log_audit', 'access_log_clear', 'event_log_audit', 'event_log_clear', 'sensors_data', 'monitoring', 'custom_commands'])
+
+fields_device_management = set(['ssh_and_telnet', 'credential', 'password', 'monitoring_nominal', 'discover_ports', 'discover_interval', 'discovered_name', 'purge_disabled_end_point_ports'])
+
 # ------------------------------------------
 
 # Add representer for 'None' type in Yaml
@@ -91,11 +94,12 @@ class ActionModule(ActionBase):
         target_devices = self.process_ansible_devices(action_module_args['csv_ansible_devices'],action_module_args['ansible_inventory_path'], action_module_args['ansible_inventory_hosts_filename'], ansible_group_name=action_module_args['ansible_group_name'])
         if target_devices:
             custom_fields_prefix = action_module_args.get('custom_fields_prefix', 'cf_')
+            management_fields_prefix = action_module_args.get('management_fields_prefix', 'mgmt_')
             ip_based_devices = {}
             serial_devices = {}
             usb_devices = {}
             if 'csv_ip_based' in action_module_args:
-                ip_based_devices = self.process_ip_based_devices(file_name=action_module_args['csv_ip_based'], custom_fields_prefix=custom_fields_prefix)
+                ip_based_devices = self.process_ip_based_devices(file_name=action_module_args['csv_ip_based'], custom_fields_prefix=custom_fields_prefix, management_fields_prefix=management_fields_prefix)
             if 'csv_serial' in action_module_args:
                 serial_devices = self.process_serial_devices(file_name=action_module_args['csv_serial'], custom_fields_prefix=custom_fields_prefix)
             if 'csv_usb' in action_module_args:
@@ -104,13 +108,14 @@ class ActionModule(ActionBase):
             if 'csv_discovery_rules' in action_module_args:
                 discovery_rules = self.process_discovery_rules(file_name=action_module_args['csv_discovery_rules'])
 
+            rebounce_list = ip_based_devices.pop("rebounce", []) + serial_devices.pop("rebounce", []) + usb_devices.pop("rebounce",[])
             devices = self.merge_devices(ip_based_devices, serial_devices, usb_devices)
             
             device_permissions = {}
             if 'csv_device_permissions' in action_module_args:
                 device_permissions = self.process_device_permissions(file_name=action_module_args['csv_device_permissions'], devices=devices)
             ansible_inventory_path = action_module_args.get('ansible_inventory_path', '/etc/ansible/inventories')
-            self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules, device_permissions=device_permissions)
+            self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules, device_permissions=device_permissions, rebounce_list=rebounce_list)
             return self._result_changed(msg=f"Managed devices inventory successfully created at {action_module_args['ansible_inventory_path']}. The list of ansible target devices is = {list(target_devices)}. The hosts/group file is {action_module_args['ansible_inventory_path']}/{action_module_args['ansible_inventory_hosts_filename']}. The group name is: {action_module_args['ansible_group_name']}")
 
     # #########################################
@@ -119,10 +124,12 @@ class ActionModule(ActionBase):
     #   its 'ansible_inventory_name', and each containing a list of managed devices.
     # - if 'device_type' is dict: return a dict of devices, each device referenced by 
     #   its 'ansible_inventory_name', and each containing a dict with the target device info.
-    def read_csv_devices(self, file_name, device_key_id='ansible_inventory_name', device_type=list, custom_fields_prefix="", fields_validate=set()):
+    def read_csv_devices(self, file_name, device_key_id='ansible_inventory_name', device_type=list, custom_fields_prefix="", management_fields_prefix="", fields_validate=set()):
         devices = {}
         custom_fields = set()
+        management_fields = set()
         undefined_fields = set()
+        rebounce_list = []
         try:
             with open(file_name, mode='r', newline='') as file_obj:
                 reader_obj = csv.DictReader(file_obj)
@@ -136,8 +143,12 @@ class ActionModule(ActionBase):
                     return None
                 if custom_fields_prefix.strip():
                     custom_fields=set([k for k in fieldnames if re.match(f"^{custom_fields_prefix}.*", k)])
+                    display.vvv(f"custom fields: {custom_fields}")
+                if management_fields_prefix.strip():
+                    management_fields=set([k for k in fieldnames if re.match(f"^{management_fields_prefix}.*", k)])
+                    display.vvv(f"management fields: {management_fields}")
                 if fields_validate:
-                    undefined_fields = set(fieldnames) - fields_validate - custom_fields - {device_key_id}
+                    undefined_fields = set(fieldnames) - fields_validate - custom_fields - management_fields - {device_key_id}
                     if undefined_fields:
                         display.vvv(f"[{file_name}] Undefined columns to be ignored: {undefined_fields}")
                 # Parse the devices information
@@ -145,6 +156,8 @@ class ActionModule(ActionBase):
                     settings_to_be_deleted = set()
                     for key,value in device.items():
                         if key in custom_fields:
+                            continue
+                        if key in management_fields:
                             continue
                         if value.strip() == "":
                             settings_to_be_deleted.add(key)
@@ -167,13 +180,36 @@ class ActionModule(ActionBase):
                             new_device.pop(cf_key, None)
                         device = new_device
                         #display.vvv(f"Device with custom fields: {device}")
-    
+                    if management_fields:
+                        new_device = dict(device)
+                        new_device["management"] = {}
+                        for mgmt_key in management_fields:
+                            mgmt_value = new_device[mgmt_key]
+                            new_device.pop(mgmt_key, None)
+                            if mgmt_value.strip() == "":
+                                continue
+                            new_device["management"][mgmt_key.removeprefix(management_fields_prefix)] = mgmt_value.strip()
+                        device = new_device
+                        if not device["management"]:
+                            device.pop("management", None)
+                        #display.vvv(f"Device with custom fields: {device}")
+                    
+                    rebounce = device.pop("rebounce", None)
+                    if rebounce and str(rebounce).lower() == "yes":
+                        if "mode" in device and str(device["mode"]).lower() != "disabled":
+                            rebounce_list.append({"name": device["name"], "mode": device["mode"]})
+                        elif not "mode" in device:
+                            rebounce_list.append({"name": device["name"], "mode": "enabled" })
                     if not ansible_device in devices and device_type is list:
                         devices[ansible_device] = []
                     if device_type is list:
                         devices[ansible_device].append(device)
                     elif device_type is dict: 
                         devices[ansible_device] = device
+
+                if device_type is list and rebounce_list:
+                    devices["rebounce"] = rebounce_list
+                    display.vvv(f"rebounce list: {rebounce_list}")
             return devices
         except FileNotFoundError:
             display.vvv(f"The file '{file_name}' was not found. Interrumping the execution.")
@@ -340,8 +376,8 @@ class ActionModule(ActionBase):
 
     # ###################################
     # Process the IP-based managed devices
-    def process_ip_based_devices(self, file_name, custom_fields_prefix=""):
-        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_ip_based)
+    def process_ip_based_devices(self, file_name, custom_fields_prefix="", management_fields_prefix=""):
+        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_ip_based, management_fields_prefix=management_fields_prefix)
         #display.vvv(f"IP-based managed devices: {devices}")
         display.vvv(f"Number of IP-based devices to be processed: {len(devices.keys())}")
         return devices
@@ -364,7 +400,7 @@ class ActionModule(ActionBase):
     
     # ###################################
     # Save Managed devices
-    def save_managed_devices(self, devices, target_devices, ansible_inventory_path, discovery_rules={}, device_permissions={}):
+    def save_managed_devices(self, devices, target_devices, ansible_inventory_path, discovery_rules={}, device_permissions={}, rebounce_list=[]):
         for device_name, managed_devices in devices.items():
             if not device_name in target_devices:
                 display.vvv(f"Target device {device_name} is not defined on the list of ansible target devices. Ignoring managed devices: {managed_devices}")
@@ -373,7 +409,7 @@ class ActionModule(ActionBase):
                 display.vvv(f"Target device {device_name} does not have any managed device defined.")
                 continue
             file_name = os.path.join(ansible_inventory_path,'host_vars',f"{device_name}.yaml")
-            device_info = {"managed_devices": managed_devices}
+            device_info = {"managed_devices": managed_devices, "rebounce": rebounce_list}
             display.vvv(f"Writting Managed devices info into: {file_name}")
             
             if device_name in discovery_rules:

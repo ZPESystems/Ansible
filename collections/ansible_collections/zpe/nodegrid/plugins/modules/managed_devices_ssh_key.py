@@ -58,19 +58,10 @@ def run_option_device(option, run_opt):
     ssh_private_key = suboptions['ssh_private_key']
     ssh_public_key = suboptions['ssh_public_key']
 
-    devices_table = read_table("/settings/devices")
-    if devices_table[0].lower() == 'error':
-        return result_failed(f"Failed to get device table on cli: 'show /settings/devices'. Error: {devices_table[1]}")
-    # Devices table header
-    # 'name'  'connected through'  'type'  'access'  'monitoring'
-    device = read_table_row(devices_table[1], 0, device_name)
-    if device is None:
-        return result_failed(f"Device name '{device_name}' does not exist!")
     # Check if allow_pre-shared_ssh_key is enabled
-    
     cmd_result = read_path_option(f"/settings/devices/{device_name}/access", "allow_pre-shared_ssh_key")
     if cmd_result[0] == "error":
-        return result_failed(f"Failed to get device '{device-name}' 'allow_pre-shared_ssh_key' option. Error: {cmd_result[1]}")
+        return result_failed(f"Failed to get device '{device_name}' 'allow_pre-shared_ssh_key' option. Error: {cmd_result[1]}")
 
     if cmd_result[1]["value"] == "no":
         return result_failed(f"Device '{device_name}' setting 'allow_pre-shared_ssh_key' is set to '{cmd_result[1]['value']}'. It is required to be enabled ('yes' option)")

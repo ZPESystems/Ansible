@@ -729,7 +729,7 @@ def run_module():
         },
         {
             'name': 'facts',
-            'suboptions': module.params['facts'],
+            'suboptions': module.params['facts'] if isinstance(module.params['facts'], bool) and module.params['facts'] else None,
             'cli_path': '',
             'func': facts
         },
@@ -747,8 +747,9 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
-    
+    if module.check_mode:
+        result['nodegrid_os'] = nodegrid_os
+
     #
     # Lets run the options
     #

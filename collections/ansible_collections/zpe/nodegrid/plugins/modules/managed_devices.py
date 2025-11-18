@@ -747,9 +747,12 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
+
     if module.check_mode:
         result['nodegrid_os'] = nodegrid_os
-
+    
+    # Not required for Managed Devices to create an snapshot before any task
+    use_config_start_global = False
     #
     # Lets run the options
     #

@@ -8,6 +8,9 @@ from datetime import datetime
 import os
 import uuid
 
+CERT_BEGIN = '-----BEGIN '
+CERT_END = '-----END '
+
 def _get_import_process_timeout(import_text):
     ret_timeout = 1500 # arbitrary default timeout
     count = 0
@@ -371,10 +374,6 @@ def split_in_two(line, separator):
 def convert_to_json(cli_output):
     # Detect if output is a table or not
     data = []
-    has_certificate = (
-        '-----BEGIN CERTIFICATE-----' in cli_output and
-        '-----END CERTIFICATE-----' in cli_output
-    )
 
     if "===" in cli_output:     #Table content
         details = []
@@ -423,7 +422,7 @@ def convert_to_json(cli_output):
         cert_lines = []
         for line in lines:
             # Read certificate lines and store them in the details dictionary
-            if has_certificate:
+            if CERT_BEGIN in cli_output and CERT_END in cli_output:
                 reading_cert, cert_lines, details = process_certificate_line(
                     line, reading_cert, cert_lines, details
                 )
@@ -446,7 +445,7 @@ def convert_to_json(cli_output):
         cert_lines = []
         for line in lines:
             # Read certificate lines and store them in the details dictionary
-            if has_certificate:
+            if CERT_BEGIN in cli_output and CERT_END in cli_output:
                 reading_cert, cert_lines, details = process_certificate_line(
                     line, reading_cert, cert_lines, details
                 )
@@ -492,11 +491,11 @@ def process_certificate_line(line, reading_cert, cert_lines, details):
     if line == 'certificate:':
         reading_cert = True
 
-    elif '-----BEGIN CERTIFICATE-----' in line:
+    elif CERT_BEGIN in line:
         reading_cert = True
         cert_lines.append(line.rstrip('\r'))
 
-    elif '-----END CERTIFICATE-----' in line:
+    elif CERT_END in line:
         cert_lines.append(line.rstrip('\r'))
         cert_lines.append("")
         details['certificate'] = cert_lines[:]

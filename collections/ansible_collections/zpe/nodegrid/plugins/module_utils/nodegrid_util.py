@@ -371,6 +371,10 @@ def split_in_two(line, separator):
 def convert_to_json(cli_output):
     # Detect if output is a table or not
     data = []
+    has_certificate = (
+        '-----BEGIN CERTIFICATE-----' in cli_output and
+        '-----END CERTIFICATE-----' in cli_output
+    )
 
     if "===" in cli_output:     #Table content
         details = []
@@ -415,7 +419,16 @@ def convert_to_json(cli_output):
     elif " = " in cli_output and "show" in cli_output:   # Settings Detected
         lines = cli_output.strip().split('\n')
         details = {}
+        reading_cert = False
+        cert_lines = []
         for line in lines:
+            # Read certificate lines and store them in the details dictionary
+            if has_certificate:
+                reading_cert, cert_lines, details = process_certificate_line(
+                    line, reading_cert, cert_lines, details
+                )
+                if reading_cert: continue
+
             if '=' in line:
                 key, value = split_in_two(line, '=')
                 details[key] = value
@@ -429,7 +442,16 @@ def convert_to_json(cli_output):
         lines = cli_output.strip().split('\n')
         details = {}
         path = ''
+        reading_cert = False
+        cert_lines = []
         for line in lines:
+            # Read certificate lines and store them in the details dictionary
+            if has_certificate:
+                reading_cert, cert_lines, details = process_certificate_line(
+                    line, reading_cert, cert_lines, details
+                )
+                if reading_cert: continue
+
             if ':' in line:
                 key, value = split_in_two(line, ':')
                 details[key] = value
@@ -465,6 +487,25 @@ def convert_to_json(cli_output):
     # #else:       # other output
 
     return data
+
+def process_certificate_line(line, reading_cert, cert_lines, details):
+    if line == 'certificate:':
+        reading_cert = True
+
+    elif '-----BEGIN CERTIFICATE-----' in line:
+        reading_cert = True
+        cert_lines.append(line.rstrip('\r'))
+
+    elif '-----END CERTIFICATE-----' in line:
+        cert_lines.append(line.rstrip('\r'))
+        cert_lines.append("")
+        details['certificate'] = cert_lines[:]
+        reading_cert = False
+
+    elif reading_cert:
+        cert_lines.append(line.rstrip('\r'))
+
+    return reading_cert, cert_lines, details
 
 def result_failed(msg):
     return {'failed': True, 'changed': False, 'msg': msg}

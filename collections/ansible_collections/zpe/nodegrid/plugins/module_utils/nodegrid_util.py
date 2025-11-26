@@ -374,6 +374,8 @@ def split_in_two(line, separator):
 def convert_to_json(cli_output):
     # Detect if output is a table or not
     data = []
+    regex = rf'([a-zA-Z0-9 _-]+):\s*\r\n(?=.*?{re.escape(CERT_BEGIN)})'
+    cert_key = re.search(regex, cli_output)
 
     if "===" in cli_output:     #Table content
         details = []
@@ -424,7 +426,7 @@ def convert_to_json(cli_output):
             # Read certificate lines and store them in the details dictionary
             if CERT_BEGIN in cli_output and CERT_END in cli_output:
                 reading_cert, cert_lines, details = process_certificate_line(
-                    line, reading_cert, cert_lines, details
+                    line, reading_cert, cert_lines, details, cert_key
                 )
                 if reading_cert: continue
 
@@ -447,7 +449,7 @@ def convert_to_json(cli_output):
             # Read certificate lines and store them in the details dictionary
             if CERT_BEGIN in cli_output and CERT_END in cli_output:
                 reading_cert, cert_lines, details = process_certificate_line(
-                    line, reading_cert, cert_lines, details
+                    line, reading_cert, cert_lines, details, cert_key
                 )
                 if reading_cert: continue
 
@@ -487,8 +489,8 @@ def convert_to_json(cli_output):
 
     return data
 
-def process_certificate_line(line, reading_cert, cert_lines, details):
-    if line == 'certificate:':
+def process_certificate_line(line, reading_cert, cert_lines, details, cert_key):
+    if line == cert_key.group(1):
         reading_cert = True
 
     elif CERT_BEGIN in line:
@@ -498,7 +500,7 @@ def process_certificate_line(line, reading_cert, cert_lines, details):
     elif CERT_END in line:
         cert_lines.append(line.rstrip('\r'))
         cert_lines.append("")
-        details['certificate'] = cert_lines[:]
+        details[cert_key.group(1)] = cert_lines[:]
         reading_cert = False
 
     elif reading_cert:

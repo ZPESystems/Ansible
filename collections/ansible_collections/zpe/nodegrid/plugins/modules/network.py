@@ -574,11 +574,12 @@ def run_option_network_connections(option, run_opt):
 
     suboptions = option['suboptions']
     check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
     field_name = 'name'
     if field_exist(suboptions, field_name):
         cli_path =  f"{option['cli_path']}/{suboptions[field_name]}"
         # Lets export the settings to the cli path
-        state, exported_settings, exported_all_settings = export_settings(cli_path)
+        state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
         if not "error" in state:
             if "ethernet_interface" in option['suboptions']:
                 del option['suboptions']['ethernet_interface']

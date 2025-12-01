@@ -430,6 +430,7 @@ def run_option_device(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
     settings_list = []
     cmds = None
     cmd_results = None
@@ -538,7 +539,7 @@ def run_option_device(option, run_opt):
                 cmd_result = dict()
                 if not check_mode:
                     try:
-                        cmd_cli = get_cli(timeout=60)
+                        cmd_cli = get_cli(timeout=timeout)
                         for cmd in cmds:
                             cmd_result = execute_cmd(cmd_cli, cmd)
                             if cmd_result['error']:
@@ -690,7 +691,8 @@ def run_module():
         device=dict(type='dict', required=False),
         auto_discovery=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        facts=dict(type='bool', default=False, required=False)
+        facts=dict(type='bool', default=False, required=False),
+        timeout=dict(type='int', default=60, required=False),
     )
 
     # seed the result dict in the object
@@ -760,6 +762,7 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
+        'timeout': module.params['timeout']
     }
 
     for option in option_list:

@@ -69,6 +69,7 @@ def run_option_license(option, run_opt):
     settings_dict = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
 
     result = dict(
         changed=False,
@@ -90,7 +91,12 @@ def run_option_license(option, run_opt):
             
             for lic_key in license_keys:
                 cmd = f"cd {cli_path}; add; set license_key={lic_key}; commit"
-                output = run_cli_command(cmd)
+                cli_output = run_cli_command(cmd, timeout=timeout)
+                if 'error' in cli_output:
+                    result['failed'] = True
+                    result['msg'] = cli_output.get('msg', f'Error on cmd: {cmd}')
+                    return result
+                output = cli_output.get('output')
                 if "Error:".lower() in output.lower():
                     if "License Already Installed".lower() in output.lower():
                         already_installed.append(lic_key)

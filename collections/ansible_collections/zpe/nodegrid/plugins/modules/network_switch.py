@@ -151,9 +151,10 @@ def run_option_network_switch_interfaces(option, run_opt):
 def run_option_network_switch_backplane(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
+    timeout = run_opt.get('timeout', 60)
 
     # Export current settings
-    state, exported_settings, exported_all_settings = export_settings(cli_path)
+    state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
     if "error" in state:
         return result_failed(f"Failed exporting settings on {cli_path}. Error: {state[1]}")
 

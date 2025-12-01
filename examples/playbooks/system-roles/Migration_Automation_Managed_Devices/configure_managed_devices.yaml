@@ -5,6 +5,8 @@
   tags: import-managed-devices
   collections:
     - zpe.nodegrid
+  vars:
+    nodegrid_timeout: 120 # Nodegrid CLI commands timeout
   tasks:
   - name: Create Managed devices
     include_role:

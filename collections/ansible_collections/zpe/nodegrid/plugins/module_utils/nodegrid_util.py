@@ -25,12 +25,21 @@ def _get_import_process_timeout(import_text):
 
     return ret_timeout
 
-def run_cli_command(cmd):
-    cli_cmd = f'cli -c {cmd}'
-    output = pexpect.run(cli_cmd)
-    return output.decode('UTF-8').strip()
+def run_cli_command(cmd, timeout=60, expect_criteria=pexpect.EOF):
+    try:
+        output = ''
+        cli_cmd = f'cli -c {cmd}'
+        child = pexpect.spawn(cli_cmd, encoding='utf-8')
+        child.expect(expect_criteria, timeout=timeout)
+        output = str(child.before) + str(child.after) if child.after != pexpect.EOF else str(child.before)
+        return {'output': output.strip()}
+    except pexpect.exceptions.TIMEOUT as e:
+        return {'error': True, 'msg': f'cli cmd execution TIMEOUT. cmd: {cmd}, timeout: {timeout}'}
+    except Exception as e:
+        return {'error': True, 'msg': f'cli command {cmd} exception. Exception: {e}'}
 
-def get_cli(timeout=30):
+
+def get_cli(timeout=60):
     cmd_cli = pexpect.spawn('cli', encoding='UTF-8', timeout=timeout)
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
@@ -39,8 +48,8 @@ def get_cli(timeout=30):
     return cmd_cli
 
 
-def get_shell(become=False):
-    cmd_shell = pexpect.spawn('bash', encoding='UTF-8')
+def get_shell(become=False, timeout=60):
+    cmd_shell = pexpect.spawn('bash', encoding='UTF-8', timeout=timeout)
     cmd_shell.setwinsize(500, 250)
     cmd_shell.expect_exact(['$'])
     return cmd_shell
@@ -49,11 +58,11 @@ def close_cli(cmd_cli):
     cmd_cli.sendline('exit')
     cmd_cli.close()
 
-def execute_cmd(cmd_cli, cmd):
+def execute_cmd(cmd_cli, cmd, timeout=60):
     if 'cmd' in cmd.keys():
         cmd_cli.sendline(cmd['cmd'])
         if 'confirm' in cmd.keys() or 'restore' in cmd.keys():
-            index = cmd_cli.expect_exact(['(yes, no)  :', ']# ', pexpect.EOF, pexpect.TIMEOUT])
+            index = cmd_cli.expect_exact(['(yes, no)  :', ']# ', pexpect.EOF, pexpect.TIMEOUT], timeout=timeout)
             if index == 0:
                 cmd_cli.sendline('yes')
                 cmd_cli.expect_exact(']# ')
@@ -86,13 +95,16 @@ def execute_cmd(cmd_cli, cmd):
                 output_dict['stdout_lines'] = output_lines
     return output_dict
 
-def get_nodegrid_os_details():
+def get_nodegrid_os_details(timeout=60):
     """Returns details about the Nodegrid OS
 
     Returns:
         dict: Nodegrid OS details
     """
-    output = run_cli_command("show /system/about")
+    cli_output = run_cli_command("show /system/about", timeout=timeout)
+    if 'error' in cli_output:
+        return {'error': cli_output.get('msg', 'Error on cmd: show /system/about')}
+    output = cli_output.get('output')
     details = {}
     if "Error" in output or "error" in output:
         if "Error: Invalid argument:" in output:
@@ -120,13 +132,16 @@ def get_nodegrid_os_details():
         details["error"] = f"Error getting Nodegrid Version. CLI output: {output}"
     return details
 
-def get_system_details():
+def get_system_details(timeout=60):
     """Returns details about the Nodegrid System /system/about
 
     Returns:
         dict: Nodegrid System details
     """
-    output = run_cli_command("show /system/about")
+    cli_output = run_cli_command("show /system/about", timeout=timeout)
+    if 'error' in cli_output:
+        return {'error': cli_output.get('msg', 'Error on cmd: show /system/about')}
+    output = cli_output.get('output')
     details = {}
     if "Error" in output or "error" in output:
         if "Error: Invalid argument:" in output:
@@ -140,7 +155,7 @@ def get_system_details():
             details[key.strip()] = value.strip()
     return details
 
-def export_settings(cli_path):
+def export_settings(cli_path, timeout=60):
     """Runs the export settings
 
     Args:
@@ -151,10 +166,13 @@ def export_settings(cli_path):
         dict: Exported settings with empty values
         dict: All exported settings, including empty and hide values
     """
-    output = run_cli_command(f'export_settings {cli_path} --plain-password --include-empty --not-enabled')
     settings = []
     all_settings = []
     state = 'error'
+    cli_output = run_cli_command(f'export_settings {cli_path} --plain-password --include-empty --not-enabled', timeout=timeout)
+    if 'error' in cli_output:
+        return ["error", cli_output.get('msg', f'Error on cmd: export_settings {cli_path} --plain-password --include-empty --not-enabled')], settings, all_settings
+    output = cli_output.get('output')
     if "error" in output.lower():
         return ["error",output.replace('\r\r\n', '\r\n')], settings, all_settings
     for line in output.splitlines():
@@ -189,9 +207,16 @@ def import_settings(settings, use_config_start=True, timeout=60):
     import_status = "succeeded"
     error_list = []
 
-    with open(import_settings_file, "w") as f:
-        for item in settings:
-            f.write(item + "\n")
+    try:
+        with open(import_settings_file, "w") as f:
+            f.writelines(line + '\n' for line in settings)
+    except Exception as e:
+        import_settings_error = e
+        output_dict["import_status"] = "failed"
+        output_dict["import_settings_file"] = f"{import_settings_file}"
+        output_dict["import_settings_error"] = [f"{import_settings_error}"]
+        output_dict["import_timeout"] = [f"{import_p_timeout}"]
+        return output_dict
 
     failed_to_import_settings = False
     import_settings_error = None
@@ -211,7 +236,7 @@ def import_settings(settings, use_config_start=True, timeout=60):
             cmd_cli.sendline("config_confirm")
             cmd_cli.expect_exact('/]# ', timeout=import_p_timeout)
         cmd_cli.sendline('exit')
-    except pexpect.TIMEOUT as e:
+    except pexpect.exceptions.TIMEOUT as e:
         failed_to_import_settings = True
         import_settings_error = e
         output_dict['pexpect_timeout'] = f"{e}"
@@ -343,14 +368,14 @@ def compare_versions(version1, version2):
     else:
         return 0
 
-def check_os_version_support():
+def check_os_version_support(timeout=60):
     """Checks if the Nodegrid Os version supports this library
 
     Returns:
         str: The result string can be: 'error', 'unsupported', 'warning' or 'supported'
         dict: Nodegrid OS Details
     """
-    nodegrid_os = get_nodegrid_os_details()
+    nodegrid_os = get_nodegrid_os_details(timeout=timeout)
     if "error" in nodegrid_os:
         return "error","Error getting Nodegrid os details. Error: " + nodegrid_os['error'], nodegrid_os
     version = nodegrid_os['version']
@@ -548,6 +573,8 @@ def run_option(option, run_opt):
     skip_invalid_keys = run_opt['skip_invalid_keys']
     check_mode = run_opt['check_mode']
     use_config_start_global = run_opt['use_config_start_global']
+    timeout = run_opt.get('timeout',60)
+
     if 'no_diff' in run_opt and run_opt['no_diff']:
         no_diff = True
     else:
@@ -572,7 +599,7 @@ def run_option(option, run_opt):
         diff = new_settings
     else:
         # Lets export the settings to the cli path
-        state, exported_settings, exported_all_settings = export_settings(cli_path)
+        state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
         if "error" in state:
             result['export_result'] = state[1]
         else:
@@ -613,7 +640,7 @@ def run_option(option, run_opt):
                 use_config_start=use_config_start_global
             ))
         else:
-            import_result = import_settings(diff, use_config_start=use_config_start_global, timeout=run_opt.get('timeout',60))
+            import_result = import_settings(diff, use_config_start=use_config_start_global, timeout=timeout)
 
         result['import_result'] = import_result
         if import_result['import_status'] == 'succeeded':
@@ -663,11 +690,12 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
     Returns:
         dict: Result of import
     """
+    timeout = run_opt.get('timeout',60)
     suboptions = option['suboptions']
     copied_options = suboptions.copy()
 
     # Export current settings
-    state, exported_settings, exported_all_settings = export_settings(option['cli_path'])
+    state, exported_settings, exported_all_settings = export_settings(option['cli_path'], timeout=timeout)
     if "error" in state:
         return result_failed(f"Failed exporting settings on {option['cli_path']}. Error: {state[1]}")
 

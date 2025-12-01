@@ -33,7 +33,8 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         cmds=dict(type='list', required=True),
-        overwrite=dict(type=bool, default=False)
+        overwrite=dict(type=bool, default=False),
+        timeout=dict(type='int', default=60, required=False),
     )
 
     # seed the result dict in the object
@@ -56,12 +57,12 @@ def run_module():
     )
 
 
-
+    timeout = module.params.get('timeout')
     #
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
@@ -78,7 +79,7 @@ def run_module():
         module.exit_json(**result)
 
     # run commands and gather output
-    res = import_settings(module.params['cmds'], use_config_start_global)
+    res = import_settings(module.params['cmds'], use_config_start_global, timeout=timeout)
     result['output'] = {'import_settings': {'import_result': res}}
     if res['state'] == 'failed':
         if len(res['error_list']) > 0:

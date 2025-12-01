@@ -121,7 +121,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
     # #####################################################################################
 
     #def collect(self, module=None, collected_facts=None):
-    def _run_commands(self, cmds, timeout=30):
+    def _run_commands(self, cmds, timeout=60):
         result = dict(
             changed=False,
             failed=False
@@ -249,15 +249,15 @@ class NodegridFactCollector(collector.BaseFactCollector):
         #
         # Nodegrid OS section starts here
         #
-        timeout = module.params.pop('gather_timeout', 30)
+        timeout = module.params.pop('gather_timeout', 60)
         #timeout = 30
     
         # Lets get the current status and check if it must be changed
-        res, err_msg, nodegrid_os = check_os_version_support()
+        res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
         if res == 'error' or res == 'unsupported':
             return dict(msg=err_msg)
 
-        system_details = get_system_details()
+        system_details = get_system_details(timeout=timeout)
     
         cmds = self._get_cmds(system_details)
         cmds_results = self._run_commands(cmds, timeout=timeout)

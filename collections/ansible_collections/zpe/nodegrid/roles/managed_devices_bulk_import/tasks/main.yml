@@ -2,9 +2,9 @@
   tags: always
   when: managed_devices is defined
   include_tasks: add_managed_device.yml
-  loop: "{{ managed_devices }}"
+  loop: "{{ managed_devices | batch(batch_size | default(100)) | list }}"
   loop_control:
-    loop_var: device
+    loop_var: devices
     index_var: i
 
 - name: Configure SSH keys

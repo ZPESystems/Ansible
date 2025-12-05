@@ -1,0 +1,5 @@
+- name: Iteration "{{ i }}" | Add "{{ devices | length | default('') }}" Managed Devices (batch_size= "{{ batch_size }}")
+  tags: always
+  zpe.nodegrid.managed_devices_bulk_import:
+    devices: "{{ devices }}"
+    timeout: "{{ nodegrid_timeout | default(120) }}"

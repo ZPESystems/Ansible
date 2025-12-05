@@ -497,7 +497,7 @@ def run_module():
         authorization=dict(type='dict', required=False),
         password_rules=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type=int, default=60)
+        timeout=dict(type='int', default=60, required=False)
     )
 
     # seed the result dict in the object
@@ -564,7 +564,7 @@ def run_module():
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':

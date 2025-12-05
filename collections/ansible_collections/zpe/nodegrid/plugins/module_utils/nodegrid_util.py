@@ -573,7 +573,7 @@ def run_option(option, run_opt):
     skip_invalid_keys = run_opt['skip_invalid_keys']
     check_mode = run_opt['check_mode']
     use_config_start_global = run_opt['use_config_start_global']
-    timeout = run_opt.get('timeout',60)
+    timeout = run_opt.get('timeout', 60)
 
     if 'no_diff' in run_opt and run_opt['no_diff']:
         no_diff = True
@@ -690,7 +690,7 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
     Returns:
         dict: Result of import
     """
-    timeout = run_opt.get('timeout',60)
+    timeout = run_opt.get('timeout', 60)
     suboptions = option['suboptions']
     copied_options = suboptions.copy()
 
@@ -795,6 +795,27 @@ def read_table_row(table, col_index, col_value):
         if row[col_index] == col_value:
             return row
     return None
+
+def read_path_options(cli_path, separators=[":","="], timeout=60):
+    cli_output = run_cli_command(f"show {cli_path}", timeout=timeout)
+    if 'error' in cli_output:
+        return {'error': True, 'msg': cli_output.get('msg', f'Error on cmd: show {cli_path}')}
+    output = cli_output.get('output')
+    if "Error" in output or "error" in output:
+        return {"error": True, 'msg': output.strip()}
+    result = {
+        "path": cli_path,
+        "options": dict(),
+    }
+
+    for line in output.splitlines()[0:-1]:
+        if len(line) > 0:
+            for separator in separators:
+                row = line.split(separator)
+                if len(row) > 1 and len(row[0].strip()) > 0:
+                    result["options"][row[0].strip()] = row[1].strip()
+    result["successful"] = True
+    return result
 
 def read_path_option(cli_path, option, separators=[":","="]):
     cmd = f"show {cli_path} {option}"

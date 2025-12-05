@@ -425,53 +425,101 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def run_option_device(option, run_opt):
-    suboptions = option['suboptions']
+def run_option_devices(option, run_opt):
+    devices = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
-    timeout = run_opt.get('timeout', 60)
+    settings_list = []
+    cmds = []
+    cmd_results = list()
+    for adevice in devices:
+        device={
+            'access': {key: value for key, value in adevice.items() if key not in ['custom_fields', 'management', 'logging', 'commands']},
+            'management': {} if not 'management' in adevice else adevice['management'],
+            'custom_fields': [] if not 'custom_fields' in adevice else adevice['custom_fields'],
+            'logging': {} if not 'logging' in adevice else adevice['logging'],
+            'commands': [] if not 'commands' in adevice else adevice['commands'],
+        }
+        device_result = run_option_device(device, cli_path, run_opt)
+        if not "failed" in device_result:
+            settings_list += device_result['settings']
+            if 'cmds' in device_result:
+                cmds += device_result['cmds']
+            if 'cmd_results' in device_result:
+                cmd_results.append(device_result['cmd_results'])
+
+    options = {
+        'name': 'devices',
+        'cli_path': '/settings/devices',
+        'suboptions': '',
+        'settings': settings_list
+        }
+    
+    result = run_option(options, run_opt)
+
+    if check_mode:
+        if cmds:
+            result['cmds'] = cmds
+        return result
+
+    # If device named was changed, update the return result
+    if cmd_results:
+        result['cmds_output'] = cmd_results
+        result['changed'] = True
+        if result['message'] == 'No change required':
+            result['message'] = change_name_message
+        else:
+            result['message'] += f" | {change_name_message}"
+    return result
+
+def run_option_device(device, cli_path, run_opt):
+    device_result = {
+        'cli_path': cli_path,
+        'settings': [],
+    }
+    check_mode = run_opt['check_mode']
     settings_list = []
     cmds = None
     cmd_results = None
     change_name_message = None
 
-    if not ('access' in suboptions and field_exist(suboptions['access'], 'name')):
+    if not ('access' in device and field_exist(device['access'], 'name')):
         return result_failed("Field 'access/name' is required")
     
-    if not ('access' in suboptions and field_exist(suboptions['access'], 'type')):
+    if not ('access' in device and field_exist(device['access'], 'type')):
         return result_failed("Field 'access/type' is required")
     
-    if suboptions['access']['type'] not in managed_device_types:
-        return result_failed(f"Managed device type '{suboptions['access']['type']}' not supported. Supported values include: {managed_device_types}")
+    if device['access']['type'] not in managed_device_types:
+        return result_failed(f"Managed device type '{device['access']['type']}' not supported. Supported values include: {managed_device_types}")
     
-    # Control if device type is ip_based: change suboptions device type.
-    device_type = get_device_type(suboptions['access']['type'])
+    # Control if device type is ip_based: change device type.
+    device_type = get_device_type(device['access']['type'])
     if device_type == "ip_based":
-        device_type = suboptions['access']['type']
-        suboptions['access'].pop('port_name', None)
-        suboptions['access']['type'] = "ip_based"
+        device_type = device['access']['type']
+        device['access'].pop('port_name', None)
+        device['access']['type'] = "ip_based"
     
     # Clean the required options
     try:
         settings_tobe_deleted = set(['ssh_key_type', 'ssh_private_key', 'ssh_public_key'])
         for dependency in device_dependencies:
             if isinstance(device_dependencies[dependency], dict):
-                for dep_rem in {key:value for key, value in device_dependencies[dependency].items() if dependency in suboptions['access'] and key not in [suboptions['access'][dependency]]}:
+                for dep_rem in {key:value for key, value in device_dependencies[dependency].items() if dependency in device['access'] and key not in [device['access'][dependency]]}:
                     for setting in device_dependencies[dependency][dep_rem]:
-                        if (suboptions['access'][dependency] not in device_dependencies[dependency]) or (setting not in device_dependencies[dependency][suboptions['access'][dependency]]):
+                        if (device['access'][dependency] not in device_dependencies[dependency]) or (setting not in device_dependencies[dependency][device['access'][dependency]]):
                             settings_tobe_deleted.add(setting)
 
-            elif isinstance(device_dependencies[dependency], list) and dependency in suboptions['access'] and suboptions['access'][dependency].lower() == "no":
+            elif isinstance(device_dependencies[dependency], list) and dependency in device['access'] and device['access'][dependency].lower() == "no":
                 for setting in device_dependencies[dependency]:
                     settings_tobe_deleted.add(setting)
             elif isinstance(device_dependencies[dependency], tuple):
-                if not dependency in suboptions['access']:
+                if not dependency in device['access']:
                     continue
                 atuple = device_dependencies[dependency]
-                if atuple[0] == "validate" and suboptions['access'][dependency] in atuple[1]:
-                    if dependency in suboptions['access']:
-                        valid_options = atuple[1][suboptions['access'][dependency]]
-                        items_to_validate = {option:values for option,values in atuple[1].items() if not option == suboptions['access'][dependency]}
+                if atuple[0] == "validate" and device['access'][dependency] in atuple[1]:
+                    if dependency in device['access']:
+                        valid_options = atuple[1][device['access'][dependency]]
+                        items_to_validate = {option:values for option,values in atuple[1].items() if not option == device['access'][dependency]}
                     else:
                         valid_options = []
                         items_to_validate = {option:values for option,values in atuple[1].items()}
@@ -482,18 +530,18 @@ def run_option_device(option, run_opt):
 
         # Delete settings not required
         for setting in settings_tobe_deleted:
-            suboptions['access'].pop(setting, None)
+            device['access'].pop(setting, None)
     except Exception as e:
-        return {'failed': True, 'changed': False, 'msg': f"{suboptions['access']} | Key/value error: {e} | {traceback.format_exc()}"}
+        return {'failed': True, 'changed': False, 'msg': f"{device['access']} | Key/value error: {e} | {traceback.format_exc()}"}
         
     # Change back if device_type is ip_based
     if device_type in managed_device_type['ip_based']:
-        suboptions['access']['type'] = device_type
+        device['access']['type'] = device_type
 
     # Control if the device is TTY or USB: it must have the port_name option
-    if ('port_name' in suboptions['access']):
-        port_name = suboptions['access']['port_name']
-        suboptions['access'].pop('port_name')
+    if ('port_name' in device['access']):
+        port_name = device['access']['port_name']
+        device['access'].pop('port_name')
 
         # Change managed device name supported only for devices connected through tty or usb (local_serial / usb_serial)
         # The name is changed based on an specific cli command (i.e., no via import_settings). For example:
@@ -502,8 +550,8 @@ def run_option_device(option, run_opt):
         # Validate 'port_name' format against the pattern ttyS{numbers} or usbS{numbers}-{numbers}
         pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$|^usbS([0-9])$|^usbS([0-9]+-[0-9]+)$")
         if pattern.match(port_name):
-            new_name = suboptions['access']['name'].strip()
-            suboptions['access'].pop('name')
+            new_name = device['access']['name'].strip()
+            device['access'].pop('name')
             device_options_cli = read_path_options(f"/settings/devices/{port_name}/access")
             if 'error' in device_options_cli:
                 return result_failed(f"Failed to read options: 'show /settings/devices/{port_name}/access'. Error: {device_options_cli}")
@@ -515,8 +563,8 @@ def run_option_device(option, run_opt):
             current_name = device_options.get('name',None)
             if current_name is None:
                 return result_failed(f"Failing to get device name for port '{port_name}'. Device options: f{device_options_cli}")
-
-            device_type = suboptions["access"]["type"]
+            
+            device_type = device["access"]["type"]
             pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$")
             if pattern.match(port_name):
                 # serial port type options
@@ -527,12 +575,12 @@ def run_option_device(option, run_opt):
                 if device_type not in managed_device_type['usb']:
                     return result_failed(f"USB port '{port_name}' does not support type '{device_type}'. Supported types include:{managed_device_type['usb']}")
             settings_tobe_deleted = set()
-            for setting in suboptions["access"]:
+            for setting in device["access"]:
                 if not setting in device_dependencies["type"][device_type]:
                     settings_tobe_deleted.add(setting)
             
             for setting in settings_tobe_deleted:
-                suboptions["access"].pop(setting, None)
+                device["access"].pop(setting, None)
 
             if new_name != current_name:
                 cmds = [{'confirm': True,'cmd': f"cd /settings/devices; rename {current_name}; set new_name={new_name}"}]
@@ -540,7 +588,7 @@ def run_option_device(option, run_opt):
                 cmd_result = dict()
                 if not check_mode:
                     try:
-                        cmd_cli = get_cli(timeout=timeout)
+                        cmd_cli = get_cli(timeout=60)
                         for cmd in cmds:
                             cmd_result = execute_cmd(cmd_cli, cmd)
                             if cmd_result['error']:
@@ -554,12 +602,12 @@ def run_option_device(option, run_opt):
             else:
                 cli_path += f"/{current_name}"
         else:
-            return result_failed(f"Port name '{port_name}' not supported [Device: {suboptions}]. Port names supported include 'ttyS*' and 'usbS*'")
+            return result_failed(f"Port name '{port_name}' not supported [Device: {device}]. Port names supported include 'ttyS*' and 'usbS*'")
     else:
-        cli_path += f"/{suboptions['access']['name'].strip()}"
+        cli_path += f"/{device['access']['name'].strip()}"
 
-    if 'access' in suboptions:
-        access_ordered = OrderedDict(suboptions['access'])
+    if 'access' in device:
+        access_ordered = OrderedDict(device['access'])
         for ordered_setting, settings in {key:value for key,value in device_dependencies.items() if type(value) is list}.items():
             if ordered_setting in access_ordered:
                 for setting in [key for key in settings if key in access_ordered]:
@@ -572,10 +620,9 @@ def run_option_device(option, run_opt):
                     for setting in atuple[1][access_ordered[ordered_setting]]:
                         tmp_value= access_ordered.pop(setting)
                         access_ordered[setting] = tmp_value
-        suboptions['access'] = access_ordered
-        #return result_failed(f"Access: {suboptions['access']}")
+        device['access'] = access_ordered
 
-    for key, value in suboptions.items():
+    for key, value in device.items():
         # commands
         if key in ['commands']:
             field_name = 'command'
@@ -596,11 +643,11 @@ def run_option_device(option, run_opt):
                     return result_failed(f"Field '{key}/{field_name} is required")
         # Logging 
         elif key in ['logging']:
-            if not suboptions['access']['type'] in device_type_not_support_logging:
+            if not device['access']['type'] in device_type_not_support_logging:
                 settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
         # Management
         elif key in ['management']:
-            if not suboptions['access']['type'] in device_type_not_support_management:
+            if not device['access']['type'] in device_type_not_support_management:
                 settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
         # Access 
         elif key in ['access']:
@@ -608,91 +655,19 @@ def run_option_device(option, run_opt):
         else:
             return result_failed(f"Suboption '{key}' not supported!")
 
-    option['cli_path'] = cli_path
-    option['settings'] = settings_list
-    result = run_option(option, run_opt)
-
-    if check_mode:
-        if cmds:
-            result['cmds'] = cmds
-        return result
-
-    # If device named was changed, update the return result
+    #option['cli_path'] = cli_path
+    if cmds:
+        device_result['cmds'] = cmds
     if cmd_results:
-        result['cmds_output'] = cmd_results
-        result['changed'] = True
-        if result['message'] == 'No change required':
-            result['message'] = change_name_message
-        else:
-            result['message'] += f" | {change_name_message}"
-    return result
-
-def run_option_auto_discovery(option, run_opt):
-    suboptions = option['suboptions']
-    cli_path = option['cli_path']
-    settings_list = []
-    
-    for key, value in suboptions.items():
-
-        # network_scan
-        if key in ['network_scan','vm_managers','discovery_rules']:
-
-            if key == 'network_scan':
-                field_name = 'scan_id'
-            elif key == 'vm_managers':
-                field_name = 'vm_server'
-            else:
-                field_name = 'rule_name'
-
-            for item in to_list(value):
-                if field_exist(item, field_name):
-                    settings_list.extend( format_settings(f"{cli_path}/{key}/{item[field_name]}",item) )
-                else:
-                    return result_failed(f"Field '{key}/{field_name}' is required")
-
-        # hostname_detection
-        else:
-            settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
-
-    option['settings'] = settings_list
-    return run_option(option, run_opt)
-
-def facts(option, run_opt):
-    suboptions = option['suboptions']
-    cli_path = option['cli_path']
-    raw = pexpect.run('llconf ini -si /etc/spm_server.ini json')
-
-    inventory = {
-        "managed_devices": [],
-        "device_disabled": [],
-        "device_enabled": [],
-        "device_ondemand": [],
-        }
-    parsed = json.loads(raw)
-    if len(parsed) == 1:
-        parsed = parsed['(root)']
-        for device in parsed:
-            inventory['managed_devices'].append(device)
-            if parsed[device]['status'] == 'disabled':
-                inventory['device_disabled'].append(device)
-            elif parsed[device]['status'] == 'enabled':
-                inventory['device_enabled'].append(device)
-            elif parsed[device]['status'] == 'ondemand':
-                inventory['device_ondemand'].append(device)
-    result = dict(
-        changed=False,
-        failed=False,
-        devices=inventory
-    )
-    return result
+        device_result['cmd_results'] = cmd_results
+    device_result['settings'] = settings_list
+    return device_result
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
-        device=dict(type='dict', required=False),
-        auto_discovery=dict(type='dict', required=False),
+        devices=dict(type='list', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        facts=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
     )
 
@@ -719,22 +694,10 @@ def run_module():
     # List of options to run
     option_list = [
         {
-            'name': 'device',
-            'suboptions': module.params['device'],
+            'name': 'devices',
+            'suboptions': module.params['devices'],
             'cli_path': '/settings/devices',
-            'func': run_option_device
-        },
-        {
-            'name': 'auto_discovery',
-            'suboptions': module.params['auto_discovery'],
-            'cli_path': '/settings/auto_discovery',
-            'func': run_option_auto_discovery
-        },
-        {
-            'name': 'facts',
-            'suboptions': module.params['facts'] if isinstance(module.params['facts'], bool) and module.params['facts'] else None,
-            'cli_path': '',
-            'func': facts
+            'func': run_option_devices
         },
     ]
 

@@ -106,7 +106,7 @@ def run_module():
     module_args = dict(
         ipv4_nat=dict(type='dict', required=False),
         ipv4_firewall=dict(type='dict', required=False),
-        timeout=dict(type=int, default=60),
+        timeout=dict(type='int', default=60, required=False),
         debug=dict(type='bool', default=False)
     )
 
@@ -138,7 +138,7 @@ def run_module():
         except:
             timeout = 60
     # Lets get the current status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':

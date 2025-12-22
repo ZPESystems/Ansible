@@ -1,0 +1,6 @@
+- name: Configure Network FRR
+  tags: always
+
+  zpe.nodegrid.network:
+    frr: "{{ frr | default('') }}"
+

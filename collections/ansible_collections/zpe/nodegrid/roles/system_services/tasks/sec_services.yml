@@ -52,6 +52,8 @@
       redirect_http_to_https: "{{ redirect_http_to_https }}"
       enable_https_file_repository: "{{ enable_https_file_repository }}"
       frr_enable_bgp: "{{ frr_enable_bgp }}"
+      frr_enable_isis: "{{ frr_enable_isis }}"
+      frr_enable_path: "{{ frr_enable_path }}"
       frr_enable_ospfv2: "{{ frr_enable_ospfv2 }}"
       frr_enable_ospfv3: "{{ frr_enable_ospfv3 }}"
       frr_enable_rip: "{{ frr_enable_rip }}"

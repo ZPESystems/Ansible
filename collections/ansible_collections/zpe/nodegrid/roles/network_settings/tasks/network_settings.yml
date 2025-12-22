@@ -12,3 +12,6 @@
       reverse_path_filtering: "{{ nodegrid_reverse_path_filtering }}"
       enable_multiple_routing_tables: "{{ nodegrid_enable_multiple_routing_tables }}"
       enable_bluetooth_network: "{{ nodegrid_enable_bluetooth_network }}"
+      enable_vrf_strict_mode: "{{ nodegrid_enable_vrf_strict_mode }}"
+      enable_ipv6_segment_routing: "{{ nodegrid_enable_ipv6_segment_routing }}"
+      ipv6_segment_routing_flowlabel: "{{ nodegrid_ipv6_segment_routing_flowlabel }}"

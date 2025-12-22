@@ -171,7 +171,7 @@ def run_module():
             try:
                 for item in event_settings:
                     if item in event_settings_current:
-                        if event_settings[item].strip() != event_settings_current[item].strip():
+                        if event_settings[item].strip() != str(event_settings_current[item]).strip():
                             diff.append({item: event_settings[item]})
                     else:
                         diff.append({item: event_settings[item]})

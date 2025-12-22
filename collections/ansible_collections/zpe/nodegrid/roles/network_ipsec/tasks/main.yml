@@ -1,0 +1,20 @@
+- name: IPSEC Global Configuration
+  tags: always
+  when: ipsec_global is defined
+  include_tasks: ipsec_global.yml
+
+- name: Add IPSEC IKE Profile
+  tags: always
+  when: ipsec_ike_profiles is defined
+  include_tasks: add_ipsec_ike_profile.yml
+  loop: "{{ ipsec_ike_profiles }}"
+  loop_control:
+    loop_var: ike_profile
+
+- name: IPSEC Tunnel
+  tags: always
+  when: ipsec_tunnels is defined
+  include_tasks: add_ipsec_tunnel.yml
+  loop: "{{ ipsec_tunnels }}"
+  loop_control:
+    loop_var: ipsec_tunnel

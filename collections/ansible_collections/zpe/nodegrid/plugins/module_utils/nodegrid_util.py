@@ -743,6 +743,8 @@ def format_settings(path, in_dict):
     out_list = []
     if type(in_dict) in [dict, OrderedDict]:
         for key, value in in_dict.items():
+            if not value:
+                continue
             if type(value) is dict:
                 out_list.extend( format_settings(f'{path}/{key}', value) )
             else:

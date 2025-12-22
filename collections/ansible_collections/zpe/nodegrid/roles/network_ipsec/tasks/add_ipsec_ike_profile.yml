@@ -1,0 +1,4 @@
+- name: Add IPSEC IKE Profile
+  tags: always
+  zpe.nodegrid.ipsec:
+    ipsec_ike_profile: "{{ ike_profile }}"

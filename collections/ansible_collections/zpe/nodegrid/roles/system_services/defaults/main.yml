@@ -51,6 +51,8 @@ https_port: 443
 redirect_http_to_https: "yes"
 enable_https_file_repository: "no"
 frr_enable_bgp: "no"
+frr_enable_isis: "no"
+frr_enable_path: "no"
 frr_enable_ospfv2: "no"
 frr_enable_ospfv3: "no"
 frr_enable_rip: "no"

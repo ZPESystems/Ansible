@@ -1,0 +1,62 @@
+- hosts: all
+  name: Configure IPSEC
+  gather_facts: false
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+  tasks:
+    - name: IPSEC config
+      tags: ipsec
+      zpe.nodegrid.ipsec:
+        ipsec_global:
+          enable_virtual_tunnel_interface: "no"
+          enable_logging: "yes"
+          enable_ikev1: "no"
+          vrf: "wan" # lowercase VRF interface name
+        ipsec_ike_profile:
+          profile_name: junos_profile
+          ike_version: ikev2
+          phase_1_encryption: aes-cbc256
+          phase_1_authentication: sha256
+          phase_1_diffie-hellman_group: group_14
+          phase_1_lifetime: 28800
+          phase_2_authentication_protocol: esp
+          phase_2_encryption: aes_cbc256
+          phase_2_authentication: sha1,sha2_256
+          phase_2_pfs_group: none
+          phase_2_lifetime: 28800
+          enable_dead_peer_detection: "yes"
+          dead_peer_detection_number_of_retries: 2
+          dead_peer_detection_interval: 3600
+          dead_peer_detection_action: restart
+          mtu: 1350
+          custom_parameters: "keyingtries=0,ipsec-interface=1"
+        ipsec_tunnel:
+          name: junos
+          initiate_tunnel: on_demand
+          ike_profile: junos_profile
+          custom_up_down_script: route_based_vti_updown.sh # enforce_vti_scope_as_link.sh, route_based_vti_updown.sh 
+          authentication_method: pre-shared_key
+          #authentication_method: rsa_key
+          secret: "@ml2025"
+          left_public_key: "0sAwEAAaFkt67/idZENNCdRSUDV0LUcjV5tK3Y8Ctxrn6oq1NgCZ8cfw2Bw3ZLaZH+zbbGer3qjp6SFTujimd3HQkiVgX2TiW9jhBTtLcVZuErQC5C3B+h7TYDjtQdz6fFW+Ovn0vViw+gRWQ42rzN2VYAESt6rrutzqTg5/LqDTk28lCb6q6q55s1FJY4SiNHuUwoaRLDrce234ETvDfpgImaG///iPxX3RDiClXbxSO/HDO3T5o2s6+UOiPQx5v05LcL60C26/M1nCp41uoSQlF6gv1Do398Kj8iPpgWBD7FhzLHnd8CyDV6Cru94YeSsoutjzA2ZJOA75ETKkzw9gfRrkEYTWwVPLcfnMjvvLUA+JFKmEaX6AtE9bAi/VrOCfg8P6jV6iznhd3bfucG/vaVKFse+TGGD91VFWQt1e6KVLlONyipkQOfu7UtbVX1QpVQxBnyuVFqIgv3E223Jjw5dvaiFXQV4Dm4Rh80Ua7obyfdly04HhgXaAP7xaC2dKFxSYtsVgY0K1gRcXt8/ujMbVBrvCjXpxJHuAalVxdJNpOwi1n0wGzCl23r89ABV4xEFKoJdVeHOsbhk1Onh+CWkypCmQve4HkPcT15Z3WD3Mg/"
+          right_public_key: "0sAwEAAaFkt67/idZENNCdRSUDV0LUcjV5tK3Y8Ctxrn6oq1NgCZ8cfw2Bw3ZLaZH+zbbGer3qjp6SFTujimd3HQkiVgX2TiW9jhBTtLcVZuErQC5C3B+h7TYDjtQdz6fFW+Ovn0vViw+gRWQ42rzN2VYAESt6rrutzqTg5/LqDTk28lCb6q6q55s1FJY4SiNHuUwoaRLDrce234ETvDfpgImaG///iPxX3RDiClXbxSO/HDO3T5o2s6+UOiPQx5v05LcL60C26/M1nCp41uoSQlF6gv1Do398Kj8iPpgWBD7FhzLHnd8CyDV6Cru94YeSsoutjzA2ZJOA75ETKkzw9gfRrkEYTWwVPLcfnMjvvLUA+JFKmEaX6AtE9bAi/VrOCfg8P6jV6iznhd3bfucG/vaVKFse+TGGD91VFWQt1e6KVLlONyipkQOfu7UtbVX1QpVQxBnyuVFqIgv3E223Jjw5dvaiFXQV4Dm4Rh80Ua7obyfdly04HhgXaAP7xaC2dKFxSYtsVgY0K1gRcXt8/ujMbVBrvCjXpxJHuAalVxdJNpOwi1n0wGzCl23r89ABV4xEFKoJdVeHOsbhk1Onh+CWkypCmQve4HkPcT15Z3WD3Mg/"
+          left_id: "192.168.1.10"
+          left_address: "%eth3"
+          #left_address: ip_address
+          left_ip_address: 192.168.1.10
+          left_source_ip_address: "2001:db7:2::1"
+          left_subnet: "2001:db7:2::/96,fc01::/16,fd01::/16,2001:db8:a::/64,2001:db8:b::/64,2001:db8:c::/64"
+          right_id: "192.168.1.2"
+          right_address: "192.168.1.2"
+          right_source_ip_address: "2001:db7:1::1"
+          right_subnet: "::/0"
+          enable_monitoring: "yes"
+          monitoring_source_ip_address: "2001:db7:2::1"
+          monitoring_destination_ip_address: "::1"
+          monitoring_number_of_retries: 3
+          monitoring_interval: 60
+          #monitoring_action: "restart_ipsec"
+          monitoring_action: "restart_tunnel"
+          #monitoring_action: "failover"
+          monitoring_failover_ipsec_tunnel: "nodegrid1"

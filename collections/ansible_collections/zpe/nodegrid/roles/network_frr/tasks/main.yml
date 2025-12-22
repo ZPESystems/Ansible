@@ -1,0 +1,3 @@
+- name: Setup Network FRR
+  import_tasks: network_frr.yml
+  tags: always

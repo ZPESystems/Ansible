@@ -12,6 +12,9 @@
     - zpe.nodegrid
 
   tasks:
+    - name: Get Nodegrid Facts
+      zpe.nodegrid.nodegrid_facts:
+
     - name: Configure a Nodegrid as Local Coordinator
       block:
       - name: Setup Audit Settings

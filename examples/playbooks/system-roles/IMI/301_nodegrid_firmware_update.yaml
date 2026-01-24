@@ -18,6 +18,9 @@
     nodegrid_iso_path: "{{ nodegrid_iso_location }}/{{ nodegrid_iso_file }}"
 
   tasks:
+    - name: Get Nodegrid Facts
+      zpe.nodegrid.nodegrid_facts:
+
     - name: Check if update is required
       assert:
         that:

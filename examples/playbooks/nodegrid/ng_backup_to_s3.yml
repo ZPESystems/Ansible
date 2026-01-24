@@ -21,6 +21,9 @@
 
 
   tasks:
+    - name: Get Nodegrid Facts
+      zpe.nodegrid.nodegrid_facts:
+
     - name: Execute a local Backup
       zpe.nodegrid.nodegrid_cmds:
          cmds:

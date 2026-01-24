@@ -17,7 +17,7 @@ collections_path = /etc/ansible/collections
 {% else %}
 collections_paths = /etc/ansible/collections
 {% endif %}
-facts_modules     = zpe.nodegrid.nodegrid_facts,smart
+#facts_modules     = zpe.nodegrid.nodegrid_facts,smart
 #library        = /var/local/file_manager/admin_group/collections
 #module_utils   = /usr/share/my_module_utils/
 #remote_tmp     = ~/.ansible/tmp
@@ -33,7 +33,7 @@ facts_modules     = zpe.nodegrid.nodegrid_facts,smart
 #module_lang    = C
 #module_set_locale = False
 interpreter_python = /usr/bin/python3
-callbacks_enabled = ansible.posix.profile_tasks
+#callbacks_enabled = ansible.posix.profile_tasks
 
 # plays will gather facts by default, which contain information about
 # the remote system.

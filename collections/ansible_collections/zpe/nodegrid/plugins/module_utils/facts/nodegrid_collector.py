@@ -132,25 +132,35 @@ class NodegridFactCollector(collector.BaseFactCollector):
         try:
             cmd_cli = get_cli(timeout=timeout)
             for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd)
-                if 'template' in cmd.keys():
-                    cmd_result['template'] = cmd['template']
-                if 'set_fact' in cmd.keys():
-                    cmd_result['set_fact'] = cmd['set_fact']
-                if 'ignore_error' in cmd.keys():
-                    cmd_result['ignore_error'] = cmd['ignore_error']
-                if 'json' in cmd.keys():
-                    cmd_result['json'] = cmd['json']
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                if cmd_result['error']:
-                    result['failed'] = True
-                    break;
+                try:
+                    cmd_result = execute_cmd(cmd_cli, cmd)
+                    if 'template' in cmd.keys():
+                        cmd_result['template'] = cmd['template']
+                    if 'set_fact' in cmd.keys():
+                        cmd_result['set_fact'] = cmd['set_fact']
+                    if 'ignore_error' in cmd.keys():
+                        cmd_result['ignore_error'] = cmd['ignore_error']
+                    if 'json' in cmd.keys():
+                        cmd_result['json'] = cmd['json']
+                    cmd_result['command'] = cmd.get('cmd')
+                    if cmd_result['error']:
+                        cmd_result['failed'] = True
+                    cmd_results.append(cmd_result)
+                except pexpect.exceptions.TIMEOUT as e:
+                    cmd_result['message']: f"Timeout for cmd {cmd}"
+                    cmd_result['trace']: str(e)
+                    cmd_result['failed'] = True
+                except Exception as e:
+                    cmd_result['failed'] = True
+                    cmd_result['message'] = str(e)
+                    cmd_result['trace'] = traceback.format_exc()
+                    cmd_result['failed'] = True
             close_cli(cmd_cli)
             result['cmds_output'] = cmd_results
-        except Exception:
+        except Exception as e:
             result['failed'] = True
-            result['message'] = traceback.format_exc()
+            result['message'] = str(e)
+            result['trace'] = traceback.format_exc()
 
         return result
 
@@ -194,7 +204,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
                  ),
         )
 
-        # Check if Syste is Nodegrid Manager
+        # Check if System is Nodegrid Manager
         if system_details['system'] == 'Nodegrid Manager':
             return cmds
 
@@ -266,36 +276,34 @@ class NodegridFactCollector(collector.BaseFactCollector):
     
         if cmds_results.get('error') or cmds_results.get("failed"):
             return dict(msg=f"{cmds_results}")
-        else:
-            for cmd_result in cmds_results.get('cmds_output'):
-                if cmd_result.get('error'):
-                    result['result'] = cmd_result
-                else:
-                    template = ""
-                    try:
-                        template = get_template(cmd_result.get("template"))
-                        template_exist = True
-                    except Exception as e:
-                        result['template_error'] = str(e)
-                        result['error'] = f"Template file could not be found: {cmd_result.get('template')}"
-                        template_exist = False
-                        return dict(msg=result)
-                    if template_exist:
-                        try:
-                            parser = ttp(data=cmd_result['stdout'], template=template)
-                            parser.parse()
-                            for item in parser.result()[0]:
-                                parsed_dict.update(item)
-                        except Exception as e:
-                            result["error_msg"] = str(e)
-                            parsed_dict = dict()
-                    else:
-                        return dict(msg=f"Template file could not be found: {cmd_result.get('template')}")
 
+        for cmd_result in cmds_results.get('cmds_output'):
+            if cmd_result.get('error'):
+                continue
+                #result['result'] = cmd_result
+            template = ""
+            try:
+                template = get_template(cmd_result.get("template"))
+                template_exist = True
+            except Exception as e:
+                result['template_error'] = str(e)
+                result['error'] = f"Template file could not be found: {cmd_result.get('template')}"
+                template_exist = False
+                return dict(msg=result)
+            if template_exist:
+                try:
+                    parser = ttp(data=cmd_result['stdout'], template=template)
+                    parser.parse()
+                    for item in parser.result()[0]:
+                        parsed_dict.update(item)
+                except Exception as e:
+                    result["error_msg"] = str(e)
+                    #parsed_dict = dict()
+            else:
+                return dict(msg=f"Template file could not be found: {cmd_result.get('template')}")
 
         wireguard_endpoints_present = self.get_wireguard_endpoints_present(timeout=timeout)
         if not wireguard_endpoints_present["error"]:
             parsed_dict['wireguard'] = wireguard_endpoints_present['endpoints']
 
         return parsed_dict
-

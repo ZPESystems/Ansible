@@ -39,7 +39,7 @@
 
       - name: get disk space after image was copied
         gather_facts:
-
+      
       - name: assert that there is enough free disk space in /var
         assert:
           that:
@@ -111,7 +111,7 @@
           timeout: 900
 
       - name: Get Updated Nodegrid Facts
-        zpe.nodegrid.facts:
+        zpe.nodegrid.nodegrid_facts:
         retries: 3
         delay: 60
 

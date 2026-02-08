@@ -1,0 +1,47 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  vars:
+    # Nodegrid ISO folder path
+    nodegrid_iso_folder: "/var/local/file_manager/admin_group/"
+    # Nodegrid ISO file name
+    nodegrid_iso_filename: 'Nodegrid_Platform_v6.2.1_20251207.iso'
+    # Nodegrid target version
+    nodegrid_target_version: '6.2.1'
+
+  tasks:
+    - name: Get Nodegrid Facts
+      zpe.nodegrid.nodegrid_facts:
+
+    - name: Show current Nodegrid Info
+      ansible.builtin.debug:
+        var: ansible_facts['nodegrid_about']
+    
+    - name: Copy ISO image from local image repository to remote ZPE Systems Nodegrid device
+      copy:
+        src: "{{ nodegrid_iso_folder }}/{{ nodegrid_iso_filename }}"
+        dest: "/var/sw/{{ nodegrid_iso_filename }}"
+
+    - name: Execute firmware upgrade
+      zpe.nodegrid.nodegrid_firmware:
+        nodegrid_iso_filename: "{{ nodegrid_iso_filename }}"
+        nodegrid_target_version: "{{ nodegrid_target_version }}"
+
+    - name: Wait a max of 15 mins for target connection to become reachable/usable after upgrade
+      wait_for_connection:
+        delay: 60
+        sleep: 30
+        timeout: 900
+
+    - name: Get Nodegrid Facts
+      zpe.nodegrid.nodegrid_facts:
+        gather_timeout: 30
+      retries: 10
+      delay: 10
+
+    - name: Assert that upgrade was successful
+      assert:
+        that:
+          - "nodegrid_target_version in ansible_facts['nodegrid_about']['version']"

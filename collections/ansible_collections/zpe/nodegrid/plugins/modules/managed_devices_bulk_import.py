@@ -429,6 +429,7 @@ def run_option_devices(option, run_opt):
     devices = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
+    change_name_message = ""
     settings_list = []
     cmds = []
     cmd_results = list()
@@ -481,7 +482,6 @@ def run_option_device(device, cli_path, run_opt):
     settings_list = []
     cmds = None
     cmd_results = None
-    change_name_message = None
 
     if not ('access' in device and field_exist(device['access'], 'name')):
         return result_failed("Field 'access/name' is required")

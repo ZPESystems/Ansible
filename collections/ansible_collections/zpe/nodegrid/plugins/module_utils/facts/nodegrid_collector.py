@@ -265,8 +265,8 @@ class NodegridFactCollector(collector.BaseFactCollector):
         # Lets get the current status and check if it must be changed
         res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
         if res == 'error' or res == 'unsupported':
-            return dict(msg=err_msg)
-
+            return dict(msg=err_msg, failed=True)
+        
         system_details = get_system_details(timeout=timeout)
     
         cmds = self._get_cmds(system_details)
@@ -275,7 +275,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
         parsed_dict = dict()
     
         if cmds_results.get('error') or cmds_results.get("failed"):
-            return dict(msg=f"{cmds_results}")
+            return dict(msg=f"{cmds_results}", failed=True)
 
         for cmd_result in cmds_results.get('cmds_output'):
             if cmd_result.get('error'):
@@ -289,7 +289,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
                 result['template_error'] = str(e)
                 result['error'] = f"Template file could not be found: {cmd_result.get('template')}"
                 template_exist = False
-                return dict(msg=result)
+                return dict(msg=result, failed=True)
             if template_exist:
                 try:
                     parser = ttp(data=cmd_result['stdout'], template=template)
@@ -300,7 +300,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
                     result["error_msg"] = str(e)
                     #parsed_dict = dict()
             else:
-                return dict(msg=f"Template file could not be found: {cmd_result.get('template')}")
+                return dict(msg=f"Template file could not be found: {cmd_result.get('template')}", failed=True)
 
         wireguard_endpoints_present = self.get_wireguard_endpoints_present(timeout=timeout)
         if not wireguard_endpoints_present["error"]:

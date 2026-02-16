@@ -599,6 +599,15 @@ def get_cli_commands(current_state: dict[str, dict], desired_state: dict[str, di
                                 rule_update_data[key] = "no"
 
                     if rule_update_data:
+                        if rule_update_data.get('target') == 'LOG':
+                            # quirk in v6.0.35+: must set target=LOG before you can set log_level
+                            result.append(
+                                dict(
+                                    cmd=f"set '/settings/ipv{ip_version}_{section}/chains/{chain_name}/{rule_number}/' target='LOG'"
+                                )
+                            )
+                            del rule_update_data['target']
+
                         # update rule options
                         rule_assignments = " ".join(f"{k}='{v}'" for k, v in rule_update_data.items())
                         result.append(

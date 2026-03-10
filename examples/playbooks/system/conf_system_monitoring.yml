@@ -1,0 +1,46 @@
+- name: Configure System Monitoring
+   hosts: all
+   gather_facts: false
+   become: true
+
+   tasks:
+    - name: Enable interface montoring
+      ansible.builtin.lineinfile:
+         path: /etc/collectd.conf
+         search_string: '^#LoadPlugin interface'
+         insertafter: '^#LoadPlugin interface'
+         line: 'LoadPlugin interface'
+         backup: true
+
+    - name: Configure interface Plugin
+      ansible.builtin.blockinfile:
+         path: /etc/collectd.conf
+         marker: "#<Plugin interface>"
+         block: |
+            <Plugin interface>
+              Interface "lo"
+              Interface "/^veth/"
+              Interface "/^tun[0-9]+/"
+              IgnoreSelected "true"
+            </Plugin>
+         backup: true
+
+    - name: Enable cpu montoring
+      ansible.builtin.lineinfile:
+         path: /etc/collectd.conf
+         search_string: '^#LoadPlugin cpu'
+         insertafter: '^#LoadPlugin cpu'
+         line: 'LoadPlugin cpu'
+
+    - name: Configure cpu Plugin
+      ansible.builtin.blockinfile:
+         path: /etc/collectd.conf
+         marker: "#<Plugin cpu>"
+         block: |
+            <Plugin cpu>
+              ReportByCpu True
+            </Plugin>
+         backup: true
+
+    - name: restart Process
+      shell: /etc/init.d/collectd restart

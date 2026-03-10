@@ -28,6 +28,27 @@
       vlan_id: "{{ connection.vlan_id | default('') }}"
       # ---
 
+      # type: loopback
+      loopback_interface: "{{ connection.loopback_interface | default('') }}"
+      # ---
+
+      # type: vrf
+      vrf_interface: "{{ connection.vrf_interface | default('') }}"
+      vrf_interfaces: "{{ connection.vrf_interfaces | default('') }}"
+      vrf_table_id: "{{ connection.vrf_table_id | default('') }}"
+      # ---
+
+      # type: macsec
+      macsec_parent_interface: "{{ connection.macsec_parent_interface | default('') }}"
+      macsec_interface: "{{ connection.macsec_interface | default('') }}"
+      macsec_mka_ckn: "{{ connection.macsec_mka_ckn | default('') }}"
+      macsec_mka_cak: "{{ connection.macsec_mka_cak | default('') }}" 
+      macsec_port: "{{ connection.macsec_port | default('') }}"
+      macsec_encrypt_traffic: "{{ connection.macsec_encrypt_traffic | default('yes') }}"
+      macsec_fallback_mka_ckn: "{{ connection.macsec_fallback_mka_ckn | default('') }}"
+      macsec_fallback_mka_cak: "{{ connection.macsec_fallback_mka_cak | default('') }}"
+      # ---
+
       # type: bridge
       bridge_interfaces: "{{ connection.bridge_interfaces | default('lo1') }}"
       bridge_mac_configuration: "{{ connection.bridge_mac_configuration | default('use_mac_from_first_interface') }}" # use_mac_from_first_interface, bridge_custom_mac

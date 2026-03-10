@@ -2,9 +2,9 @@
 
 ## Executive Summary
 
-This document describes the solution implemented to help customer to migrate to the OOB ZPE Nodegrid solution. The use case considers that a New Customer requires to migrate from their old OOB Management system into ZPE Nodegrid solution, thus it is required to configure all of its managed devices (e.g., serial console devices, USB console devices, or IP-based managed devices) in a seamless, and low-effort manner into the ZPE solution. The objective is to automate the configuration of the customers' managed devices into the ZPE Nodegrid solution.
+This document describes the Ansible tool developed to help customers streamline the migration to the OOB ZPE Nodegrid solution. The use case considers that a New Customer seeks to migrate from their current OOB Management system into ZPE Nodegrid solution, thus it is required to properly setup the current infrastructure's managed devices (e.g., serial console devices, USB console devices, or IP-based managed devices) in a seamless manner into the ZPE solution. The objective is to automate the configuration of the customers' managed devices into the ZPE Nodegrid solution.
 
-This solution requires that the Customer **creates different CSV files by filling the required information in a provided Excel Template**. The required information includes their current infrastructure managed devices, and the new Nodegrid devices to be deployed. Then, the customer deploys the migration process via the execution of an Ansible playbook, which will configure the ZPE Nodegrid devices and their corresponding managed devices.
+This solution requires that the Customer **fills-in an Excel template (`xlsx`) file with the relevant information about their infrastructure**. The required information includes their current managed devices, and the new Nodegrid devices to be deployed. Then, the customer deploys the migration process via the execution of Ansible playbooks, which will configure the ZPE Nodegrid devices with their corresponding managed devices.
 
 ## Use Cases Examples
 
@@ -107,10 +107,10 @@ end
 
 The desired migration tool, will facilitate two distinct and independent phases:
 
-1. Replacement of existing management solution, without replacement of any available physical appliance.
+1. Replacement of existing management solution, without replacement of any available physical appliances.
 2. Replacement of individual hardware appliances.
 
-### Phase 1: Replacement of Management Solution
+### Phase 1: Replacement of the Management Solution
 
 On this section, we consider the current infrastructure example of customer **ACME-A** and the replacement of their current Management Solution, i.e., *Lighthouse*. The following diagram depicts the before and after once the migration process is deployed:
 
@@ -246,46 +246,52 @@ end
 ---
 
 ## Migration process for the use case ACME-A.
-### Phase 1: Replacement of Management Solution
+### Phase 1: Replacement of the Management Solution
 
-In a nutshell to deploy the migration process, the following steps are required:
+The following steps describe the migration process.
 
 #### Step 1: Prepare the `NGM-Coordinator`
 This step assumes that the new ZPE device `NGM - Coordinator` has been deployed and the customer have remote SSH access.
 
 1. Install the ZPE Ansible library on the NGM following the instructions defined at [ZPESystems Ansible](https://github.com/ZPESystems/Ansible).
-2. SSH access the NGM instance with the `ansible` user.
-3. Execute the **Migration Process**.
+2. SSH access the NGM instance using the `ansible` user.
+3. Execute the **Migration Process** step.
 
 #### Step 2: Migration Process
-1. Fill in the current infrastructure information on the Excel file [Nodegrid_Importer_Template.xlsm](./Nodegrid_Importer_Template.xlsm). Then, on the `Overview` sheet, select __Export Data__. The following CSV files should be created:
+1. Locally using Excel or Calc application, fill-in the current infrastructure information on the file [Nodegrid_Importer_Template.xlsx](./Nodegrid_Importer_Template.xlsx). 
 
-|CSV File|Description|
-|:--:|:---:|
-|`zpe_ngm_ansible_devices.csv`|Ansible target devices|
-|`zpe_ngm_local_ip.csv`|IP-based Managed Devices|
-|`zpe_ngm_discovery_rules.csv`|Nodegrid Managed Devices Discovery Rules|
+The following pictures depict the above use case:
 
-The following pictures depict the use case:
-
-![](figs/Overview.png)
 ![](figs/NGM.png)
 ![](figs/IP_Devices.png)
 ![](figs/Discovery_Rules.png)
-![](figs/Mapping.png)
+![](figs/Device_Permissions.png)
 
-3. Copy the CSV files to the `NGM-Coordinator` (Replace the IP-address accordingly)
-```shell
-scp zpe_ngm_ansible_devices.csv zpe_ngm_local_ip.csv zpe_ngm_discovery_rules.csv ansible@<<NGM-Coordinator IP>>:~/
+2. Copy the local file `Nodegrid_Importer_Template.xslx` into the `NGM-Coordinator` `admin_group` folder (**Note: do not change the file name**). This can be achieved either using the Nodegrid Web-UI (System->Toolkit->File Manager) or SSH, as described below:
+
+![](figs/copy_template.png)
+
+
 ```
-4. Copy the Ansible playbook [process_managed_devices.yaml](process_managed_devices.yaml) into the NGM-Coordinator
-```shell
-scp process_managed_devices.yaml ansible@<<NGM-Coordinator IP>>:~/
-```
-5. Execute the Ansible playbook
-```shell
-ansible-playbook process_managed_devices.yaml
+scp Nodegrid_Importer_Template.xslx ansible@NGM-Coordinator:/var/local/file_manager/admin_group/Nodegrid_Importer_Template.xslx
 ```
 
-**NOTE:** It is assumed that the Ansible playbook `process_managed_devices.yaml` and all the CSV files are located at the path `/home/ansible` on the NGM-Coordinator.
+3. Copy the Ansible playbooks [process_xlsx_managed_devices.yaml](process_xlsx_managed_devices.yaml) and [configure_managed_devices.yaml](configure_managed_devices.yaml). 
 
+```shell
+cp /etc/ansible/playbooks/examples/system-roles/Migration_Automation_Managed_Devices/process_xlsx_managed_devices.yaml /etc/ansible/playbooks/examples/system-roles/Migration_Automation_Managed_Devices/configure_managed_devices.yaml /etc/ansible/playbooks/
+```
+
+
+4. Create the Ansible Inventory. The following playbook processes the xlsx file and creates/configures the Ansible inventory. 
+```shell
+cd /etc/ansible/playbooks/
+ansible-playbook process_xlsx_managed_devices.yaml
+```
+
+5. Configure the desired state. The following playbook configures all the target Nodegrid devices and their managed devices.
+
+```shell
+cd /etc/ansible/playbooks/
+ansible-playbook configure_managed_devices.yaml
+```

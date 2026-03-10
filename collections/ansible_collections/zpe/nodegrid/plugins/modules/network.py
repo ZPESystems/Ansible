@@ -315,12 +315,18 @@ def run_option_network_settings(option, run_opt):
     suboptions = option['suboptions']
     return run_option(option, run_opt)
 
+def run_option_network_frr(option, run_opt):
+    suboptions = option['suboptions']
+    return run_option(option, run_opt)
+
 
 def run_option_network_connections(option, run_opt):
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = [
         'ipv4_default_route_metric', 
+        'ipv4_gateway',
         'ipv6_default_route_metric',
+        'ipv6_gateway',
         'sim-1_phone_number',
         'sim-1_apn_configuration',
         'sim-1_user_name',
@@ -350,7 +356,19 @@ def run_option_network_connections(option, run_opt):
                 'enable_ip_passthrough',
                 'ethernet_connection',
                 'mac_address',
-                'port_intercepts'
+                'port_intercepts',
+                'ipv4_mode',
+                'ipv4_dns_search',
+                'ipv4_dns_server',
+                'ipv4_default_route_metric',
+                'ipv4_ignore_obtained_default_gateway',
+                'ipv4_ignore_obtained_dns_server',
+                'ipv6_mode',
+                'ipv6_dns_search',
+                'ipv6_dns_server',
+                'ipv6_default_route_metric',
+                'ipv6_ignore_obtained_default_gateway',
+                'ipv6_ignore_obtained_dns_server',
             ],
             'bridge': 
             [
@@ -364,7 +382,19 @@ def run_option_network_connections(option, run_opt):
                 'hello_time',
                 'forward_delay',
                 'max_age',
-                'ageing_time'
+                'ageing_time',
+                'ipv4_mode',
+                'ipv4_dns_search',
+                'ipv4_dns_server',
+                'ipv4_default_route_metric',
+                'ipv4_ignore_obtained_default_gateway',
+                'ipv4_ignore_obtained_dns_server',
+                'ipv6_mode',
+                'ipv6_dns_search',
+                'ipv6_dns_server',
+                'ipv6_default_route_metric',
+                'ipv6_ignore_obtained_default_gateway',
+                'ipv6_ignore_obtained_dns_server',
             ],
             'vlan': 
             [
@@ -373,7 +403,19 @@ def run_option_network_connections(option, run_opt):
                 'enable_ip_passthrough',
                 'ethernet_connection',
                 'mac_address',
-                'port_intercepts'
+                'port_intercepts',
+                'ipv4_mode',
+                'ipv4_dns_search',
+                'ipv4_dns_server',
+                'ipv4_default_route_metric',
+                'ipv4_ignore_obtained_default_gateway',
+                'ipv4_ignore_obtained_dns_server',
+                'ipv6_mode',
+                'ipv6_dns_search',
+                'ipv6_dns_server',
+                'ipv6_default_route_metric',
+                'ipv6_ignore_obtained_default_gateway',
+                'ipv6_ignore_obtained_dns_server',
             ],
             'wifi': 
             [
@@ -394,7 +436,19 @@ def run_option_network_connections(option, run_opt):
                 'enable_ip_passthrough',
                 'ethernet_connection',
                 'mac_address',
-                'port_intercepts'
+                'port_intercepts',
+                'ipv4_mode',
+                'ipv4_dns_search',
+                'ipv4_dns_server',
+                'ipv4_default_route_metric',
+                'ipv4_ignore_obtained_default_gateway',
+                'ipv4_ignore_obtained_dns_server',
+                'ipv6_mode',
+                'ipv6_dns_search',
+                'ipv6_dns_server',
+                'ipv6_default_route_metric',
+                'ipv6_ignore_obtained_default_gateway',
+                'ipv6_ignore_obtained_dns_server',
             ],
             'mobile_broadband_gsm':
             [
@@ -440,7 +494,19 @@ def run_option_network_connections(option, run_opt):
                 'enable_ip_passthrough',
                 'ethernet_connection',
                 'mac_address',
-                'port_intercepts'
+                'port_intercepts',
+                'ipv4_mode',
+                'ipv4_dns_search',
+                'ipv4_dns_server',
+                'ipv4_default_route_metric',
+                'ipv4_ignore_obtained_default_gateway',
+                'ipv4_ignore_obtained_dns_server',
+                'ipv6_mode',
+                'ipv6_dns_search',
+                'ipv6_dns_server',
+                'ipv6_default_route_metric',
+                'ipv6_ignore_obtained_default_gateway',
+                'ipv6_ignore_obtained_dns_server',
             ],
             'bonding':
             [
@@ -458,7 +524,56 @@ def run_option_network_connections(option, run_opt):
                 'transmit_hash_policy',
                 'bond_mac_configuration',
                 'bond_fail-over-mac_policy',
-                'bond_mac_address'
+                'bond_mac_address',
+                'ipv4_mode',
+                'ipv4_dns_search',
+                'ipv4_dns_server',
+                'ipv4_default_route_metric',
+                'ipv4_ignore_obtained_default_gateway',
+                'ipv4_ignore_obtained_dns_server',
+                'ipv6_mode',
+                'ipv6_dns_search',
+                'ipv6_dns_server',
+                'ipv6_default_route_metric',
+                'ipv6_ignore_obtained_default_gateway',
+                'ipv6_ignore_obtained_dns_server',
+            ],
+            'loopback':
+            [
+                'loopback_interface',
+                'ipv4_mode',
+                'ipv6_mode',
+            ],
+            'vrf': 
+            [
+                'vrf_interface',
+                'vrf_interfaces',
+                'vrf_table_id',
+                'ipv4_mode',
+                'ipv6_mode',
+            ],
+            'macsec': 
+            [
+                'macsec_parent_interface',
+                'macsec_interface',
+                'macsec_mka_ckn',
+                'macsec_mka_cak', 
+                'macsec_port',
+                'macsec_encrypt_traffic',
+                'macsec_fallback_mka_ckn',
+                'macsec_fallback_mka_cak',
+                'ipv4_mode',
+                'ipv4_dns_search',
+                'ipv4_dns_server',
+                'ipv4_default_route_metric',
+                'ipv4_ignore_obtained_default_gateway',
+                'ipv4_ignore_obtained_dns_server',
+                'ipv6_mode',
+                'ipv6_dns_search',
+                'ipv6_dns_server',
+                'ipv6_default_route_metric',
+                'ipv6_ignore_obtained_default_gateway',
+                'ipv6_ignore_obtained_dns_server',
             ]
         },
         'bond_mac_configuration':
@@ -574,11 +689,12 @@ def run_option_network_connections(option, run_opt):
 
     suboptions = option['suboptions']
     check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
     field_name = 'name'
     if field_exist(suboptions, field_name):
         cli_path =  f"{option['cli_path']}/{suboptions[field_name]}"
         # Lets export the settings to the cli path
-        state, exported_settings, exported_all_settings = export_settings(cli_path)
+        state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
         if not "error" in state:
             if "ethernet_interface" in option['suboptions']:
                 del option['suboptions']['ethernet_interface']
@@ -604,7 +720,7 @@ def run_option_network_connections(option, run_opt):
 
                 # Elif the dependency is a list and the suboption is explicitly set to "no",
                 # mark all associated settings for deletion.
-                elif isinstance(dependencies[dependency], list) and dependency in suboptions and suboptions[dependency].lower() == "no":
+                elif isinstance(dependencies[dependency], list) and dependency in suboptions and str(suboptions[dependency]).strip().lower() == "no":
                     for setting in dependencies[dependency]:
                         settings_tobe_deleted.add(setting)
 
@@ -614,11 +730,11 @@ def run_option_network_connections(option, run_opt):
 
             # Delete settings that are empty
             for setting in settings_to_delete_if_empty:
-                if setting in suboptions and suboptions[setting].strip() == "":
+                if setting in suboptions and str(suboptions[setting]).strip() == "":
                     suboptions.pop(setting, None)
 
             # Delete option set_as_primary_connection if set to no 
-            if 'set_as_primary_connection' in suboptions and suboptions['set_as_primary_connection'] == "no":
+            if 'set_as_primary_connection' in suboptions and str(suboptions['set_as_primary_connection']).strip().lower() == "no":
                 suboptions.pop('set_as_primary_connection', None)
 
         except Exception as e:
@@ -634,7 +750,9 @@ def run_module():
     module_args = dict(
         settings=dict(type='dict', required=False),
         connection=dict(type='dict', required=False),
-        skip_invalid_keys=dict(type='bool', default=False, required=False)
+        frr=dict(type='str', required=False),
+        skip_invalid_keys=dict(type='bool', default=False, required=False),
+        timeout=dict(type='int', default=60, required=False),
     )
 
     # seed the result dict in the object
@@ -671,6 +789,12 @@ def run_module():
             'cli_path': '/settings/network_connections',
             'func': run_option_network_connections
         },
+        {
+            'name': 'frr',
+            'suboptions': {'configuration': module.params['frr']},
+            'cli_path': '/settings/frr',
+            'func': run_option_network_frr
+        },
     ]
 
     # add name in the cli_path
@@ -680,7 +804,7 @@ def run_module():
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
@@ -696,7 +820,8 @@ def run_module():
     run_opt = {
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
-        'check_mode': module.check_mode
+        'check_mode': module.check_mode,
+        'timeout': module.params['timeout']
     }
 
     for option in option_list:

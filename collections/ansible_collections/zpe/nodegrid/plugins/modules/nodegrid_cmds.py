@@ -24,9 +24,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support
 
 import traceback
-import pexpect
 import os
-import re
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -39,7 +37,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         cmds=dict(type='list', required=True),
-        timeout=dict(type=int, default=60)
+        timeout=dict(type=int, default=60, required=False)
     )
 
     # seed the result dict in the object
@@ -61,11 +59,12 @@ def run_module():
         argument_spec=module_args,
         supports_check_mode=True
     )
+    timeout = module.params.get('timeout', 60)
     #
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
@@ -81,11 +80,7 @@ def run_module():
     # run commands and gather output
     cmd_results = list()
     cmd_result = dict()
-    if "timeout" in module.params.keys():
-        try:
-            timeout = int(module.params['timeout'])
-        except:
-            timeout = 60
+
     try:
         cmd_cli = get_cli(timeout=timeout)
         for cmd in module.params['cmds']:

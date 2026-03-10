@@ -1,20 +1,54 @@
-- name: Add managed devices
+- name: Add Managed Devices loop
   tags: always
   when: managed_devices is defined
-  block:
-    - name: Add a managed device
-      include_tasks: add_managed_device.yml
-      tags: always
-      loop: "{{ managed_devices }}"
-      loop_control:
-        loop_var: device
+  include_tasks: add_managed_device.yml
+  loop: "{{ managed_devices }}"
+  loop_control:
+    loop_var: device
+    index_var: i
+
+- name: Configure SSH keys
+  tags: always
+  when: managed_devices is defined
+  include_tasks: setup_ssh_keys.yml
+  loop: "{{ managed_devices }}"
+  loop_control:
+    loop_var: device
+
+    #- name: Restart 'spmmulticonn' service
+    #  ansible.builtin.service:
+    #    name: spmmulticonn
+    #    state: restarted
+    #  become: true
+
 - name: Add Discovery Rules
   tags: always
   when: discovery_rules is defined
-  block:
-    - name: Add a Discovery Rule
-      include_tasks: add_discovery_rule.yml
-      tags: always
-      loop: "{{ discovery_rules }}"
-      loop_control:
-        loop_var: discovery_rule
+  include_tasks: add_discovery_rule.yml
+  loop: "{{ discovery_rules }}"
+  loop_control:
+    loop_var: discovery_rule
+
+- name: Add Authorizations Groups and Devices Permissions
+  tags: always
+  when: authorization is defined
+  include_tasks: add_authorization.yml
+  loop: "{{ authorization }}"
+  loop_control:
+    loop_var: group
+
+- name: Disable Managed Devices before Rebounce
+  tags: always
+  when: rebounce is defined
+  include_tasks: disable_managed_devices.yml
+  loop: "{{ rebounce }}"
+  loop_control:
+    loop_var: device
+
+- name: Rebounce Managed Devices
+  tags: always
+  when: rebounce is defined
+  include_tasks: rebounce_managed_devices.yml
+  loop: "{{ rebounce }}"
+  loop_control:
+    loop_var: device

@@ -737,7 +737,7 @@ def run_module():
     module_args = OrderedDict(
         action=dict(type='str'),
         debug=dict(type='bool', default=False),
-        timeout=dict(type=int, default=60),
+        timeout=dict(type='int', default=60, required=False),
         flush=dict(type='bool', default=False),
         state=dict(type='str', default='present', choices=['absent', 'present']),
         chain=dict(type='str'),
@@ -829,7 +829,7 @@ def run_module():
     debug = module.params.pop('debug', False)
 
     # Lets get the current status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':

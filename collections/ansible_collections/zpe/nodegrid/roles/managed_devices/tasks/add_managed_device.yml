@@ -1,4 +1,4 @@
-- name: Add managed device
+- name: Iteration "{{ i }}" | Add Managed Device "{{ device['name'] | default('') }}"
   tags: always
   vars:
     device_access: "{{ device | combine({ 'custom_fields': omit, 'management': omit, 'logging': omit, 'commands': omit }) }}"
@@ -7,6 +7,7 @@
     device_logging: "{{ device.logging | default({}) }}"
     device_commands: "{{ device.commands | default([]) }}"
   zpe.nodegrid.managed_devices:
+    timeout: "{{ nodegrid_timeout | default(120) }}"
     device:
       access: "{{ device_access }}"
       custom_fields: "{{ device_custom_fields }}"

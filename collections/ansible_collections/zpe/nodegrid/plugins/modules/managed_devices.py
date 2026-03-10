@@ -18,12 +18,11 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell, get_cli, close_cli, execute_cmd, read_table, read_table_row
-
-
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell, get_cli, close_cli, execute_cmd, read_path_options
 import os, json, pexpect, re
 from collections import OrderedDict
 import traceback
+
 # Settings dependencies
 device_type_not_support_logging = ['usb_device', 'usb_kvm', 'usb_sensor']
 device_type_not_support_management = ['usb_device']
@@ -429,7 +428,10 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def run_option_device(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
+    check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
     settings_list = []
+    cmds = None
     cmd_results = None
     change_name_message = None
 
@@ -451,7 +453,7 @@ def run_option_device(option, run_opt):
     
     # Clean the required options
     try:
-        settings_tobe_deleted = set()
+        settings_tobe_deleted = set(['ssh_key_type', 'ssh_private_key', 'ssh_public_key'])
         for dependency in device_dependencies:
             if isinstance(device_dependencies[dependency], dict):
                 for dep_rem in {key:value for key, value in device_dependencies[dependency].items() if dependency in suboptions['access'] and key not in [suboptions['access'][dependency]]}:
@@ -502,16 +504,18 @@ def run_option_device(option, run_opt):
         if pattern.match(port_name):
             new_name = suboptions['access']['name'].strip()
             suboptions['access'].pop('name')
-            devices_table = read_table("/settings/devices")
-            if devices_table[0].lower() == 'error':
-                return result_failed(f"Failed to get device table on cli: 'show /settings/devices'. Error: {devices_table[1]}")
-            # Devices table header
-            # 'name'  'connected through'  'type'  'access'  'monitoring'
-            device = read_table_row(devices_table[1], 1, port_name)
-            if device is None:
-                return result_failed(f"Device port '{port_name}' does not exist!")
-            current_name = device[0]
-            
+            device_options_cli = read_path_options(f"/settings/devices/{port_name}/access")
+            if 'error' in device_options_cli:
+                return result_failed(f"Failed to read options: 'show /settings/devices/{port_name}/access'. Error: {device_options_cli}")
+
+            device_options = device_options_cli.get('options', None)
+            if device_options is None or not device_options:
+                return result_failed(f"Device port '{port_name}' could not be detected by 'show /settings/devices/{port_name}/access'. msg: {device_options_cli}")
+
+            current_name = device_options.get('name',None)
+            if current_name is None:
+                return result_failed(f"Failing to get device name for port '{port_name}'. Device options: f{device_options_cli}")
+
             device_type = suboptions["access"]["type"]
             pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$")
             if pattern.match(port_name):
@@ -531,25 +535,26 @@ def run_option_device(option, run_opt):
                 suboptions["access"].pop(setting, None)
 
             if new_name != current_name:
-                cmds = [{'confirm': True,'cmd': f"cd /settings/devices; rename {port_name}; set new_name={new_name}"}]
+                cmds = [{'confirm': True,'cmd': f"cd /settings/devices; rename {current_name}; set new_name={new_name}"}]
                 cmd_results = list()
                 cmd_result = dict()
-                try:
-                    cmd_cli = get_cli(timeout=60)
-                    for cmd in cmds:
-                        cmd_result = execute_cmd(cmd_cli, cmd)
-                        if cmd_result['error']:
-                            return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_result}")
-                        cmd_results.append(cmd_result)
-                    close_cli(cmd_cli)
-                    change_name_message = f"managed_device_name: {current_name} -> {new_name}"
-                    cli_path += f"/{new_name}"
-                except Exception as exc:
-                    return result_failed(f"Failed changing name device '{port_name}' with name '{new_name}'. Results: f{cmd_results}")
+                if not check_mode:
+                    try:
+                        cmd_cli = get_cli(timeout=timeout)
+                        for cmd in cmds:
+                            cmd_result = execute_cmd(cmd_cli, cmd)
+                            if cmd_result['error']:
+                                return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{cmd_result}")
+                            cmd_results.append(cmd_result)
+                        close_cli(cmd_cli)
+                        change_name_message = f"managed_device_name: {current_name} -> {new_name}"
+                        cli_path += f"/{new_name}"
+                    except Exception as exc:
+                        return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{exc}")
             else:
                 cli_path += f"/{current_name}"
         else:
-            cli_path += f"/{port_name}"
+            return result_failed(f"Port name '{port_name}' not supported [Device: {suboptions}]. Port names supported include 'ttyS*' and 'usbS*'")
     else:
         cli_path += f"/{suboptions['access']['name'].strip()}"
 
@@ -606,6 +611,11 @@ def run_option_device(option, run_opt):
     option['cli_path'] = cli_path
     option['settings'] = settings_list
     result = run_option(option, run_opt)
+
+    if check_mode:
+        if cmds:
+            result['cmds'] = cmds
+        return result
 
     # If device named was changed, update the return result
     if cmd_results:
@@ -682,7 +692,8 @@ def run_module():
         device=dict(type='dict', required=False),
         auto_discovery=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        facts=dict(type='bool', default=False, required=False)
+        facts=dict(type='bool', default=False, required=False),
+        timeout=dict(type='int', default=60, required=False),
     )
 
     # seed the result dict in the object
@@ -721,7 +732,7 @@ def run_module():
         },
         {
             'name': 'facts',
-            'suboptions': module.params['facts'],
+            'suboptions': module.params['facts'] if isinstance(module.params['facts'], bool) and module.params['facts'] else None,
             'cli_path': '',
             'func': facts
         },
@@ -731,7 +742,7 @@ def run_module():
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
@@ -739,8 +750,12 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
+
+    if module.check_mode:
+        result['nodegrid_os'] = nodegrid_os
     
+    # Not required for Managed Devices to create an snapshot before any task
+    use_config_start_global = False
     #
     # Lets run the options
     #
@@ -748,6 +763,7 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
+        'timeout': module.params['timeout']
     }
 
     for option in option_list:

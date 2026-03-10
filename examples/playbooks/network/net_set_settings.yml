@@ -9,3 +9,4 @@
       settings:
         hostname: "remote-site"
         ipv4_loopback: "203.0.113.0"
+        enable_network_failover: "no"

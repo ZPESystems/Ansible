@@ -1,0 +1,10 @@
+- name: Disable Managed Device "{{ device['name'] | default('') }}" 
+  tags: always
+  zpe.nodegrid.nodegrid_cmds:
+    cmds:
+      - cmd: "cd /settings/devices/{{device['name']}}/access"
+      - cmd: "set mode=disabled"
+      - cmd: "commit"
+  when:
+    - "'name' in device"
+    - "'mode' in device"

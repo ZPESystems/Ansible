@@ -158,7 +158,7 @@ def _get_local_account(username, timeout=60) -> dict:
     cmd: dict = {
         'cmd' : f"export_settings /settings/local_accounts/{username} --plain-password"
     }
-    cmd_result = execute_cmd(cmd_cli, cmd)
+    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
     close_cli(cmd_cli)
     data = {}
     if cmd_result['error']:
@@ -169,6 +169,7 @@ def _get_local_account(username, timeout=60) -> dict:
 def run_authorization_profile(option, run_opt):
     profile = option['suboptions']['profile']
     profile_path = f"{option['cli_path']}/profile"
+    timeout = run_opt.get('timeout', 60)
 
     #
     # Step 1: Apply general settings and only system permissions
@@ -212,7 +213,7 @@ def run_authorization_profile(option, run_opt):
     if manage_devices_permissions_enabled:
 
         # Export the current settings
-        state, exported_settings, exported_all_settings = export_settings(profile_path)
+        state, exported_settings, exported_all_settings = export_settings(profile_path, timeout=timeout)
         if "error" in state:
             return result_failed(str(state[1]))
         current_settings = settings_to_dict(exported_settings)[profile_path]
@@ -230,7 +231,7 @@ def run_authorization_profile(option, run_opt):
 
         # Add manage devices permissions in a sigle line cli command
         try:
-            timeout = run_opt['timeout'] if 'timeout' in run_opt else 60
+            timeout = run_opt.get('timeout', 60)
             cmd_cli = get_cli(timeout=timeout)
             cmd_line = []
             for key, value in permissions_dict.items():
@@ -496,7 +497,7 @@ def run_module():
         authorization=dict(type='dict', required=False),
         password_rules=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type=int, default=60)
+        timeout=dict(type='int', default=60, required=False)
     )
 
     # seed the result dict in the object
@@ -563,7 +564,7 @@ def run_module():
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':

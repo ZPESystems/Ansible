@@ -9,7 +9,7 @@ __metaclass__ = type
 
 DOCUMENTATION = r'''
 ---
-module: firewall
+module: services
 author: Rene Neumann (@zpe-rneumann)
 '''
 
@@ -63,7 +63,7 @@ def resort_rule(rule: dict) -> dict:
            'enable_autodiscovery','dhcp_lease_per_autodiscovery_rules','block_host_with_multiple_authentication_fails',
            'allow_root_console_access','rescue_mode_require_authentication','password_protected_boot','ssh_allow_root_access',
            'ssh_tcp_port','ssh_ciphers','ssh_macs','ssh_kexalgorithms','enable_http_access','http_port','enable_https_access',
-           'https_port','redirect_http_to_https','enable_https_file_repository','frr_enable_bgp','frr_enable_ospfv2','frr_enable_ospfv3',
+            'https_port','redirect_http_to_https','enable_https_file_repository','frr_enable_bgp','frr_enable_isis','frr_enable_path','frr_enable_ospfv2','frr_enable_ospfv3',
             'frr_enable_rip','frr_enable_vrrp','tlsv1.3','tlsv1.2','tlsv1.1','tlsv1','cipher_suite_level']
     for key in sort_list:
         if key in rule.keys():
@@ -99,7 +99,7 @@ def run_module():
     module_args = dict(
         services=dict(type='dict', required=False),
         zpe_cloud=dict(type='dict', required=False),
-        timeout=dict(type=int, default=60),
+        timeout=dict(type='int', default=60, required=False),
         debug=dict(type='bool', default=False)
     )
 
@@ -131,7 +131,7 @@ def run_module():
         except:
             timeout = 60
     # Lets get the current status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':

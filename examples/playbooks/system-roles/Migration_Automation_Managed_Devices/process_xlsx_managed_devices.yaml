@@ -1,0 +1,26 @@
+# Process the xlsx file on the localhost and create the Ansible inventory
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    nodegrid_importer_template_path: '/var/local/file_manager/admin_group' # path for the xlsx file
+    nodegrid_importer_template_filename: 'Nodegrid_Importer_Template.xlsx' # xlsx file name
+    nodegrid_importer_template_xlsx: "{{ nodegrid_importer_template_path | default('/var/local/file_manager/admin_group')}}/{{ nodegrid_importer_template_filename | default('Nodegrid_Importer_Template.xlsx') }}"
+  collections:
+    - ansible.builtin
+    - zpe.nodegrid
+  tasks:
+  - name: Check if "{{ nodegrid_importer_template_xlsx }}" exists
+    ansible.builtin.stat:
+      path: "{{ nodegrid_importer_template_xlsx }}"
+    register: template_file_stat
+
+  - name: Fail the playbook if the xlsx configuration file is missing
+    ansible.builtin.fail:
+      msg: "The critical configuration file '{{ nodegrid_importer_template_xlsx }}' does not exist!."
+    when: not template_file_stat.stat.exists
+
+  - name: Process the Nodegrid Importer Template xlsx file
+    tags: process-xlsx-managed-devices
+    include_role:
+      name: process_managed_devices_into_inventory

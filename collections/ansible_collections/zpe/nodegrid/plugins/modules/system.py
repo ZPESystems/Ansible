@@ -69,6 +69,7 @@ def run_option_license(option, run_opt):
     settings_dict = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
 
     result = dict(
         changed=False,
@@ -90,7 +91,12 @@ def run_option_license(option, run_opt):
             
             for lic_key in license_keys:
                 cmd = f"cd {cli_path}; add; set license_key={lic_key}; commit"
-                output = run_cli_command(cmd)
+                cli_output = run_cli_command(cmd, timeout=timeout)
+                if 'error' in cli_output:
+                    result['failed'] = True
+                    result['msg'] = cli_output.get('msg', f'Error on cmd: {cmd}')
+                    return result
+                output = cli_output.get('output')
                 if "Error:".lower() in output.lower():
                     if "License Already Installed".lower() in output.lower():
                         already_installed.append(lic_key)
@@ -122,7 +128,8 @@ def run_module():
         ntp_server=dict(type='dict', required=False),
         ntp_authentication=dict(type='dict', required=False),
         system_logging=dict(type='dict', required=False),
-        skip_invalid_keys=dict(type='bool', default=False, required=False)
+        skip_invalid_keys=dict(type='bool', default=False, required=False),
+        timeout=dict(type='int', default=60, required=False),
     )
 
     # seed the result dict in the object
@@ -189,7 +196,7 @@ def run_module():
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
@@ -205,7 +212,8 @@ def run_module():
     run_opt = {
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
-        'check_mode': module.check_mode
+        'check_mode': module.check_mode,
+        'timeout': module.params['timeout']
     }
 
     for option in option_list:

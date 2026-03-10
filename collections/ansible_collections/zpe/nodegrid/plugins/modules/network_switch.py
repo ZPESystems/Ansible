@@ -151,9 +151,10 @@ def run_option_network_switch_interfaces(option, run_opt):
 def run_option_network_switch_backplane(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
+    timeout = run_opt.get('timeout', 60)
 
     # Export current settings
-    state, exported_settings, exported_all_settings = export_settings(cli_path)
+    state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
     if "error" in state:
         return result_failed(f"Failed exporting settings on {cli_path}. Error: {state[1]}")
 
@@ -173,7 +174,8 @@ def run_module():
         'interfaces': dict(type='dict', required=False),
         'backplane': dict(type='dict', required=False),
         'vlan': dict(type='dict', required=False),
-        'skip_invalid_keys': dict(type='bool', default=False, required=False)
+        'skip_invalid_keys': dict(type='bool', default=False, required=False),
+        'timeout': dict(type='int', default=60, required=False),
     }
 
     # seed the result dict in the object
@@ -225,7 +227,7 @@ def run_module():
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support()
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
@@ -241,7 +243,8 @@ def run_module():
     run_opt = {
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
-        'check_mode': module.check_mode
+        'check_mode': module.check_mode,
+        'timeout': module.params['timeout']
     }
 
     for option in option_list:

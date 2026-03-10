@@ -58,7 +58,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         gather_subset=dict(default=["all"], required=False, type='list', elements='str'),
-        gather_timeout=dict(default=300, required=False, type='int'),
+        gather_timeout=dict(default=60, required=False, type='int'),
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -70,9 +70,9 @@ def run_module():
         supports_check_mode=True,
     )
 
-    gather_timeout = module.params.get('gather_timeout', 300)
-
-    result = dict()
+    result = dict(
+        failed=False,
+    )
     namespace = PrefixFactNamespace(namespace_name='nodegrid', prefix='nodegrid_')
     try:
         nodegrid_fact_collector = NodegridFactCollector(namespace=namespace)
@@ -80,6 +80,10 @@ def run_module():
         module.fail_json(msg=to_text(e))
 
     nodegrid_facts = nodegrid_fact_collector.collect_with_namespace(module=module, collected_facts=None)
+    if nodegrid_facts.pop('nodegrid_failed', False):
+        result['failed'] = True
+        result['message'] = nodegrid_facts['nodegrid_msg']
+        module.fail_json(msg=nodegrid_facts['nodegrid_msg'], **result)
     if len(nodegrid_facts) > 0:
         result['ansible_facts'] = nodegrid_facts
 

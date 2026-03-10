@@ -10,7 +10,7 @@
       tags:
       - always
 
-    - name: gather zpe facts
+    - name: gather zpe nodegrid facts
       zpe.nodegrid.nodegrid_facts:
       register: ng_facts
       tags:

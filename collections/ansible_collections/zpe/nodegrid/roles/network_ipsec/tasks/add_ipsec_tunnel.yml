@@ -1,0 +1,4 @@
+- name: Add IPSEC Tunnel
+  tags: always
+  zpe.nodegrid.ipsec:
+    ipsec_tunnel: "{{ ipsec_tunnel }}"

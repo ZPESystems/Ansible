@@ -5,6 +5,9 @@
     - zpe.nodegrid
 
   tasks:
+    - name: Get Nodegrid Facts
+      zpe.nodegrid.nodegrid_facts:
+
     - name: Configure Nodegrid
       block:
       - name: Setup Audit Settings

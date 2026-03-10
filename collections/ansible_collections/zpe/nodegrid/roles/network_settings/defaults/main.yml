@@ -9,3 +9,6 @@ nodegrid_ipv6_loopback: ""
 nodegrid_reverse_path_filtering: "strict_mode"
 nodegrid_enable_multiple_routing_tables: "yes"
 nodegrid_enable_bluetooth_network: "no"
+nodegrid_enable_vrf_strict_mode: "no"
+nodegrid_enable_ipv6_segment_routing: "no"
+nodegrid_ipv6_segment_routing_flowlabel: "copy_from_inner_ipv6" # based_on_seg6_make_flowlabel, copy_from_inner_ipv6, zer

@@ -1,0 +1,4 @@
+- name: IPSEC Global Configuration
+  tags: always
+  zpe.nodegrid.ipsec:
+    ipsec_global: "{{ ipsec_global | default({}) }}"

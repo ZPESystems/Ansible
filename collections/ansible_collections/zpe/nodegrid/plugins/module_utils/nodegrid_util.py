@@ -1,12 +1,64 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+from contextlib import contextmanager
 import pexpect
 import re
 from collections import OrderedDict
 from datetime import datetime
 import os
 import uuid
+
+############################################################################
+# Nodegrid Exception
+class NodegridError(Exception):
+    """Base exception for all Nodegrid CLI application-specific errors."""
+    pass
+
+class CLICommunicationError(NodegridError):
+    """Nodegrid CLI custom exception for CLI-specific errors."""
+    def __init__(self, message, buffer=None, original_exception=None):
+        self.message = message
+        # It is assumed that the buffer is already decoded.
+        self.buffer = buffer 
+        self.original_exception = original_exception
+        super().__init__(self.message)
+
+    def __str__(self):
+        # Logs format: Messagge + the last 200 chars of buffer
+        buf_tail = f"\nOutput Tail:\n{self.buffer[-200:]}" if self.buffer else ""
+        return f"{self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"{self.message} {buf_tail}"
+
+class CLIOutputError(NodegridError):
+    """Nodegrid CLI custom exception for CLI output errors."""
+    def __init__(self, cmd, message, buffer=None, original_exception=None):
+        self.cmd = cmd
+        self.message = message
+        # It is assumed that the buffer is already decoded.
+        self.buffer = buffer 
+        self.original_exception = original_exception
+        super().__init__(self.message)
+
+    def __str__(self):
+        # Logs format: Messagge + the last 200 chars of buffer
+        buf_tail = f"\nOutput Tail:\n{self.buffer[-200:]}" if self.buffer else ""
+        return f"CLI cmd: {self.cmd}. {self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"CLI cmd: {self.cmd}. {self.message} {buf_tail}"
+
+class CLISystemRevertError(NodegridError):
+    """Nodegrid CLI custom exception for 'Error: The system configuration has been changed. Please revert.'."""
+    def __init__(self, message, buffer=None, original_exception=None):
+        self.message = message
+        # It is assumed that the buffer is already decoded.
+        self.buffer = buffer 
+        self.original_exception = original_exception
+        super().__init__(self.message)
+
+    def __str__(self):
+        # Logs format: Messagge + the last 200 chars of buffer
+        buf_tail = f"\nOutput Tail:\n{self.buffer[-200:]}" if self.buffer else ""
+        return f"{self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"{self.message} {buf_tail}"
+#     
+############################################################################
 
 CERT_BEGIN = '-----BEGIN '
 CERT_END = '-----END '
@@ -29,17 +81,24 @@ def _get_import_process_timeout(import_text):
     return ret_timeout
 
 def run_cli_command(cmd, timeout=60, expect_criteria=pexpect.EOF):
+    result = dict(error=False, msg='', output=None)
     try:
         output = ''
-        cli_cmd = f'cli -c {cmd}'
-        child = pexpect.spawn(cli_cmd, encoding='utf-8')
+        #cli_cmd = f"cli '.sessionpageout undefined=no; {cmd}'"
+        cli_cmd = f"cli {cmd}"
+        child = pexpect.spawn(cli_cmd, encoding='utf-8', timeout=timeout)
+        child.setwinsize(500, 250)
         child.expect(expect_criteria, timeout=timeout)
         output = str(child.before) + str(child.after) if child.after != pexpect.EOF else str(child.before)
-        return {'output': output.strip()}
+        result['output'] = output.strip()
     except pexpect.exceptions.TIMEOUT as e:
-        return {'error': True, 'msg': f'cli cmd execution TIMEOUT. cmd: {cmd}, timeout: {timeout}'}
+        result['error'] = True
+        result['timeout'] = True
+        result['msg'] = f"CLI execution TIMEOUT. Timeout: {e}"
     except Exception as e:
-        return {'error': True, 'msg': f'cli command {cmd} exception. Exception: {e}'}
+        result['error'] = True
+        result['msg'] = f"CLI execution error. Error: {e}"
+    return result
 
 
 def get_cli(timeout=60):
@@ -47,56 +106,101 @@ def get_cli(timeout=60):
     cmd_cli.setwinsize(500, 250)
     cmd_cli.expect_exact('/]# ')
     cmd_cli.sendline('.sessionpageout undefined=no')
-    cmd_cli.expect_exact('/]# ')
+    cmd_cli.expect_exact('/]# ', timeout=timeout)
     return cmd_cli
 
 
 def get_shell(become=False, timeout=60):
     cmd_shell = pexpect.spawn('bash', encoding='UTF-8', timeout=timeout)
     cmd_shell.setwinsize(500, 250)
-    cmd_shell.expect_exact(['$'])
+    cmd_shell.expect_exact(['$'], timeout=timeout)
     return cmd_shell
 
 def close_cli(cmd_cli):
     cmd_cli.sendline('exit')
     cmd_cli.close()
 
+# Try to abort current CLI configuration session
+def abort_config_session(cmd_cli, timeout=60):
+    abort_cmds = [dict(cmd='cancel', ignore_error=True), dict(cmd='revert', ignore_error=True), dict(cmd='config_revert', ignore_error=True)]
+    for abort_cmd in abort_cmds:
+        try:
+            execute_cmd(cmd_cli, abort_cmd, timeout)
+        except Exception:
+            continue
+
 def execute_cmd(cmd_cli, cmd, timeout=60):
-    if 'cmd' in cmd.keys():
+    # cmd = dict(cmd='CLI command to execute', ignore_error=True|False, confirm=True|False, restore=True|False)
+    if not isinstance(cmd, dict) or not 'cmd' in cmd.keys():
+       raise CLICommunicationError(message="cmd parameter must be a dict type and contain key:value {'cmd':'CLI command'}")
+    output_dict = dict(error=False)
+    try:
         cmd_cli.sendline(cmd['cmd'])
-        if 'confirm' in cmd.keys() or 'restore' in cmd.keys():
-            index = cmd_cli.expect_exact(['(yes, no)  :', ']# ', pexpect.EOF, pexpect.TIMEOUT], timeout=timeout)
+        if ('confirm' in cmd.keys() and isinstance(cmd['confirm'], bool) and cmd['confirm'] is True) or ('restore' in cmd.keys() and isinstance(cmd['restore'], bool) and cmd['restore'] is True):
+            index = cmd_cli.expect_exact(['(yes, no)  :', ']# '], timeout=timeout)
             if index == 0:
                 cmd_cli.sendline('yes')
-                cmd_cli.expect_exact(']# ')
+                cmd_cli.expect_exact(']# ', timeout=timeout)
                 cmd_cli.sendline('commit')
-                cmd_cli.expect_exact(']# ')
+                cmd_cli.expect_exact(']# ', timeout=timeout)
             elif index == 1:
                 cmd_cli.sendline('commit')
-                cmd_cli.expect_exact(']# ')
+                cmd_cli.expect_exact(']# ', timeout=timeout)
         else:
-            cmd_cli.expect_exact(']# ')
+            cmd_cli.expect_exact(']# ', timeout=timeout)
         output = cmd_cli.before
         output = output.replace('\r\r\n', '\r\n')
-        output_dict = dict()
-        if 'ignore_error' in cmd.keys():
-            output_dict['error'] = False
-            output_dict['stdout'] = output
-            output_dict['json'] = convert_to_json(output)
-            output_lines = output.splitlines()
-            output_dict['stdout_lines'] = output_lines
-        else:
-            if "Error" in output or "error" in output:
-                output_dict['error'] = True
-                output_dict['json'] = convert_to_json(output)
-                output_dict['stdout'] = output
-            else:
-                output_dict['error'] = False
-                output_dict['stdout'] = output
-                output_dict['json'] = convert_to_json(output)
-                output_lines = output.splitlines()
-                output_dict['stdout_lines'] = output_lines
+        ignore_error = 'ignore_error' in cmd.keys() and isinstance(cmd['ignore_error'], bool) and cmd['ignore_error'] is True
+
+        if "Error: The system configuration has been changed. Please revert." in output:
+            buffer = cmd_cli.before
+            abort_config_session(cmd_cli, timeout=timeout)
+            raise CLISystemRevertError(
+                message=f"Error: The system configuration has been changed. Session aborted/reverted attempted!.",
+                buffer=buffer,
+            )
+        elif not ignore_error and ("Error" in output or "error" in output):
+            buffer = cmd_cli.before
+            abort_config_session(cmd_cli, timeout=timeout)
+            raise CLIOutputError(
+                cmd = cmd['cmd'],
+                message=f"The CLI command '{cmd['cmd']}' returned an error.",
+                buffer=buffer,
+            )
+        elif ignore_error and ("Error" in output or "error" in output):
+            output_dict['error'] = True
+            output_dict['cmd'] = cmd['cmd']
+            output_dict['msg'] = output
+        output_dict['stdout'] = output
+        output_dict['json'] = convert_to_json(output)
+        output_dict['stdout_lines'] = output.splitlines()
+    except (pexpect.exceptions.TIMEOUT, pexpect.exceptions.EOF) as e:
+        raise CLICommunicationError(
+            message=f"CLI pexpect failed (timeout={timeout}).",
+            buffer=cmd_cli.before,
+            original_exception=e
+        ) from e
     return output_dict
+
+@contextmanager
+def nodegrid_cli(timeout=60):
+    """CLI to execute commands."""
+    cmd_cli = None
+    try:
+        cmd_cli = get_cli(timeout=timeout)
+        yield cmd_cli
+    except (pexpect.TIMEOUT, pexpect.EOF) as e:
+        # Wrap the low-level pexpect error into Nodegrid CLI exception
+        raise CLICommunicationError(
+            message=f"Getting CLI spawn failed (timeout={timeout}).",
+            original_exception=e
+        ) from e
+    except Exception:
+        raise
+    finally:
+        if cmd_cli and isinstance(cmd_cli, pexpect.spawn):
+            close_cli(cmd_cli)
+
 
 def get_nodegrid_os_details(timeout=60):
     """Returns details about the Nodegrid OS
@@ -105,15 +209,19 @@ def get_nodegrid_os_details(timeout=60):
         dict: Nodegrid OS details
     """
     cli_output = run_cli_command("show /system/about", timeout=timeout)
-    if 'error' in cli_output:
-        return {'error': cli_output.get('msg', 'Error on cmd: show /system/about')}
+    if 'error' in cli_output and isinstance(cli_output['error'], bool) and cli_output['error'] is True:
+        return {'error': True, 'msg': cli_output.get('msg', 'Error on cmd: show /system/about')}
     output = cli_output.get('output')
-    details = {}
+    details = dict(
+        error = False
+    )
     if "Error" in output or "error" in output:
         if "Error: Invalid argument:" in output:
-            details["error"] = "Error getting system information"
+            details["error"] = True
+            details["msg"] = "Error getting system information"
         else:
-            details["error"] = output
+            details["error"] = True 
+            details["msg"] = output
     for line in output.splitlines():
         if ":" in line:
             # output_dict[line] = line.split(':',1)
@@ -132,31 +240,10 @@ def get_nodegrid_os_details(timeout=60):
                 details['software_sub'] = subversion.strip()
             details[key.strip()] = value.strip()
     if not 'version' in details:
-        details["error"] = f"Error getting Nodegrid Version. CLI output: {output}"
+        details["error"] = True 
+        details["msg"] = f"Error getting Nodegrid Version. CLI output: {output}"
     return details
 
-def get_system_details(timeout=60):
-    """Returns details about the Nodegrid System /system/about
-
-    Returns:
-        dict: Nodegrid System details
-    """
-    cli_output = run_cli_command("show /system/about", timeout=timeout)
-    if 'error' in cli_output:
-        return {'error': cli_output.get('msg', 'Error on cmd: show /system/about')}
-    output = cli_output.get('output')
-    details = {}
-    if "Error" in output or "error" in output:
-        if "Error: Invalid argument:" in output:
-            details["error"] = "Error getting system information"
-        else:
-            details["error"] = output
-        return details
-    for line in output.splitlines():
-        if ":" in line:
-            key, value = line.split(':', 1)
-            details[key.strip()] = value.strip()
-    return details
 
 def export_settings(cli_path, timeout=60):
     """Runs the export settings
@@ -173,7 +260,7 @@ def export_settings(cli_path, timeout=60):
     all_settings = []
     state = 'error'
     cli_output = run_cli_command(f'export_settings {cli_path} --plain-password --include-empty --not-enabled', timeout=timeout)
-    if 'error' in cli_output:
+    if 'error' in cli_output and isinstance(cli_output['error'], bool) and cli_output['error'] is True:
         return ["error", cli_output.get('msg', f'Error on cmd: export_settings {cli_path} --plain-password --include-empty --not-enabled')], settings, all_settings
     output = cli_output.get('output')
     if "error" in output.lower():
@@ -379,13 +466,13 @@ def check_os_version_support(timeout=60):
         dict: Nodegrid OS Details
     """
     nodegrid_os = get_nodegrid_os_details(timeout=timeout)
-    if "error" in nodegrid_os:
-        return "error","Error getting Nodegrid os details. Error: " + nodegrid_os['error'], nodegrid_os
+    if "error" in nodegrid_os and nodegrid_os["error"]:
+        return "error",f"Error getting Nodegrid os details. Error: {nodegrid_os['msg']}", nodegrid_os
     version = nodegrid_os['version']
     if compare_versions(version,'5.0.0') < 0:
-        return "unsupported","Unsupported Nodegrid OS version. recommended 5.6.1 or higher. Current version: " + nodegrid_os['software'], nodegrid_os
+        return "unsupported",f"Unsupported Nodegrid OS version. recommended 5.6.1 or higher. Current version: {nodegrid_os['software']}", nodegrid_os
     elif compare_versions(version,'5.6.0') <= 0:
-        return "warning", "Not recommended and untested Nodegrid OS version, some features might not work. recommended 5.6.1 or higher. Current version: " + nodegrid_os['software'], nodegrid_os
+        return "warning", f"Not recommended and untested Nodegrid OS version, some features might not work. recommended 5.6.1 or higher. Current version: {nodegrid_os['software']}", nodegrid_os
     return "supported","", nodegrid_os
 
 def to_list(value):
@@ -842,7 +929,7 @@ def read_table_row(table, col_index, col_value):
 
 def read_path_options(cli_path, separators=[":","="], timeout=60):
     cli_output = run_cli_command(f"show {cli_path}", timeout=timeout)
-    if 'error' in cli_output:
+    if 'error' in cli_output and isinstance(cli_output['error'], bool) and cli_output['error'] is True:
         return {'error': True, 'msg': cli_output.get('msg', f'Error on cmd: show {cli_path}')}
     output = cli_output.get('output')
     if "Error" in output or "error" in output:

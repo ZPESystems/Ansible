@@ -20,8 +20,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, dict_diff, import_settings
-
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, CLICommunicationError, CLIOutputError
 import os
 
 
@@ -32,21 +31,17 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def get_auditing( endpoint: str , timeout: int = 60 ) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
+def dict_diff(new_dict: dict, current_dict: dict) -> dict:
+    diff = []
+    diff.extend( [{key: new_dict[key]} for key in new_dict.keys() & current_dict.keys() if (type(new_dict[key]) is type(current_dict[key])) & (new_dict[key] != current_dict[key])] )
+    diff.extend( [{key: new_dict[key]} for key in set(new_dict.keys()) - set(current_dict.keys()) ])
+    return diff
 
-    #build cmd
-    cmd = {
-        'cmd' : str('show /settings/' + endpoint )
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = {}
-    if cmd_result['error']:
-       data =  {'error': cmd_result['error']}
-    else:
-       data =  cmd_result['json'][0]['data']
-    close_cli(cmd_cli)
-    return data
+def get_auditing( endpoint: str , timeout: int = 60 ) -> dict:
+    cmd = dict(cmd=f"show /settings/{endpoint}")
+    with nodegrid_cli(timeout) as cmd_cli:
+        cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    return cmd_result['json'][0]['data']
 
 def resort_rule(rule: dict):
     new_rule: dict = {}
@@ -99,6 +94,7 @@ def run_module():
     result = dict(
         changed=False,
         failed=False,
+        error='',
         message=''
     )
 
@@ -110,23 +106,22 @@ def run_module():
         argument_spec=module_args,
         supports_check_mode=True
     )
+
+    timeout = module.params['timeout']
     #
     # Nodegrid OS section starts here
     #
-    if "timeout" in module.params.keys():
-        try:
-            timeout = int(module.params['timeout'])
-        except:
-            timeout = 60
     # Lets get the current status and check if it must be changed
     res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
         result['warning'] = err_msg
-    # result['nodegrid_facts'] = nodegrid_os
 
-  ## Find out what needs to be changed
+    if module.params['debug']:
+        result['nodegrid_facts'] = nodegrid_os
+
+    # Find out what needs to be changed
     diff_chains = {
         'settings': {},
         'events_zpe_cloud': {},
@@ -140,8 +135,7 @@ def run_module():
         'destinations_snmp': {},
         'destinations_email': {},
     }
-    #Get Current NAT Data
-    
+
     # ####################################################################################################
     # Look at Event numbers and actions
     if module.params['event_list']:
@@ -152,269 +146,268 @@ def run_module():
             event_number = int(event_num)
             if event_number < 100 or event_number > 534:
                 continue
-          
+
             event_settings_current = {}
             # Get the current state of the event
-            event_settings_current.update(get_auditing(f"/auditing/event_list/{event_number}", module.params['timeout']))
+            try:
+                event_settings_current.update(get_auditing(f"/auditing/event_list/{event_number}", timeout))
+            except (CLICommunicationError, Exception) as e:
+                result['failed'] = True
+                result['msg'] = f"{e}"
+                result['error'] += f"{e} | "
+                continue
+
             if module.params['debug']:
                 if 'system_current' in result:
-                    result['system_current'].update({event_number: event_settings_current.copy()})
+                    result['event_list_current'].update({event_number: event_settings_current.copy()})
                 else:
-                    result['system_current'] = {event_number: event_settings_current.copy()}
+                    result['event_list_current'] = {event_number: event_settings_current.copy()}
 
                 if 'system_desired' in result:
-                    result['system_desired'].update({event_number: event_settings.copy()})
+                    result['event_list_desired'].update({event_number: event_settings.copy()})
                 else:
-                    result['system_desired'] = {event_number: event_settings.copy()}
+                    result['event_list_desired'] = {event_number: event_settings.copy()}
             # Create a diff
             diff = []
             try:
-                for item in event_settings:
-                    if item in event_settings_current:
-                        if event_settings[item].strip() != str(event_settings_current[item]).strip():
-                            diff.append({item: event_settings[item]})
-                    else:
-                        diff.append({item: event_settings[item]})
-
+                diff = dict_diff(event_settings, event_settings_current)
             except Exception as e:
                 result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
+                result['error'] += f"Error: creating system settings diff. Error Message: {str(e)} | "
             finally:
                 if len(diff) > 0:
                     diff_chains['event_list'].update({event_number: diff})
-    ###########################################################################################################
 
+    ###########################################################################################################
     # Look at Auditing Settings details
     if module.params['auditing_settings']:
-            auditing_settings = module.params['auditing_settings']
-            auditing_settings_current = {}
-            # Get the current state of the plocy
-            auditing_settings_current.update(get_auditing("/auditing/settings", module.params['timeout']))
+        auditing_settings = module.params['auditing_settings']
+        auditing_settings_current = {}
+        # Get the current state of the plocy
+        diff = []
+        try:
+            auditing_settings_current.update(get_auditing("/auditing/settings", timeout))
             if module.params['debug']:
                 result['system_current'] = auditing_settings_current.copy()
                 result['system_desired'] = auditing_settings.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_settings:
-                    if auditing_settings_current[item]:
-                        if auditing_settings[item] != auditing_settings_current[item]:
-                            diff.append({item: auditing_settings[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['settings'] = diff
+            diff = dict_diff(auditing_settings, auditing_settings_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['settings'] = diff
 
+    # ####################################################################################################
     # Look at Auditing Event Settings for ZPE Cloud details
     if module.params['events_zpe_cloud']:
-            auditing_events_zpe_cloud = module.params['events_zpe_cloud']
-            auditing_events_zpe_cloud_current = {}
-            # Get the current state of the plocy
-            auditing_events_zpe_cloud_current.update(get_auditing("/auditing/events/zpe_cloud", module.params['timeout']))
+        auditing_events_zpe_cloud = module.params['events_zpe_cloud']
+        auditing_events_zpe_cloud_current = {}
+        # Get the current state of the events_zpe_cloud
+        diff = []
+        try:
+            auditing_events_zpe_cloud_current.update(get_auditing("/auditing/events/zpe_cloud", timeout))
             if module.params['debug']:
                 result['events_zpe_cloud_current'] = auditing_events_zpe_cloud_current.copy()
                 result['events_zpe_cloud_desired'] = auditing_events_zpe_cloud.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_events_zpe_cloud:
-                    if auditing_events_zpe_cloud_current[item]:
-                        if auditing_events_zpe_cloud[item] != auditing_events_zpe_cloud_current[item]:
-                            diff.append({item: auditing_events_zpe_cloud[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['events_zpe_cloud'] = diff
+            diff = dict_diff(auditing_events_zpe_cloud, auditing_events_zpe_cloud_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['events_zpe_cloud'] = diff
 
+
+    # ####################################################################################################
     # Look at Auditing Event Settings for E-Mails
     if module.params['events_email']:
-            auditing_events_events_email = module.params['events_email']
-            auditing_events_events_email_current = {}
-            # Get the current state of the plocy
-            auditing_events_events_email_current.update(get_auditing("/auditing/events/email", module.params['timeout']))
+        auditing_events_email = module.params['events_email']
+        auditing_events_email_current = {}
+        # Get the current state of the events_email
+        diff = []
+        try:
+            auditing_events_email_current.update(get_auditing("/auditing/events/email", timeout))
             if module.params['debug']:
-                result['events_email_current'] = auditing_events_events_email_current.copy()
-                result['events_email_desired'] = auditing_events_events_email.copy()
+                result['events_email_current'] = auditing_events_email_current.copy()
+                result['events_email_desired'] = auditing_events_email.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_events_events_email:
-                    if auditing_events_events_email_current[item]:
-                        if auditing_events_events_email[item] != auditing_events_events_email_current[item]:
-                            diff.append({item: auditing_events_events_email[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['events_email'] = diff
+            diff = dict_diff(auditing_events_email, auditing_events_email_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['events_email'] = diff
 
+
+    # ####################################################################################################
     # Look at Auditing Event Settings for files
     if module.params['events_file']:
-            auditing_events_events_file = module.params['events_file']
-            auditing_events_events_file_current = {}
-            # Get the current state of the
-            auditing_events_events_file_current.update(get_auditing("/auditing/events/file", module.params['timeout']))
+        auditing_events_file = module.params['events_file']
+        auditing_events_file_current = {}
+        # Get the current state of the events_file
+        diff = []
+        try:
+            auditing_events_file_current.update(get_auditing("/auditing/events/file", timeout))
             if module.params['debug']:
-                result['events_file_current'] = auditing_events_events_file_current.copy()
-                result['events_file_desired'] = auditing_events_events_file.copy()
+                result['events_file_current'] = auditing_events_file_current.copy()
+                result['events_file_desired'] = auditing_events_file.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_events_events_file:
-                    if auditing_events_events_file_current[item]:
-                        if auditing_events_events_file[item] != auditing_events_events_file_current[item]:
-                            diff.append({item: auditing_events_events_file[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['events_file'] = diff
+            diff = dict_diff(auditing_events_file, auditing_events_file_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['events_file'] = diff
 
+
+    # ####################################################################################################
     # Look at Auditing Event Settings for Syslog
     if module.params['events_syslog']:
-            auditing_events_events_syslog = module.params['events_syslog']
-            auditing_events_events_syslog_current = {}
-            # Get the current state of the
-            auditing_events_events_syslog_current.update(get_auditing("/auditing/events/syslog", module.params['timeout']))
+        auditing_events_syslog = module.params['events_syslog']
+        auditing_events_syslog_current = {}
+        # Get the current state of the events_syslog
+        diff = []
+        try:
+            auditing_events_syslog_current.update(get_auditing("/auditing/events/syslog", timeout))
             if module.params['debug']:
-                result['events_syslog_current'] = auditing_events_events_syslog_current.copy()
-                result['events_syslog_desired'] = auditing_events_events_syslog.copy()
+                result['events_syslog_current'] = auditing_events_syslog_current.copy()
+                result['events_syslog_desired'] = auditing_events_syslog.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_events_events_syslog:
-                    if auditing_events_events_syslog_current[item]:
-                        if auditing_events_events_syslog[item] != auditing_events_events_syslog_current[item]:
-                            diff.append({item: auditing_events_events_syslog[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['events_syslog'] = diff
+            diff = dict_diff(auditing_events_syslog, auditing_events_syslog_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['events_syslog'] = diff
 
+
+    # ####################################################################################################
     # Look at Auditing Event Settings for SNMP
     if module.params['events_snmp']:
-            auditing_events_events_snmp = module.params['events_snmp']
-            auditing_events_events_snmp_current = {}
-            # Get the current state of the
-            auditing_events_events_snmp_current.update(get_auditing("/auditing/events/snmp_trap", module.params['timeout']))
+        auditing_events_snmp = module.params['events_snmp']
+        auditing_events_snmp_current = {}
+        # Get the current state of the events_snmp
+        diff = []
+        try:
+            auditing_events_snmp_current.update(get_auditing("/auditing/events/snmp_trap", timeout))
             if module.params['debug']:
-                result['events_syslog_current'] = auditing_events_events_snmp_current.copy()
-                result['events_syslog_desired'] = auditing_events_events_snmp.copy()
+                result['events_snmp_current'] = auditing_events_snmp_current.copy()
+                result['events_snmp_desired'] = auditing_events_snmp.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_events_events_snmp:
-                    if auditing_events_events_snmp_current[item]:
-                        if auditing_events_events_snmp[item] != auditing_events_events_snmp_current[item]:
-                            diff.append({item: auditing_events_events_snmp[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['events_snmp'] = diff
+            diff = dict_diff(auditing_events_snmp, auditing_events_snmp_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['events_snmp'] = diff
+
 
 ###########################################
     # Look at Auditing Event Destination for E-Mails
     if module.params['destinations_email']:
-            auditing_destinations_email = module.params['destinations_email']
-            auditing_destinations_email = resort_rule(auditing_destinations_email)
-            auditing_destinations_email = clean_rule(auditing_destinations_email)
-            auditing_destinations_email_current = {}
-            # Get the current state of the plocy
-            auditing_destinations_email_current.update(get_auditing("/auditing/destinations/email", module.params['timeout']))
+        auditing_destinations_email = module.params['destinations_email']
+        auditing_destinations_email = resort_rule(auditing_destinations_email)
+        auditing_destinations_email = clean_rule(auditing_destinations_email)
+        auditing_destinations_email_current = {}
+        # Get the current state of the destinations_email
+        diff = []
+        try:
+            auditing_destinations_email_current.update(get_auditing("/auditing/destinations/email", timeout))
             if module.params['debug']:
                 result['destinations_email_current'] = auditing_destinations_email_current.copy()
                 result['destinations_email_desired'] = auditing_destinations_email.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_destinations_email:
-                    if auditing_destinations_email_current[item]:
-                        if str(auditing_destinations_email[item]) != str(auditing_destinations_email_current[item]):
-                            diff.append({item: auditing_destinations_email[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['destinations_email'] = diff
+            diff = dict_diff(auditing_destinations_email, auditing_destinations_email_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['destinations_email'] = diff
 
+
+    # ####################################################################################################
     # Look at Auditing Event Destination for files
     if module.params['destinations_file']:
-            auditing_destinations_file = module.params['destinations_file']
-            auditing_destinations_file = resort_rule(auditing_destinations_file)
-            auditing_destinations_file = clean_rule(auditing_destinations_file)
-            auditing_destinations_file_current = {}
-            # Get the current state of the
-            auditing_destinations_file_current.update(get_auditing("/auditing/destinations/file", module.params['timeout']))
+        auditing_destinations_file = module.params['destinations_file']
+        auditing_destinations_file = resort_rule(auditing_destinations_file)
+        auditing_destinations_file = clean_rule(auditing_destinations_file)
+        auditing_destinations_file_current = {}
+        # Get the current state of the destinations_file
+        diff = []
+        try:
+            auditing_destinations_file_current.update(get_auditing("/auditing/destinations/file", timeout))
             if module.params['debug']:
                 result['destinations_file_current'] = auditing_destinations_file_current.copy()
                 result['destinations_file_desired'] = auditing_destinations_file.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_destinations_file:
-                    if auditing_destinations_file_current[item]:
-                        if str(auditing_destinations_file[item]) != str(auditing_destinations_file_current[item]):
-                            diff.append({item: auditing_destinations_file[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['destinations_file'] = diff
+            diff = dict_diff(auditing_destinations_file, auditing_destinations_file_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['destinations_file'] = diff
 
+
+    # ####################################################################################################
     # Look at Auditing Event Destination for Syslog
     if module.params['destinations_syslog']:
-            auditing_destinations_syslog = module.params['destinations_syslog']
-            auditing_destinations_syslog = resort_rule(auditing_destinations_syslog)
-            auditing_destinations_syslog = clean_rule(auditing_destinations_syslog)
-            auditing_destinations_syslog_current = {}
-            # Get the current state of the
-            auditing_destinations_syslog_current.update(get_auditing("/auditing/destinations/syslog", module.params['timeout']))
+        auditing_destinations_syslog = module.params['destinations_syslog']
+        auditing_destinations_syslog = resort_rule(auditing_destinations_syslog)
+        auditing_destinations_syslog = clean_rule(auditing_destinations_syslog)
+        auditing_destinations_syslog_current = {}
+        # Get the current state of the destinations_syslog
+        diff = []
+        try:
+            auditing_destinations_syslog_current.update(get_auditing("/auditing/destinations/syslog", timeout))
             if module.params['debug']:
                 result['destinations_syslog_current'] = auditing_destinations_syslog_current.copy()
                 result['destinations_syslog_desired'] = auditing_destinations_syslog.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_destinations_syslog:
-                    if item in auditing_destinations_syslog_current and auditing_destinations_syslog_current[item]:
-                        if str(auditing_destinations_syslog[item]) != str(auditing_destinations_syslog_current[item]):
-                            diff.append({item: auditing_destinations_syslog[item]})
-                    else:
-                        diff.append({item: auditing_destinations_syslog[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['destinations_syslog'] = diff
+            diff = dict_diff(auditing_destinations_syslog, auditing_destinations_syslog_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['destinations_syslog'] = diff
 
+
+    # ####################################################################################################
     # Look at Auditing Event Destination for SNMP
     if module.params['destinations_snmp']:
-            auditing_destinations_snmp = module.params['destinations_snmp']
-            auditing_destinations_snmp = resort_rule(auditing_destinations_snmp)
-            auditing_destinations_snmp = clean_rule(auditing_destinations_snmp)
-            auditing_destinations_snmp_current = {}
-            # Get the current state of the
-            auditing_destinations_snmp_current.update(get_auditing("/auditing/destinations/snmptrap", module.params['timeout']))
+        auditing_destinations_snmp = module.params['destinations_snmp']
+        auditing_destinations_snmp = resort_rule(auditing_destinations_snmp)
+        auditing_destinations_snmp = clean_rule(auditing_destinations_snmp)
+        auditing_destinations_snmp_current = {}
+        # Get the current state of the destinations_snmp
+        diff = []
+        try:
+            auditing_destinations_snmp_current.update(get_auditing("/auditing/destinations/snmptrap", timeout))
             if module.params['debug']:
-                result['destinations_syslog_current'] = auditing_destinations_snmp_current.copy()
-                result['destinations_syslog_desired'] = auditing_destinations_snmp.copy()
+                result['destinations_snmp_current'] = auditing_destinations_snmp_current.copy()
+                result['destinations_snmp_desired'] = auditing_destinations_snmp.copy()
             # Create a diff
-            diff = []
-            try:
-                for item in auditing_destinations_snmp:
-                    if auditing_destinations_snmp_current[item]:
-                        if str(auditing_destinations_snmp[item]) != str(auditing_destinations_snmp_current[item]):
-                            diff.append({item: auditing_destinations_snmp[item]})
-            except Exception as e:
-                result['failed'] = True
-                result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
-            finally:
-                diff_chains['destinations_snmp'] = diff
+            diff = dict_diff(auditing_destinations_snmp, auditing_destinations_snmp_current)
+        except (CLICommunicationError, Exception) as e:
+            result['failed'] = True
+            result['msg'] = f"{e}"
+            result['error'] += f"{e} | "
+        finally:
+            diff_chains['destinations_snmp'] = diff
 
+
+    # If failed, return error msg
+    if result['failed']:
+        module.fail_json(msg=result['error'], **result)
 
     # Build out commands
     cmds = []
@@ -536,36 +529,33 @@ def run_module():
         result['diff'] = diff_chains
         result['message'] = "No changes where performed, running in check_mode"
         module.exit_json(**result)
-    ## Pushing Changes
 
+    ## Pushing Changes
     # Apply Changes
     try:
         cmd_results = []
-        cmd_cli = get_cli(timeout=timeout)
-        for cmd in cmds:
-            cmd_result = execute_cmd(cmd_cli, cmd)
-            if 'template' in cmd.keys():
-                cmd_result['template'] = cmd['template']
-            if 'set_fact' in cmd.keys():
-                cmd_result['set_fact'] = cmd['set_fact']
-            if 'ignore_error' in cmd.keys():
-                cmd_result['ignore_error'] = cmd['ignore_error']
-            if 'json' in cmd.keys():
-                cmd_result['json'] = cmd['json']
-            cmd_result['command'] = cmd.get('cmd')
-            cmd_results.append(cmd_result)
-            if cmd_result['error']:
-                result['failed'] = True
-                cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel', ignore_error=True))
-                cmd_result = execute_cmd(cmd_cli, dict(cmd='revert', ignore_error=True))
-                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert', ignore_error=True))
-                break;
-            result['changed'] = True
-        close_cli(cmd_cli)
+        with nodegrid_cli(timeout) as cmd_cli:
+            for cmd in cmds:
+                cmd_result = execute_cmd(cmd_cli, cmd)
+                if 'template' in cmd.keys():
+                    cmd_result['template'] = cmd['template']
+                if 'set_fact' in cmd.keys():
+                    cmd_result['set_fact'] = cmd['set_fact']
+                if 'ignore_error' in cmd.keys():
+                    cmd_result['ignore_error'] = cmd['ignore_error']
+                if 'json' in cmd.keys():
+                    cmd_result['json'] = cmd['json']
+                cmd_result['command'] = cmd.get('cmd')
+                cmd_results.append(cmd_result)
+                if cmd_result['error']:
+                    result['contains_errors'] = True
+                    result['message'] += f"CLI cmd: {cmd.get('cmd')}. Error = {cmd_result['msg']} |"
+                else:
+                    result['changed'] = True
         result['cmds_output'] = cmd_results
-    except Exception as exc:
+    except (CLICommunicationError, CLIOutputError, Exception) as e:
         result['failed'] = True
-        result['message'] = str(exc)
+        result['message'] += f"{e} |"
 
     if result['failed']:
         module.fail_json(msg=result['message'], **result)

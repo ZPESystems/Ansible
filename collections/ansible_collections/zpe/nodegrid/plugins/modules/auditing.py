@@ -20,7 +20,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, CLICommunicationError, CLIOutputError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, NodegridError, CLIOutputError
 import os
 
 
@@ -31,7 +31,7 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def dict_diff(new_dict: dict, current_dict: dict) -> dict:
+def dict_diff(new_dict: dict, current_dict: dict) -> list:
     diff = []
     diff.extend( [{key: new_dict[key]} for key in new_dict.keys() & current_dict.keys() if (type(new_dict[key]) is type(current_dict[key])) & (new_dict[key] != current_dict[key])] )
     diff.extend( [{key: new_dict[key]} for key in set(new_dict.keys()) - set(current_dict.keys()) ])
@@ -41,6 +41,8 @@ def get_auditing( endpoint: str , timeout: int = 60 ) -> dict:
     cmd = dict(cmd=f"show /settings/{endpoint}")
     with nodegrid_cli(timeout) as cmd_cli:
         cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    if not cmd_result['json']:
+        raise CLIOutputError(cmd=cmd['cmd'], message=f"The CLI command '{cmd['cmd']}' did not return a json value.")
     return cmd_result['json'][0]['data']
 
 def resort_rule(rule: dict):
@@ -151,7 +153,7 @@ def run_module():
             # Get the current state of the event
             try:
                 event_settings_current.update(get_auditing(f"/auditing/event_list/{event_number}", timeout))
-            except (CLICommunicationError, Exception) as e:
+            except (NodegridError, Exception) as e:
                 result['failed'] = True
                 result['msg'] = f"{e}"
                 result['error'] += f"{e} | "
@@ -192,7 +194,7 @@ def run_module():
                 result['system_desired'] = auditing_settings.copy()
             # Create a diff
             diff = dict_diff(auditing_settings, auditing_settings_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -213,7 +215,7 @@ def run_module():
                 result['events_zpe_cloud_desired'] = auditing_events_zpe_cloud.copy()
             # Create a diff
             diff = dict_diff(auditing_events_zpe_cloud, auditing_events_zpe_cloud_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -235,7 +237,7 @@ def run_module():
                 result['events_email_desired'] = auditing_events_email.copy()
             # Create a diff
             diff = dict_diff(auditing_events_email, auditing_events_email_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -257,7 +259,7 @@ def run_module():
                 result['events_file_desired'] = auditing_events_file.copy()
             # Create a diff
             diff = dict_diff(auditing_events_file, auditing_events_file_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -279,7 +281,7 @@ def run_module():
                 result['events_syslog_desired'] = auditing_events_syslog.copy()
             # Create a diff
             diff = dict_diff(auditing_events_syslog, auditing_events_syslog_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -301,7 +303,7 @@ def run_module():
                 result['events_snmp_desired'] = auditing_events_snmp.copy()
             # Create a diff
             diff = dict_diff(auditing_events_snmp, auditing_events_snmp_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -325,7 +327,7 @@ def run_module():
                 result['destinations_email_desired'] = auditing_destinations_email.copy()
             # Create a diff
             diff = dict_diff(auditing_destinations_email, auditing_destinations_email_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -349,7 +351,7 @@ def run_module():
                 result['destinations_file_desired'] = auditing_destinations_file.copy()
             # Create a diff
             diff = dict_diff(auditing_destinations_file, auditing_destinations_file_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -373,7 +375,7 @@ def run_module():
                 result['destinations_syslog_desired'] = auditing_destinations_syslog.copy()
             # Create a diff
             diff = dict_diff(auditing_destinations_syslog, auditing_destinations_syslog_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -397,7 +399,7 @@ def run_module():
                 result['destinations_snmp_desired'] = auditing_destinations_snmp.copy()
             # Create a diff
             diff = dict_diff(auditing_destinations_snmp, auditing_destinations_snmp_current)
-        except (CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             result['error'] += f"{e} | "
@@ -536,7 +538,7 @@ def run_module():
         cmd_results = []
         with nodegrid_cli(timeout) as cmd_cli:
             for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd)
+                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
                 if 'template' in cmd.keys():
                     cmd_result['template'] = cmd['template']
                 if 'set_fact' in cmd.keys():
@@ -553,7 +555,7 @@ def run_module():
                 else:
                     result['changed'] = True
         result['cmds_output'] = cmd_results
-    except (CLICommunicationError, CLIOutputError, Exception) as e:
+    except (NodegridError, Exception) as e:
         result['failed'] = True
         result['message'] += f"{e} |"
 

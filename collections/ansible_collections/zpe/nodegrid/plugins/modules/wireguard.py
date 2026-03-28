@@ -29,9 +29,9 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, run_option_adding_field_in_the_path_and_append_path, field_exist, export_settings, get_cli, close_cli, execute_cmd
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option_adding_field_in_the_path_and_append_path, field_exist, execute_cmd, NodegridError
 
-import os
+import os, re
 from collections import OrderedDict
 import traceback, subprocess
 
@@ -42,90 +42,74 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def generate_wireguard_keys():
+def generate_wireguard_keys(timeout=60):
     """
     Generate a WireGuard private & public key
     Requires that the 'wg' command is available on PATH
     Returns (private_key, public_key), both strings
     """
-    privkey = subprocess.check_output("wg genkey", shell=True).decode("utf-8").strip()
-    pubkey = subprocess.check_output(f"echo '{privkey}' | wg pubkey", shell=True).decode("utf-8").strip()
+    privkey = subprocess.check_output("wg genkey", shell=True, timeout=timeout).decode("utf-8").strip()
+    pubkey = subprocess.check_output(f"echo '{privkey}' | wg pubkey", shell=True, timeout=timeout).decode("utf-8").strip()
     return dict(private=privkey, public=pubkey)
 
-def get_wireguard_public_key(private_key):
+def get_wireguard_public_key(private_key, timeout=60):
     """
     Generate a WireGuard public key from a private key
     Requires that the 'wg' command is available on PATH
     Returns public_key string
     """
     try:
-        pubkey = subprocess.check_output(f"echo '{private_key}' | wg pubkey", shell=True).decode("utf-8").strip()
+        pubkey = subprocess.check_output(f"echo '{private_key}' | wg pubkey", shell=True, timeout=timeout).decode("utf-8").strip()
         return dict(error=False, msg='', public_key=pubkey)
-    except subprocess.CalledProcessError as e:
-        return dict(error=True, msg=e.output, public_key="")
+    except (subprocess.CalledProcessError, Exception) as e:
+        return dict(error=True, msg=f"{e}", public_key="")
 
-def _get_wireguard_peer(interface_name, peer_name, cmd_cli) -> dict:
-    #build cmd
-    cmd: dict = {
-        'cmd' : f"show /settings/wireguard/{interface_name}/peers/{peer_name}"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Error getting peer info {peer_name} for endpoint {interface_name}. Error: {cmd_result['stdout']}")
-    else:
-        return {peer_name: cmd_result['json'][0]['data']}
-
-def _get_wireguard_endpoint(interface_name, cmd_cli) -> dict:
-    #build cmd
-    cmd: dict = {
-        'cmd' : f"show /settings/wireguard/{interface_name}/interfaces"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = dict(interfaces={}, peers=[])
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Error getting endpoint info for {interface_name}. Error: {cmd_result['stdout']}")
-    else:
-        data['interfaces'] = cmd_result['json'][0]['data']
-
-
-    #build cmd
-    cmd: dict = {
-        'cmd' : f"show /settings/wireguard/{interface_name}/peers"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Cannot get present wireguard peers for endpoint {interface_name}. Error: {cmd_result['error']}")
-    else:
-        for item in cmd_result['json']:
-            for peer in item['data']:
-                if 'peer name' in peer.keys():
-                    peer_name = peer['peer name']
-                    data['peers'].extend([_get_wireguard_peer(interface_name=interface_name, peer_name=peer_name, cmd_cli=cmd_cli) ])
-    return {interface_name: data}
-
+# #####################################################################################
+# Wireguad config
 def get_wireguard_endpoints_present(timeout=60) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
-    #build cmd
-    cmd = {
-        'cmd' : f"show /settings/wireguard"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = dict(error=False, endpoints=[], msg='')
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Cannot get present wireguard endpoints. Error: {cmd_result['error']}")
-    else:
-        for item in cmd_result['json']:
-            for endpoint in item['data']:
-                if 'interface name' in endpoint.keys():
-                    interface_name = endpoint['interface name']
-                    data['endpoints'].extend([_get_wireguard_endpoint(interface_name=interface_name, cmd_cli=cmd_cli) ])
-    close_cli(cmd_cli)
-    return data
+    result = dict(
+        error=False,
+        endpoints=[],
+        msg=''
+        )
+    try:
+        cmd = dict(cmd='export_settings /settings/wireguard', ignore_error=False)
+        with nodegrid_cli(timeout) as cmd_cli:
+           cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+
+        # Parse the wireguard endpoints
+        cmd_output = cmd_result['stdout']
+        pattern = r"^.*/interfaces"
+        interfaces = set(re.findall(pattern, cmd_output, re.MULTILINE))
+
+        for interface in interfaces:
+            wg = dict()
+            wg_name = interface.replace("/settings/wireguard/","").replace("/interfaces","").strip()
+            pattern = fr"{interface}.*$"
+            iface_config = re.findall(pattern, cmd_output, re.MULTILINE)
+            wg['interfaces'] = dict(map(lambda x: x.replace(interface,'').strip().split('=',1), iface_config))
+            # peers
+            peers_pattern = interface.replace("interfaces", "peers")
+            pattern = fr"{peers_pattern}.*"
+            iface_peers = set(re.findall(pattern, cmd_output, re.MULTILINE))
+            if not 'peers' in wg:
+                wg['peers'] = list()
+            for iface_peer in iface_peers:
+                pattern = fr"{iface_peer}.*$"
+                peer_config = [element.replace('\n', '').replace('\r', '') for element in re.findall(pattern, cmd_output, re.MULTILINE)]
+                wg['peers'].append(dict(map(lambda x: x.replace(iface_peer,"").strip().split('=',1), peer_config )))
+            result['endpoints'].append({wg_name: wg})
+    except (NodegridError, Exception) as e:
+        result['error'] = True
+        result['msg'] = f"{e}"
+    return result
+# #####################################################################################
 
 # ##########################################################
 # Wireguard Server endpoint
 def run_option_wireguard_server_endpoint(option, run_opt):
     suboptions = option['suboptions']
+    timeout = run_opt.get('timeout', 60)
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = []
 
@@ -184,9 +168,9 @@ def run_option_wireguard_server_endpoint(option, run_opt):
         if suboptions['keypair'] == 'input_manually':
             if not 'private_key' in suboptions or suboptions['private_key'] == "":
                 return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Private key is required and must not be empty valid Wireguar key."}
-            get_public_key = get_wireguard_public_key(suboptions['private_key'])
+            get_public_key = get_wireguard_public_key(suboptions['private_key'], timeout=timeout)
             if get_public_key['error']:
-                return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Failed to get Public key from Private key '{suboptions['private_key']}'. A valid Wireguard Private key is required."}
+                return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Failed to get Public key from Private key '{suboptions['private_key']}'. A valid Wireguard Private key is required. Error: {get_public_key['msg']}"}
 
             if not 'public_key' in suboptions or suboptions['public_key'] == "" or suboptions['public_key'] == None:
                 suboptions['public_key'] = get_public_key['public_key']
@@ -198,7 +182,11 @@ def run_option_wireguard_server_endpoint(option, run_opt):
             suboptions.pop('public_key', None)
 
     if suboptions.pop('generate_keys', False):
-        wg_key = generate_wireguard_keys()
+        try:     
+            wg_key = generate_wireguard_keys(timeout=timeout)
+        except Exception as e:
+            return {'failed': True, 'changed': False, 'msg': f"Error generating keys. {e}"}
+
         suboptions.pop('private_key', None)
         suboptions.pop('public_key', None)
         suboptions['keypair'] = "input_manually"
@@ -230,7 +218,7 @@ def run_option_wireguard_server_endpoint(option, run_opt):
                     suboptions.pop(setting, None)
 
         except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"{wireguard} | Key/value error: {e} | {traceback.format_exc()}"}
+            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e} | {traceback.format_exc()}"}
 
         return run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, 'interfaces')
     else:
@@ -240,8 +228,6 @@ def run_option_wireguard_server_endpoint(option, run_opt):
 # Wireguard Server peer
 def run_option_wireguard_server_peer(option, run_opt):
     suboptions = option['suboptions']
-    # Settings to be deleted/discarded if empty
-    settings_to_delete_if_empty = []
 
     # Required fields 
     required_fields = ['interface_name', 'peer_name', 'allowed_ips', 'public_key']
@@ -277,7 +263,6 @@ def run_option_wireguard_server_peer(option, run_opt):
     
     
     path_append = f"peers/{suboptions['peer_name']}"
-    check_mode = run_opt['check_mode']
     suboptions.pop('interface_type', None)
     return run_option_adding_field_in_the_path_and_append_path(option, run_opt, 'interface_name', path_append, delete_field_name=True)
 
@@ -285,6 +270,7 @@ def run_option_wireguard_server_peer(option, run_opt):
 # Wireguard Client endpoint
 def run_option_wireguard_client_endpoint(option, run_opt):
     suboptions = option['suboptions']
+    timeout = run_opt.get('timeout', 60)
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = []
 
@@ -336,16 +322,16 @@ def run_option_wireguard_client_endpoint(option, run_opt):
             'create_routing_rules_on_specific_routing_table': ['table'],
         },
     }
-    check_mode = run_opt['check_mode']
+
     field_name = 'interface_name'
 
     if 'keypair' in suboptions:
         if suboptions['keypair'] == 'input_manually':
             if not 'private_key' in suboptions or suboptions['private_key'] == "":
                 return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Private key is required and must not be empty valid Wireguar key."}
-            get_public_key = get_wireguard_public_key(suboptions['private_key'])
+            get_public_key = get_wireguard_public_key(suboptions['private_key'], timeout=timeout)
             if get_public_key['error']:
-                return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Failed to get Public key from Private key '{suboptions['private_key']}'. A valid Wireguard Private key is required."}
+                return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Failed to get Public key from Private key '{suboptions['private_key']}'. A valid Wireguard Private key is required. Error: {get_public_key['msg']}"}
 
             if not 'public_key' in suboptions or suboptions['public_key'] == "" or suboptions['public_key'] == None:
                 suboptions['public_key'] = get_public_key['public_key']
@@ -389,7 +375,7 @@ def run_option_wireguard_client_endpoint(option, run_opt):
                     suboptions.pop(setting, None)
 
         except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"{wireguard} | Key/value error: {e} | {traceback.format_exc()}"}
+            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e} | {traceback.format_exc()}"}
 
         return run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, 'interfaces')
     else:
@@ -399,8 +385,6 @@ def run_option_wireguard_client_endpoint(option, run_opt):
 # Wireguard Client peer
 def run_option_wireguard_client_peer(option, run_opt):
     suboptions = option['suboptions']
-    # Settings to be deleted/discarded if empty
-    settings_to_delete_if_empty = []
 
     # Required fields 
     required_fields = ['interface_name', 'peer_name', 'allowed_ips', 'public_key', 'external_address', 'listening_port']
@@ -436,7 +420,6 @@ def run_option_wireguard_client_peer(option, run_opt):
     
     
     path_append = f"peers/{suboptions['peer_name']}"
-    check_mode = run_opt['check_mode']
     suboptions.pop('interface_type', None)
     return run_option_adding_field_in_the_path_and_append_path(option, run_opt, 'interface_name', path_append, delete_field_name=True)
 
@@ -444,6 +427,7 @@ def run_option_wireguard_client_peer(option, run_opt):
 # Wireguard Mesh endpoint
 def run_option_wireguard_mesh_endpoint(option, run_opt):
     suboptions = option['suboptions']
+    timeout = run_opt.get('timeout', 60)
     # Settings to be deleted/discarded if empty
     settings_to_delete_if_empty = []
 
@@ -495,16 +479,15 @@ def run_option_wireguard_mesh_endpoint(option, run_opt):
             'create_routing_rules_on_specific_routing_table': ['table'],
         },
     }
-    check_mode = run_opt['check_mode']
     field_name = 'interface_name'
 
     if 'keypair' in suboptions:
         if suboptions['keypair'] == 'input_manually':
             if not 'private_key' in suboptions or suboptions['private_key'] == "":
                 return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Private key is required and must not be empty valid Wireguar key."}
-            get_public_key = get_wireguard_public_key(suboptions['private_key'])
+            get_public_key = get_wireguard_public_key(suboptions['private_key'], timeout=timeout)
             if get_public_key['error']:
-                return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Failed to get Public key from Private key '{suboptions['private_key']}'. A valid Wireguard Private key is required."}
+                return {'failed': True, 'changed': False, 'msg': f"keypair = '{suboptions['keypair']}'. Failed to get Public key from Private key '{suboptions['private_key']}'. A valid Wireguard Private key is required. Error: {get_public_key['msg']}"}
 
             if not 'public_key' in suboptions or suboptions['public_key'] == "" or suboptions['public_key'] == None:
                 suboptions['public_key'] = get_public_key['public_key']
@@ -548,7 +531,7 @@ def run_option_wireguard_mesh_endpoint(option, run_opt):
                     suboptions.pop(setting, None)
 
         except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"{wireguard} | Key/value error: {e} | {traceback.format_exc()}"}
+            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e} | {traceback.format_exc()}"}
         return run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, 'interfaces')
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
@@ -557,8 +540,6 @@ def run_option_wireguard_mesh_endpoint(option, run_opt):
 # Wireguard Mesh peer
 def run_option_wireguard_mesh_peer(option, run_opt):
     suboptions = option['suboptions']
-    # Settings to be deleted/discarded if empty
-    settings_to_delete_if_empty = []
 
     # Required fields 
     required_fields = ['interface_name', 'peer_name', 'allowed_ips', 'public_key', 'external_address', 'listening_port']
@@ -594,7 +575,6 @@ def run_option_wireguard_mesh_peer(option, run_opt):
     
     
     path_append = f"peers/{suboptions['peer_name']}"
-    check_mode = run_opt['check_mode']
     suboptions.pop('interface_type', None)
     return run_option_adding_field_in_the_path_and_append_path(option, run_opt, 'interface_name', path_append, delete_field_name=True)
 
@@ -612,6 +592,7 @@ def run_module():
         mesh_peer=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False),
     )
 
     # seed the result dict in the object
@@ -633,8 +614,27 @@ def run_module():
         argument_spec=module_args,
         supports_check_mode=True
     )
+    #
+    # Nodegrid OS section starts here
+    #
+    # Lets get the current interface status and check if it must be changed
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
+    if res == 'error' or res == 'unsupported':
+        module.fail_json(msg=err_msg, **result)
+    elif res == 'warning':
+        result['warning'] = err_msg
+        use_config_start_global = False
+    else:
+        use_config_start_global = True
     
-    wireguard_endpoints_present = get_wireguard_endpoints_present().get('endpoints',{})
+    if module.params['debug']:
+        result['nodegrid_facts'] = nodegrid_os
+    
+    # Get current wireguard state
+    wg_current_state = get_wireguard_endpoints_present()
+    if wg_current_state['error']:
+        module.fail_json(msg=wg_current_state['msg'], **result)
+    wireguard_endpoints_present = wg_current_state['endpoints']
 
     # List of options to run
     option_list = [
@@ -653,7 +653,7 @@ def run_module():
             'func': run_option_wireguard_server_peer
         },
         {
-            'name': 'client_endpoint',
+        'name': 'client_endpoint',
             'suboptions': module.params['client_endpoint'],
             'cli_path': '/settings/wireguard',
             'wireguard_endpoints_present': wireguard_endpoints_present,
@@ -681,20 +681,6 @@ def run_module():
             'func': run_option_wireguard_mesh_peer
         },
     ]
-    
-    #
-    # Nodegrid OS section starts here
-    #
-    # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
-    if res == 'error' or res == 'unsupported':
-        module.fail_json(msg=err_msg, **result)
-    elif res == 'warning':
-        result['warning'] = err_msg
-        use_config_start_global = False
-    else:
-        use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
     
     #
     # Lets run the options

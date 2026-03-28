@@ -22,9 +22,8 @@ RETURN = r'''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.facts.compat import ansible_facts
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, result_failed
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, result_failed, NodegridError
 
-import traceback
 import os
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -95,15 +94,14 @@ def firmware_upgrade(option, run_opt, mounts):
     cmd_results = list()
     cmd_result = dict()
     try:
-        cmd_cli = get_cli(timeout=timeout)
-        for cmd in cmds:
-            cmd_result = execute_cmd(cmd_cli, cmd)
-            if cmd_result['error']:
-                return result_failed(f"Failed to execute firmware upgrade. Results: f{cmd_result}")
-            cmd_results.append(cmd_result)
-        close_cli(cmd_cli)
-    except Exception as exc:
-        return result_failed(f"Failed to execute firmware upgrade. Results: f{exc}")
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            for cmd in cmds:
+                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                if cmd_result['error']:
+                    return result_failed(f"Failed to execute firmware upgrade. Results: f{cmd_result}")
+                cmd_results.append(cmd_result)
+    except (NodegridError, Exception) as e:
+        return result_failed(f"Failed to execute firmware upgrade. Error: f{e}")
 
     if cmd_results:
         result['cmds_output'] = cmd_results

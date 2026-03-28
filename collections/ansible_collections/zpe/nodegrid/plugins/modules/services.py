@@ -21,9 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, \
-    check_os_version_support, dict_diff
-
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, NodegridError
 import os
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -35,21 +33,17 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 
 
 def get_state(endpoint: str, timeout: int = 60) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
-
-    # build cmd
-    cmd = {
-         'cmd': str('show /settings/' + endpoint )
-    }
-
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = {}
-    if cmd_result['error']:
-        data = {'error': cmd_result['error']}
-    else:
-        data = cmd_result['json'][0]['data']
-    close_cli(cmd_cli)
-    return data
+    result = dict(error=False, msg='', state=None)
+    cmd = dict(cmd = f"show /settings/{endpoint}")
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
+        result['error'] = True
+        result['msg'] = f"CLI Error: f{e}"
+        return result
+    result['state'] = cmd_result['json'][0]['data']
+    return result
 
 def resort_rule(rule: dict) -> dict:
     new_rule: dict = {}
@@ -125,11 +119,8 @@ def run_module():
     #
     # Nodegrid OS section starts here
     #
-    if "timeout" in module.params.keys():
-        try:
-            timeout = int(module.params['timeout'])
-        except:
-            timeout = 60
+    timeout = module.params['timeout']
+
     # Lets get the current status and check if it must be changed
     res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
     if res == 'error' or res == 'unsupported':
@@ -149,7 +140,12 @@ def run_module():
         services_desired = resort_rule(services_desired)
         services_desired = clean_rule(services_desired)
         services_current = {}
-        services_current.update(get_state("services", module.params['timeout']))
+        get_services_current = get_state("services", timeout=module.params['timeout'])
+        if get_services_current['error']:
+            result['failed'] = True
+            result['msg'] = get_services_current['msg']
+            return result
+        services_current.update(get_services_current['state'])
         # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
         diff = []
         try:
@@ -168,7 +164,12 @@ def run_module():
         zpe_cloud_desired = module.params['zpe_cloud']
         zpe_cloud_desired = clean_rule(zpe_cloud_desired)
         zpe_cloud_current = {}
-        zpe_cloud_current.update(get_state("zpe_cloud", module.params['timeout']))
+        get_zpe_cloud_current = get_state("zpe_cloud", timeout=module.params['timeout'])
+        if get_zpe_cloud_current['error']:
+            result['failed'] = True
+            result['msg'] = get_zpe_cloud_current['msg']
+            return result
+        zpe_cloud_current.update(get_zpe_cloud_current['state'])
         diff = []
         try:
             for item in zpe_cloud_desired:
@@ -225,31 +226,32 @@ def run_module():
     # Apply Changes
     try:
         cmd_results = []
-        cmd_cli = get_cli(timeout=timeout)
-        for cmd in cmds:
-            cmd_result = execute_cmd(cmd_cli, cmd)
-            if 'template' in cmd.keys():
-                cmd_result['template'] = cmd['template']
-            if 'set_fact' in cmd.keys():
-                cmd_result['set_fact'] = cmd['set_fact']
-            if 'ignore_error' in cmd.keys():
-                cmd_result['ignore_error'] = cmd['ignore_error']
-            if 'json' in cmd.keys():
-                cmd_result['json'] = cmd['json']
-            cmd_result['command'] = cmd.get('cmd')
-            cmd_results.append(cmd_result)
-            if cmd_result['error']:
-                result['failed'] = True
-                break;
-            result['changed'] = True
-        close_cli(cmd_cli)
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            for cmd in cmds:
+                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                if 'template' in cmd.keys():
+                    cmd_result['template'] = cmd['template']
+                if 'set_fact' in cmd.keys():
+                    cmd_result['set_fact'] = cmd['set_fact']
+                if 'ignore_error' in cmd.keys():
+                    cmd_result['ignore_error'] = cmd['ignore_error']
+                if 'json' in cmd.keys():
+                    cmd_result['json'] = cmd['json']
+                cmd_result['command'] = cmd.get('cmd')
+                cmd_results.append(cmd_result)
+                if cmd_result['error']:
+                    result['failed'] = True
+                    result['msg'] = f"{cmd_result['stdout_lines']}"
+                    break;
+                result['changed'] = True
         result['cmds_output'] = cmd_results
-    except Exception as exc:
-        result['failed'] = True
-        result['message'] = str(exc)
+    except (NodegridError, Exception) as e:
+        result['error'] = True
+        result['msg'] = f"CLI Error: f{e}"
+        return result
 
     if result['failed']:
-        module.fail_json(msg=result['message'], **result)
+        module.fail_json(msg=result['msg'], **result)
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results

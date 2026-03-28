@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ansible.module_utils.facts import collector
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import CLIOutputError, nodegrid_cli, execute_cmd, check_os_version_support, CLICommunicationError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import NodegridError, nodegrid_cli, execute_cmd, check_os_version_support
 
 # ttp templates
 import ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.about
@@ -87,22 +87,18 @@ class NodegridFactCollector(collector.BaseFactCollector):
                 wg['interfaces'] = dict(map(lambda x: x.replace(interface,'').strip().split('=',1), iface_config))
                 # peers
                 peers_pattern = interface.replace("interfaces", "peers")
-                pattern = fr"{peers_pattern}.*\ "
+                pattern = fr"{peers_pattern}.*"
                 iface_peers = set(re.findall(pattern, cmd_output, re.MULTILINE))
                 if not 'peers' in wg:
                     wg['peers'] = list()
                 for iface_peer in iface_peers:
                     pattern = fr"{iface_peer}.*$"
-                    peer_config = re.findall(pattern, cmd_output, re.MULTILINE)
+                    peer_config = [element.replace('\n', '').replace('\r', '') for element in re.findall(pattern, cmd_output, re.MULTILINE)]
                     wg['peers'].append(dict(map(lambda x: x.replace(iface_peer,"").strip().split('=',1), peer_config )))
                 result['endpoints'].append({wg_name: wg})
-        except CLICommunicationError as e:
+        except (NodegridError, Exception) as e:
             result['error'] = True
             result['msg'] = f"{e}"
-        except Exception as e:
-            result['error'] = True
-            result['msg'] = f"{e}"
-            #result['trace'] = traceback.format_exc()
         return result
     # #####################################################################################
 
@@ -134,7 +130,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
                         cmd_result['failed'] = True
                     cmd_results.append(cmd_result)
                 result['cmds_output'] = cmd_results
-        except (CLICommunicationError, CLIOutputError, CLISystemRevertError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['message'] = f"{e}"
         return result
@@ -243,7 +239,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
             del os.environ["DLITF_SID_ENCRYPT"]
 
         # Get timeout from the params module
-        timeout = module.params.pop('gather_timeout', 60)
+        timeout = module.params.get('gather_timeout', 60)
 
         # Nodegrid OS section starts here
         # Lets get the current status and check if it must be changed

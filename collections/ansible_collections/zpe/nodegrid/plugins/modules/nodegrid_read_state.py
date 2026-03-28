@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, read_table, read_table_row, result_failed, read_path_option
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, read_table, read_table_row, result_failed, read_path_options
 
 import traceback
 import pexpect
@@ -40,14 +40,14 @@ def run_option_read_options(option, run_opt):
     if not 'path' in suboptions.keys():
         return result_failed(f"The 'path' to read the options must be defined")
     if not 'options' in suboptions.keys():
-        return result_failed(f"The 'options' to be read must be defined (list or option)")
-
-    if type(suboptions['options']) == str:
+        #return result_failed(f"The 'options' to be read must be defined (list or option)")
+        options = None
+    elif isinstance(suboptions['options'], str):
         options = [suboptions['options']]
-    elif type(suboptions['options'] == list):
+    elif isinstance(suboptions['options'], list):
         options = suboptions['options']
     else:
-        return result_failed(f"The 'options' must be a string or a list of strings")
+        return result_failed(f"The 'options' must be undefined, a string or a list of strings")
     
     result = dict(
         changed=False,
@@ -55,15 +55,17 @@ def run_option_read_options(option, run_opt):
         message=''
     )
 
-    result['results'] = []
-    for option in options:
-        try:
-            read_option = read_path_option(suboptions['path'], option)
-        except Exception as e:
-            return result_failed(f"Failed to get option 'method' from path '{suboptions['path']}'. Error: {e}")
-        if read_option[0].lower() == 'error':
-            return result_failed(f"Failed to get option '{option}' from path '{suboptions['path']}'. Error: {read_option[1]}")
-        result['results'].append(read_option[1])
+    result['results'] = dict(path=f"{suboptions['path']}", options={})
+    read_options = read_path_options(f"{suboptions['path']}")
+    if read_options['error']:
+        result['failed'] = True
+        result['msg'] = read_options['msg']
+        return result
+    
+    if options and len(options) > 0:
+        result['results']['options'] = {key: read_options['options'][key] for key in options if key in read_options['options']}
+    else:
+        result['results']['options'] = read_options['options'] 
     return result
 
 def run_option_read_table(option, run_opt):
@@ -97,6 +99,7 @@ def run_module():
         read_options = dict(type='dict', required=False),
         read_table = dict(type='dict', required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False)
     )
 
 #    # define available arguments/parameters a user can pass to the module
@@ -152,7 +155,9 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
+
+    if module.params['debug']:
+        result['nodegrid_facts'] = nodegrid_os
 
     #
     # Lets run the options

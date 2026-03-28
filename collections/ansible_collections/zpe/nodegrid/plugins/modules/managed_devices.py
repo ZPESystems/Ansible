@@ -18,7 +18,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell, get_cli, close_cli, execute_cmd, read_path_options
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, execute_cmd, read_path_options, NodegridError
 import os, json, pexpect, re
 from collections import OrderedDict
 import traceback
@@ -505,7 +505,7 @@ def run_option_device(option, run_opt):
             new_name = suboptions['access']['name'].strip()
             suboptions['access'].pop('name')
             device_options_cli = read_path_options(f"/settings/devices/{port_name}/access")
-            if 'error' in device_options_cli:
+            if device_options_cli['error']:
                 return result_failed(f"Failed to read options: 'show /settings/devices/{port_name}/access'. Error: {device_options_cli}")
 
             device_options = device_options_cli.get('options', None)
@@ -540,17 +540,14 @@ def run_option_device(option, run_opt):
                 cmd_result = dict()
                 if not check_mode:
                     try:
-                        cmd_cli = get_cli(timeout=timeout)
-                        for cmd in cmds:
-                            cmd_result = execute_cmd(cmd_cli, cmd)
-                            if cmd_result['error']:
-                                return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{cmd_result}")
-                            cmd_results.append(cmd_result)
-                        close_cli(cmd_cli)
+                        with nodegrid_cli(timeout=timeout) as cmd_cli:
+                            for cmd in cmds:
+                                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                                cmd_results.append(cmd_result)
                         change_name_message = f"managed_device_name: {current_name} -> {new_name}"
                         cli_path += f"/{new_name}"
-                    except Exception as exc:
-                        return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{exc}")
+                    except (NodegridError, Exception) as e:
+                        return result_failed(msg=f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Error: f{e}")
             else:
                 cli_path += f"/{current_name}"
         else:
@@ -660,7 +657,19 @@ def run_option_auto_discovery(option, run_opt):
 def facts(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
-    raw = pexpect.run('llconf ini -si /etc/spm_server.ini json')
+    result = dict(
+        changed=False,
+        failed=False,
+    )
+
+    try:
+        raw = pexpect.run('llconf ini -si /etc/spm_server.ini json')
+        parsed = json.loads(raw)
+    except Exception as e:
+        result['failed'] = True
+        result['msg'] = f"Error executing 'llconf/json'. Error: {e}"
+        return result
+        
 
     inventory = {
         "managed_devices": [],
@@ -668,7 +677,7 @@ def facts(option, run_opt):
         "device_enabled": [],
         "device_ondemand": [],
         }
-    parsed = json.loads(raw)
+
     if len(parsed) == 1:
         parsed = parsed['(root)']
         for device in parsed:
@@ -679,11 +688,7 @@ def facts(option, run_opt):
                 inventory['device_enabled'].append(device)
             elif parsed[device]['status'] == 'ondemand':
                 inventory['device_ondemand'].append(device)
-    result = dict(
-        changed=False,
-        failed=False,
-        devices=inventory
-    )
+    result['devices'] = inventory
     return result
 
 def run_module():
@@ -770,14 +775,14 @@ def run_module():
         if option['suboptions'] is not None:
             func = option['func']
             res = func(option, run_opt)
+            if res['failed']:
+                result['failed'] = True
+                module.fail_json(msg=res['msg'], **result)
             if option['name'] == 'facts':
                 result['facts'] = res['devices']
                 result['failed'] = False
             else:
                 result['output'][option['name']] = res
-            if res['failed']:
-                result['failed'] = True
-                module.fail_json(msg=res['msg'], **result)
 
     if len(result['output'].keys()) == 0 and option['name'] != 'facts':
         module.fail_json(msg='No inputs', **result)

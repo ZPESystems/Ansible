@@ -18,8 +18,8 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell, get_cli, close_cli, execute_cmd, read_path_options
-import os, json, pexpect, re
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, execute_cmd, read_path_options, NodegridError
+import os, re
 from collections import OrderedDict
 import traceback
 
@@ -429,7 +429,7 @@ def run_option_devices(option, run_opt):
     devices = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
-    change_name_message = ""
+    change_name_message = ''
     settings_list = []
     cmds = []
     cmd_results = list()
@@ -446,6 +446,8 @@ def run_option_devices(option, run_opt):
             settings_list += device_result['settings']
             if 'cmds' in device_result:
                 cmds += device_result['cmds']
+            if 'change_name_message' in device_result:
+                change_name_message += f"| {device_result['change_name_message']}"
             if 'cmd_results' in device_result:
                 cmd_results.append(device_result['cmd_results'])
 
@@ -479,9 +481,11 @@ def run_option_device(device, cli_path, run_opt):
         'settings': [],
     }
     check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
     settings_list = []
     cmds = None
     cmd_results = None
+    change_name_message = None
 
     if not ('access' in device and field_exist(device['access'], 'name')):
         return result_failed("Field 'access/name' is required")
@@ -553,7 +557,7 @@ def run_option_device(device, cli_path, run_opt):
             new_name = device['access']['name'].strip()
             device['access'].pop('name')
             device_options_cli = read_path_options(f"/settings/devices/{port_name}/access")
-            if 'error' in device_options_cli:
+            if device_options_cli['error']:
                 return result_failed(f"Failed to read options: 'show /settings/devices/{port_name}/access'. Error: {device_options_cli}")
 
             device_options = device_options_cli.get('options', None)
@@ -588,17 +592,14 @@ def run_option_device(device, cli_path, run_opt):
                 cmd_result = dict()
                 if not check_mode:
                     try:
-                        cmd_cli = get_cli(timeout=60)
-                        for cmd in cmds:
-                            cmd_result = execute_cmd(cmd_cli, cmd)
-                            if cmd_result['error']:
-                                return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{cmd_result}")
-                            cmd_results.append(cmd_result)
-                        close_cli(cmd_cli)
+                        with nodegrid_cli(timeout) as cmd_cli:
+                            for cmd in cmds:
+                                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                                cmd_results.append(cmd_result)
                         change_name_message = f"managed_device_name: {current_name} -> {new_name}"
                         cli_path += f"/{new_name}"
-                    except Exception as exc:
-                        return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{exc}")
+                    except (NodegridError, Exception) as e:
+                        return result_failed(msg=f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Error: f{e}")
             else:
                 cli_path += f"/{current_name}"
         else:
@@ -660,6 +661,8 @@ def run_option_device(device, cli_path, run_opt):
         device_result['cmds'] = cmds
     if cmd_results:
         device_result['cmd_results'] = cmd_results
+    if change_name_message:
+        device_result['change_name_message'] = change_name_message
     device_result['settings'] = settings_list
     return device_result
 

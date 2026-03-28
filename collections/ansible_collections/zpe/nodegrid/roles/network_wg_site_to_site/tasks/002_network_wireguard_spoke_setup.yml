@@ -51,3 +51,4 @@
           keepalive: 10
           public_key: "{{ hostvars[wg_tunnel.wireguard_hub].wireguard_public_key }}"
           description: "{{ wg_tunnel.wireguard_interface_name }} peering with {{ hostvars[wg_tunnel.wireguard_hub].wireguard_interface_name }}"
+      when: wg_tunnel.wireguard_hub in query('inventory_hostnames', ansible_limit | default('all'))

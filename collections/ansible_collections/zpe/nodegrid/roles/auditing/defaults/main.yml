@@ -59,3 +59,4 @@ destinations_snmp:
 destinations_email:
   email_port: "25"
   start_tls: "yes"
+event_list: {}

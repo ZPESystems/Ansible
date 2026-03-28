@@ -22,7 +22,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, run_option, check_os_version_support, run_option_adding_field_in_the_path, execute_cmd, CLICommunicationError, CLIOutputError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, run_option, check_os_version_support, run_option_adding_field_in_the_path, execute_cmd, NodegridError
 
 import os
 from collections import OrderedDict
@@ -90,7 +90,7 @@ def run_option_cluster_settings(option, run_opt):
         try:
             with nodegrid_cli(timeout) as cmd_cli:
                 cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-        except (CLIOutputError, CLICommunicationError, Exception) as e:
+        except (NodegridError, Exception) as e:
             result['failed'] = True
             result['msg'] = f"{e}"
             return result
@@ -115,7 +115,7 @@ def run_option_cluster_settings(option, run_opt):
                             if run_opt['debug']:
                                 result['cmds_output'] = cmd_results
                             return result
-                        except (CLIOutputError, CLICommunicationError, Exception) as e:
+                        except (NodegridError, Exception) as e:
                             result['failed'] = True
                             result['msg'] = f"{e}"
                             return result
@@ -159,7 +159,7 @@ def run_option_cluster_clusters(option, run_opt):
     try:
         with nodegrid_cli(timeout) as cmd_cli:
             cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (CLIOutputError, CLICommunicationError, Exception) as e:
+    except (NodegridError, Exception) as e:
         result['failed'] = True
         result['msg'] = f"{e}"
         return result
@@ -174,9 +174,9 @@ def run_option_cluster_clusters(option, run_opt):
 
     try:
         with nodegrid_cli(timeout) as cmd_cli:
-            cmd = dict(cmd="show /settings/cluster/cluster_clusters/", ignore_error=False)
+            cmd = dict(cmd="show /settings/cluster/cluster_clusters/", ignore_error=True)
             cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (CLIOutputError, CLICommunicationError, Exception) as e:
+    except (NodegridError, Exception) as e:
         result['failed'] = True
         result['msg'] = f"{e}"
         return result
@@ -236,7 +236,7 @@ def run_option_cluster_clusters(option, run_opt):
                 result['changed'] = True
         if run_opt['debug']:
             result['cmds_output'] = cmd_results
-    except (CLIOutputError, CLICommunicationError, Exception) as e:
+    except (NodegridError, Exception) as e:
         result['failed'] = True
         result['msg'] = f"{e}"
     return result

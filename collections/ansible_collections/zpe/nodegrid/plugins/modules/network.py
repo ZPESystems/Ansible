@@ -313,6 +313,41 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 
 def run_option_network_settings(option, run_opt):
     suboptions = option['suboptions']
+    # Settings dependencies
+    dependencies = OrderedDict()
+    dependencies = {
+        'enable_ipv6_segment_routing': 
+        [
+            'ipv6_segment_routing_flowlabel',
+        ],
+    }
+    try:
+
+        # Identifies and collects configuration settings that should be deleted
+        # based on a mismatch between current suboptions and their declared dependencies.
+        settings_tobe_deleted = set()
+        for dependency in dependencies:
+
+            # If the dependency is a dictionary, iterate over suboption values that do NOT match the current value in suboptions.
+            # For those mismatched values, collect associated settings for deletion,
+            # but only if they aren’t already valid under the current suboption value.
+            if isinstance(dependencies[dependency], dict):
+                for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
+                    for setting in dependencies[dependency][dep_rem]:
+                        if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
+                            settings_tobe_deleted.add(setting)
+
+            # Elif the dependency is a list and the suboption is explicitly set to "no",
+            # mark all associated settings for deletion.
+            elif isinstance(dependencies[dependency], list) and dependency in suboptions and str(suboptions[dependency]).strip().lower() == "no":
+                for setting in dependencies[dependency]:
+                    settings_tobe_deleted.add(setting)
+
+        # Delete settings not required
+        for setting in settings_tobe_deleted:
+            suboptions.pop(setting, None)
+    except Exception as e:
+        return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
     return run_option(option, run_opt)
 
 def run_option_network_frr(option, run_opt):

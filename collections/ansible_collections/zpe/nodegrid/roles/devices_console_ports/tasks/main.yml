@@ -1,3 +1,7 @@
 - name: Setup Default Settings for Serial Ports
   tags: always
   import_tasks: devices_serial_ports.yml
+
+- name: Setup Default Settings for USB Serial Ports
+  tags: always
+  import_tasks: devices_usb_ports.yml

@@ -334,7 +334,7 @@ def import_settings(settings, use_config_start=True, timeout=60):
     if failed_to_import_settings:
         output_dict["import_list"] = settings
         output_dict["import_status"] = "failed"
-        output_dict["import_status_details"] = f"{output}"
+        output_dict["import_status_details"] = f"{output[-200:]}"
         output_dict["import_log_file"] = f"{import_settings_log}"
         output_dict["error_list"] = [f"{import_settings_error}"]
         output_dict["import_timeout"] = [f"{import_p_timeout}"]
@@ -766,7 +766,7 @@ def run_option(option, run_opt):
         else:
             if len(import_result['error_list']) > 0:
                 result['message'] = ', '.join(import_result['error_list'])
-            result['msg'] = 'Import failed'
+            result['msg'] = f"Import failed. {import_result.get('import_status_details', '')}. {', '.join(import_result['error_list'])}"
             result['failed'] = True
             result['import_settings_error'] = import_result
             return result

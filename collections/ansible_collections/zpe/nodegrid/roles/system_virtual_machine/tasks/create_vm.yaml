@@ -49,7 +49,7 @@
   become_user: root
   when:
     - "'cloud_init' in vm"
-    - "vm.cloud_init"
+    #- "vm.cloud_init"
   tags:
     - always
     - cloud-init
@@ -84,7 +84,8 @@
       loop: "{{ vm.network_bridges }}"
       loop_control:
         loop_var: connection
-      when: "'network_bridges' in vm and vm.network_bridges"
+      #when: "'network_bridges' in vm and vm.network_bridges"
+      when: "'network_bridges' in vm"
     - name: show interfaces
       debug:
         msg: "{{ bridge_interface }}"

@@ -34,7 +34,28 @@
       enable_autodiscovery: "{{ enable_autodiscovery }}"
       dhcp_lease_per_autodiscovery_rules: "{{ dhcp_lease_per_autodiscovery_rules }}"
       block_host_with_multiple_authentication_fails: "{{ block_host_with_multiple_authentication_fails }}"
-      period_host_will_stay_blocked: "{{ period_host_will_stay_blocked }}"
+      block_host_period_host_will_stay_blocked: >-
+          {{ block_host_period_host_will_stay_blocked if block_host_period_host_will_stay_blocked is defined }}
+      block_host_timeframe_to_monitor_authentication_failures: >-
+          {{ block_host_timeframe_to_monitor_authentication_failures if block_host_timeframe_to_monitor_authentication_failures is defined }}
+      block_host_number_of_authentication_failures_to_block: >-
+          {{ block_host_number_of_authentication_failures_to_block if block_host_number_of_authentication_failures_to_block is defined }}
+      block_host_whitelisted_ip_addresses: >-
+          {{ block_host_whitelisted_ip_addresses if block_host_whitelisted_ip_addresses is defined }}
+      block_account_with_multiple_authentication_failures: >-
+          {{ block_account_with_multiple_authentication_failures if block_account_with_multiple_authentication_failures is defined }}
+      block_account_period_account_will_stay_blocked: >-
+          {{ block_account_period_account_will_stay_blocked if block_account_period_account_will_stay_blocked is defined }}
+      block_account_timeframe_to_monitor_authentication_failures: >-
+          {{ block_account_timeframe_to_monitor_authentication_failures if block_account_timeframe_to_monitor_authentication_failures is defined }}
+      block_account_number_of_authentication_failures_to_block: >-
+          {{ block_account_number_of_authentication_failures_to_block if block_account_number_of_authentication_failures_to_block is defined }}
+      block_account_show_message_when_account_is_locked: >-
+          {{ block_account_show_message_when_account_is_locked if block_account_show_message_when_account_is_locked is defined }}
+      enable_console_access: >-
+          {{ enable_console_access if enable_console_access is defined }}
+      period_host_will_stay_blocked: >-
+          {{ period_host_will_stay_blocked if period_host_will_stay_blocked is defined }}
       timeframe_to_monitor_authentication_fails: "{{ timeframe_to_monitor_authentication_fails }}"
       number_of_authentication_fails_to_block_host: "{{ number_of_authentication_fails_to_block_host }}"
       allow_root_console_access: "{{ allow_root_console_access }}"

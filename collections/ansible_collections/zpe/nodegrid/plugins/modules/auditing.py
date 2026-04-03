@@ -33,7 +33,7 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 
 def dict_diff(new_dict: dict, current_dict: dict) -> list:
     diff = []
-    diff.extend( [{key: new_dict[key]} for key in new_dict.keys() & current_dict.keys() if (type(new_dict[key]) is type(current_dict[key])) & (new_dict[key] != current_dict[key])] )
+    diff.extend( [{key: new_dict[key]} for key in new_dict.keys() & current_dict.keys() if (type(new_dict[key]) is type(current_dict[key])) and (new_dict[key] != current_dict[key])] )
     diff.extend( [{key: new_dict[key]} for key in set(new_dict.keys()) - set(current_dict.keys()) ])
     return diff
 
@@ -70,6 +70,15 @@ def clean_rule(rule: dict) -> dict:
 
     return rule
 
+def add_error(result: dict, section: str, error: Exception) -> None:
+    """Append a structured error entry, never overwrite."""
+    result['errors'].append({
+        'section': section,
+        'error':   type(error).__name__,
+        'message': str(error),
+    })
+    result['failed'] = True
+
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
@@ -96,8 +105,11 @@ def run_module():
     result = dict(
         changed=False,
         failed=False,
-        error='',
-        message=''
+        errors=[],
+        cmds=[],
+        cmds_output=[],
+        diff={},
+        message="",
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -110,6 +122,26 @@ def run_module():
     )
 
     timeout = module.params['timeout']
+
+    # SNMPv2c-only fields — invalid when device is in SNMPv3 mode
+    SNMP_V2C_ONLY_FIELDS = {
+        'snmptrap_community',
+    }
+
+    # SNMPv3-only fields — invalid when device is in SNMPv2c mode
+    SNMP_V3_ONLY_FIELDS = {
+        'snmptrap_user',
+        'snmptrap_authentication',
+        'snmptrap_authentication_password',
+        'snmptrap_security_level',
+        'snmptrap_privacy_algo',
+        'snmptrap_privacy_passphrase',
+    }
+
+
+
+
+
     #
     # Nodegrid OS section starts here
     #
@@ -154,9 +186,7 @@ def run_module():
             try:
                 event_settings_current.update(get_auditing(f"/auditing/event_list/{event_number}", timeout))
             except (NodegridError, Exception) as e:
-                result['failed'] = True
-                result['msg'] = f"{e}"
-                result['error'] += f"{e} | "
+                add_error(result, 'event_list', e)
                 continue
 
             if module.params['debug']:
@@ -173,9 +203,8 @@ def run_module():
             diff = []
             try:
                 diff = dict_diff(event_settings, event_settings_current)
-            except Exception as e:
-                result['failed'] = True
-                result['error'] += f"Error: creating system settings diff. Error Message: {str(e)} | "
+            except (NodegridError, Exception) as e:
+                add_error(result, 'event_list', e)
             finally:
                 if len(diff) > 0:
                     diff_chains['event_list'].update({event_number: diff})
@@ -195,9 +224,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_settings, auditing_settings_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+                add_error(result, 'auditing_settings', e)
         finally:
             diff_chains['settings'] = diff
 
@@ -216,9 +243,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_events_zpe_cloud, auditing_events_zpe_cloud_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'events_zpe_cloud', e)
         finally:
             diff_chains['events_zpe_cloud'] = diff
 
@@ -238,9 +263,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_events_email, auditing_events_email_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'events_email', e)
         finally:
             diff_chains['events_email'] = diff
 
@@ -260,9 +283,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_events_file, auditing_events_file_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'events_file', e)
         finally:
             diff_chains['events_file'] = diff
 
@@ -282,9 +303,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_events_syslog, auditing_events_syslog_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'events_syslog', e)
         finally:
             diff_chains['events_syslog'] = diff
 
@@ -304,9 +323,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_events_snmp, auditing_events_snmp_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'events_snmp', e)
         finally:
             diff_chains['events_snmp'] = diff
 
@@ -328,9 +345,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_destinations_email, auditing_destinations_email_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'destinations_email', e)
         finally:
             diff_chains['destinations_email'] = diff
 
@@ -352,9 +367,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_destinations_file, auditing_destinations_file_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'destinations_file', e)
         finally:
             diff_chains['destinations_file'] = diff
 
@@ -376,9 +389,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_destinations_syslog, auditing_destinations_syslog_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'destinations_syslog', e)
         finally:
             diff_chains['destinations_syslog'] = diff
 
@@ -400,9 +411,7 @@ def run_module():
             # Create a diff
             diff = dict_diff(auditing_destinations_snmp, auditing_destinations_snmp_current)
         except (NodegridError, Exception) as e:
-            result['failed'] = True
-            result['msg'] = f"{e}"
-            result['error'] += f"{e} | "
+            add_error(result, 'destinations_snmp', e)
         finally:
             diff_chains['destinations_snmp'] = diff
 
@@ -510,9 +519,20 @@ def run_module():
 
     # Build Commands for Auditing Destinations SNMP
     if len(diff_chains['destinations_snmp']) > 0:
-        cmds.append({'cmd': f"cd /settings/auditing/destinations/snmptrap"})
+        # Determine target version from desired params
+        snmp_target_version = module.params['destinations_snmp'].get('snmptrap_version') or (
+            'version_3' if module.params['destinations_snmp'].get('snmptrap_user') else 'version_2c'
+        )
+        # Select which fields to exclude based on target version
+        snmp_excluded_fields = SNMP_V2C_ONLY_FIELDS if snmp_target_version == 'version_3' else SNMP_V3_ONLY_FIELDS
+
+        cmds.append({'cmd': "cd /settings/auditing/destinations/snmptrap"})
         for rule in diff_chains['destinations_snmp']:
             for setting in rule:
+                if setting in snmp_excluded_fields:
+                    continue  # skip fields invalid for this version
+                if rule[setting] == '':
+                    continue  # skip empty string values — device rejects them
                 cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
                 cmds.append(cmd)
         cmds.append({'cmd': "commit"})
@@ -556,8 +576,7 @@ def run_module():
                     result['changed'] = True
         result['cmds_output'] = cmd_results
     except (NodegridError, Exception) as e:
-        result['failed'] = True
-        result['message'] += f"{e} |"
+            add_error(result, 'apply_changes', e)
 
     if result['failed']:
         module.fail_json(msg=result['message'], **result)

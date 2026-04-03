@@ -214,10 +214,13 @@ def run_option_cluster_clusters(option, run_opt):
         result['changed'] = False
         return result
     else:
+        ### Will exclude the config_start and config_confirm commands, as the cluster creation command
+        ### will likly exceed the default time of 30sec
+        ### we can enable this option when we can set the timeout for config timeout
         cmds.insert(0, {'cmd': f"cd /settings/cluster/cluster_clusters/"})
-        cmds.insert(0, {'cmd': f"config_start"})
+        #cmds.insert(0, {'cmd': f"config_start"})
         cmds.append({'cmd': f"commit"})
-        cmds.append({'cmd': f"config_confirm"})
+        #cmds.append({'cmd': f"config_confirm"})
     try:
         cmd_results = []
         with nodegrid_cli(timeout) as cmd_cli:

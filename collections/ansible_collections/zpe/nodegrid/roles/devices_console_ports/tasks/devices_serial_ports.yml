@@ -91,6 +91,6 @@
   with_items: "{{ serial_ports }}"
   when:
     - ansible_facts is defined and ansible_facts.nodegrid_about is defined
-    - ansible_facts.about.model is defined and ansible_facts.nodegrid_about.model == "NSR"
+    - ansible_facts.nodegrid_about.model is defined and ansible_facts.nodegrid_about.model == "NSR"
     - serial_ports is defined
 

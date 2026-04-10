@@ -138,10 +138,6 @@ def run_module():
         'snmptrap_privacy_passphrase',
     }
 
-
-
-
-
     #
     # Nodegrid OS section starts here
     #

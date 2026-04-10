@@ -331,6 +331,10 @@ def run_module():
     if module.params.get('debug'):
         result['nodegrid_facts'] = nodegrid_os
     
+    # NOTE: Cluster configuration usually takes longer than the Nodegrid CLI command 'config_start' timeout (30s).
+    # Therefore, it is disabled until Nodegrid CLI supports the definition of a custom timeout.
+    use_config_start_global = False
+
     #
     # Lets run the options
     #

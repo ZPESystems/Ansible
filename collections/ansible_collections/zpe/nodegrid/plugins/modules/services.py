@@ -54,11 +54,15 @@ def resort_rule(rule: dict) -> dict:
            'enable_qemu|kvm','cluster_tcp_port','auto_cluster_enroll','search_engine_tcp_port','enable_search_engine_high_level_cipher_suite',
            'enable_vm_serial_access','vm_serial_port','vmotion_timeout','enable_zero_touch_provisioning','enable_bluetooth',
            'bluetooth_display_name','bluetooth_discoverable_mode','enable_pxe','device_access_per_user_group_authorization',
-           'enable_autodiscovery','dhcp_lease_per_autodiscovery_rules','block_host_with_multiple_authentication_fails',
-           'allow_root_console_access','rescue_mode_require_authentication','password_protected_boot','ssh_allow_root_access',
+           'enable_autodiscovery','dhcp_lease_per_autodiscovery_rules',
+           'block_host_with_multiple_authentication_failures', 'block_host_period_host_will_stay_blocked', 'block_host_timeframe_to_monitor_authentication_failures', 'block_host_number_of_authentication_failures_to_block', 'block_host_whitelisted_ip_addresses'
+           'block_account_with_multiple_authentication_failures','block_account_period_account_will_stay_blocked', 'block_account_timeframe_to_monitor_authentication_failures', 'block_account_number_of_authentication_failures_to_block', 'block_account_show_message_when_account_is_locked',
+           'enable_console_access','allow_root_console_access',
+           'rescue_mode_require_authentication','password_protected_boot','ssh_allow_root_access',
            'ssh_tcp_port','ssh_ciphers','ssh_macs','ssh_kexalgorithms','enable_http_access','http_port','enable_https_access',
-            'https_port','redirect_http_to_https','enable_https_file_repository','frr_enable_bgp','frr_enable_isis','frr_enable_path','frr_enable_ospfv2','frr_enable_ospfv3',
-            'frr_enable_rip','frr_enable_vrrp','tlsv1.3','tlsv1.2','tlsv1.1','tlsv1','cipher_suite_level']
+           'https_port','redirect_http_to_https','enable_https_file_repository','frr_enable_bgp','frr_enable_isis','frr_enable_path','frr_enable_ospfv2','frr_enable_ospfv3',
+           'frr_enable_rip','frr_enable_vrrp','tlsv1.3','tlsv1.2','tlsv1.1','tlsv1','cipher_suite_level'
+                 ]
     for key in sort_list:
         if key in rule.keys():
             new_rule[key] = rule[key]
@@ -74,16 +78,20 @@ def clean_rule(rule: dict) -> dict:
     qemu = {'key': 'enable_qemu|kvm', 'list':[]}
     autodiscovery = {'key': 'enable_autodiscovery', 'list':['dhcp_lease_per_autodiscovery_rules']}
     vm_serial_access = {'key': 'enable_vm_serial_access', 'list': ['vm_serial_port','vmotion_timeout']}
-    multiple_authentication_fails = {'key': 'block_host_with_multiple_authentication_fails', 'list': ['period_host_will_stay_blocked','timeframe_to_monitor_authentication_fails','number_of_authentication_fails_to_block_host']}
+    block_host_with_multiple_authentication_failures = {'key': 'block_host_with_multiple_authentication_failures', 'list': ['block_host_period_host_will_stay_blocked', 'block_host_timeframe_to_monitor_authentication_failures', 'block_host_number_of_authentication_failures_to_block', 'block_host_whitelisted_ip_addresses']}
+    block_account_with_multiple_authentication_failures = {'key': 'block_account_with_multiple_authentication_failures', 'list': ['block_account_period_account_will_stay_blocked', 'block_account_timeframe_to_monitor_authentication_failures', 'block_account_number_of_authentication_failures_to_block', 'block_account_show_message_when_account_is_locked']}
+    enable_console_access = {'key': 'enable_console_access', 'list': ['allow_root_console_access']}
     zpe_cloud = {'key': 'enable_zpe_cloud', 'list':['enable_remote_access', 'enable_file_protection', 'enable_file_encryption']}
-    master_list = [autodiscovery,vm_serial_access,status_page,docker,qemu,multiple_authentication_fails,search_engine,bluetooth,zpe_cloud]
+    master_list = [autodiscovery,vm_serial_access,status_page,docker,qemu,block_host_with_multiple_authentication_failures,block_account_with_multiple_authentication_failures,enable_console_access,search_engine,bluetooth,zpe_cloud]
 
     for item in master_list:
         if item['key'] in rule.keys():
-                if rule[item['key']] == "no":
-                    for remove_key in item['list']:
-                        if remove_key in rule.keys():
-                            rule.pop(remove_key)
+            if rule[item['key']] == "no" or not rule[item['key']]:
+                for remove_key in item['list']:
+                    if remove_key in rule.keys():
+                        rule.pop(remove_key)
+            if not rule[item['key']]:
+                rule.pop(item['key'])
 
     return rule
 

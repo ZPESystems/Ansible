@@ -466,7 +466,10 @@ def run_option_authentication(option, run_opt):
         elif key in ['servers']:
             result_failed(f"Key not valid: {key}. Authentication Servers must be configured defining a list named: 'authentication_servers'.")
 
-        # console, default_group, realms
+        # default_group
+        elif key in ['default_group']:
+            settings_list.extend( format_settings(f"{cli_path}/{key}",value, include_key_if_value_empty=['default_group_for_remote_users']) )
+        # console, realms
         else:
             settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
 

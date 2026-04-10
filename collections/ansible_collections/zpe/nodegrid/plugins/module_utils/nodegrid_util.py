@@ -857,11 +857,11 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
         return run_option_no_diff(option, run_opt)
     return result_nochanged()
 
-def format_settings(path, in_dict):
+def format_settings(path, in_dict, include_key_if_value_empty=[]):
     out_list = []
     if type(in_dict) in [dict, OrderedDict]:
         for key, value in in_dict.items():
-            if not value:
+            if key not in include_key_if_value_empty and not value:
                 continue
             if type(value) is dict:
                 out_list.extend( format_settings(f'{path}/{key}', value) )

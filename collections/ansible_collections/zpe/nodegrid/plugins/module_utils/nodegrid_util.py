@@ -57,8 +57,86 @@ class CLISystemRevertError(NodegridError):
         # Logs format: Messagge + the last 200 chars of buffer
         buf_tail = f"\nOutput Tail:\n{self.buffer[-200:]}" if self.buffer else ""
         return f"{self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"{self.message} {buf_tail}"
+
+class InputValidationError(NodegridError):
+    """Nodegrid Input Validation exception."""
+    def __init__(self, message, original_exception=None):
+        self.message = message
+        # It is assumed that the buffer is already decoded.
+        self.original_exception = original_exception
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"{self.message} (Orig: {type(self.original_exception).__name__})" if self.original_exception else f"{self.message}"
 #     
 ############################################################################
+
+# Function to order the CLI commands generation based on an OrderedDict dependencies
+def cli_settings_reorder(current_settings, dependencies, initial_order=OrderedDict()):
+    access_ordered = initial_order
+    # First, lets iterate through all dict type dependencies
+    # { key1: { setting_value1: [dependencies], setting_value2: [dependencies] }, key2: { setting_value1: [dependencies], setting_value2: [dependencies] } }
+    # Example: { snmp_version: { v1: [snmp_community], v2: [snmp_community], v3: [snmpv3_username, snmpv3_privacy_algorithm, ...] } }
+    for ordered_setting in {key:value for key,value in dependencies.items() if isinstance(value, dict) and key in current_settings}.keys():
+        access_ordered[ordered_setting] = current_settings[ordered_setting]
+        for setting in [k for k in dependencies[ordered_setting][access_ordered[ordered_setting]] if k in current_settings]:
+            access_ordered[setting] = current_settings[setting]
+
+    # Second, lets iterate through all list type dependencies
+    # { key1: [dependencies], key2: [dependencies] }
+    # Example: { skip_authentication_to_access_device: [skip_authentication_in_raw_sessions, skip_authentication_in_ssh_sessions, skip_authentication_in_telnet_sessions] }
+    for ordered_setting in {key:value for key,value in dependencies.items() if isinstance(value, list) and key in current_settings}.keys():
+        access_ordered[ordered_setting] = current_settings[ordered_setting]
+        for setting in [k for k in dependencies[ordered_setting] if k in current_settings]:
+            access_ordered[setting] = current_settings[setting]
+
+    # Copy the settings that have not being reorder
+    for key in [k for k in current_settings.keys() if k not in access_ordered]:
+        access_ordered[key] = current_settings[key]
+
+    return access_ordered
+
+# Function that pops a list of keys from a dict
+pop_keys = lambda data, keys: [data.pop(k, None) for k in keys]
+
+# Funtion that validates the settings inputs as compared with a dict of dependencies
+def nodegrid_cli_validate_inputs(settings, ng_dependencies, settings_tobe_deleted=set()):
+    settings_tobe_deleted = settings_tobe_deleted
+    for dependency in ng_dependencies:
+        if isinstance(ng_dependencies[dependency], dict):
+            if dependency in settings and settings[dependency] not in ng_dependencies[dependency].keys():
+                raise InputValidationError(message=f"setting '{dependency}={settings[dependency]}' is invalid. Valid options are: {list(ng_dependencies[dependency].keys())}")
+            for dep_rem in {key:value for key, value in ng_dependencies[dependency].items() if dependency in settings and key not in [settings[dependency]]}:
+                for setting in ng_dependencies[dependency][dep_rem]:
+                    if (settings[dependency] not in ng_dependencies[dependency]) or (setting not in ng_dependencies[dependency][settings[dependency]]):
+                        settings_tobe_deleted.add(setting)
+
+        elif isinstance(ng_dependencies[dependency], list) and dependency in settings and settings[dependency].lower() == "no":
+            for setting in ng_dependencies[dependency]:
+                settings_tobe_deleted.add(setting)
+        elif isinstance(ng_dependencies[dependency], tuple):
+            if not dependency in settings or dependency in settings_tobe_deleted:
+                continue
+            atuple = ng_dependencies[dependency]
+            if atuple[0] == "validate" and isinstance(atuple[1], dict) and settings[dependency] in atuple[1]:
+                if dependency in settings:
+                    valid_options = atuple[1][settings[dependency]]
+                    items_to_validate = {option:values for option,values in atuple[1].items() if not option == settings[dependency]}
+                else:
+                    valid_options = []
+                    items_to_validate = {option:values for option,values in atuple[1].items()}
+                for key,value in items_to_validate.items():
+                    for v in value:
+                        if not v in valid_options:
+                            settings_tobe_deleted.add(v)
+            elif atuple[0] == "validate" and isinstance(atuple[1], list):
+                if not settings[dependency] in atuple[1]:
+                    raise InputValidationError(message=f"setting '{dependency}={settings[dependency]}' is invalid. Valid options are: {atuple[1]}")
+    # Delete settings not required
+    pop_keys(settings, settings_tobe_deleted)
+    return settings
+#
+# ######################################################################
 
 CERT_BEGIN = '-----BEGIN '
 CERT_END = '-----END '

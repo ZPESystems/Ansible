@@ -18,7 +18,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, execute_cmd, read_path_options, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, execute_cmd, read_path_options, NodegridError, nodegrid_cli_validate_inputs, pop_keys, cli_settings_reorder
 import os, json, pexpect, re
 from collections import OrderedDict
 import traceback
@@ -83,6 +83,13 @@ managed_device_type = {
         'virtual_console_vmware'
     ]
 }
+
+# Devices that support SNMP on management tab
+management_snmp_support = ['console_server_acs6000','device_console','door_lock_with_rfid','infrabox','nodegrid_ap','pdu_apc','pdu_austin_hughes','pdu_baytech','pdu_cpi','pdu_cyberpower','pdu_digital_loggers','pdu_eaton','pdu_enconnex','pdu_geist','pdu_hpe_g2','pdu_ice','pdu_mph2','pdu_pm3000','pdu_raritan','pdu_rittal','pdu_rnx','pdu_servertech','pdu_tripplite','switch_edgecore','switch_zpe','ups_apc','ups_netagent']
+# Devices that support 'purge_disabled_end_point_ports' on management tab
+management_purge_disabled_end_point_ports_support = ['console_server_acs','console_server_acs6000','console_server_digicp','console_server_lantronix','console_server_nodegrid','console_server_opengear','console_server_perle','console_server_raritan','kvm_aten','kvm_dsr','kvm_mpu','kvm_raritan']
+
+
 # Define a set with all types of managed devices
 managed_device_types = set([item for sublist in managed_device_type.values() for item in sublist])
 
@@ -377,22 +384,22 @@ device_dependencies = {
             'tcp_socket_port'
         ]
     },
-    'expiration': ("validate", {
+    'expiration': {
         'never': [],
         'date': ['expiration_date'],
         'days': ['duration']
-    }),
-    'end_point': ("validate", { 
+    },
+    'end_point': {
         'appliance': [],
         'kvm_port': ['port_number'],
         'pdu_port': ['port_number'],
         'serial_port': ['port_number'],
         'usb_port': ['port_number']
-    }),
-    'credential':("validate",{
+    },
+    'credential': {
         'set_now': ['password'],
         'ask_during_login': []
-    }),
+    },
     'enable_device_state_detection_based_in_data_flow': 
     [
         'data_flow_scan_interval'
@@ -415,7 +422,69 @@ device_dependencies = {
     'sec_ip_alias_telnet': ['sec_ip_alias_telnet_port'],
     'sec_ip_alias_binary': ['sec_ip_alias_binary_port']
 }
+# Management SNMP dependencies
+management_snmp_dependencies = OrderedDict()
+management_snmp_dependencies = {
+    'snmp_version':
+    {
+        'v1':
+        [
+            'snmp_community',
+        ],
+        'v2':
+        [
+            'snmp_community',
+        ],
+        'v3':
+        [
+            'snmpv3_username', 'snmpv3_security_level', 'snmpv3_authentication_algorithm','snmpv3_authentication_password', 'snmpv3_privacy_algorithm', 'snmpv3_privacy_password',
+        ],
+    },
+    'snmpv3_security_level': ("validate", ['authnopriv', 'authpriv', 'noauthnopriv']),
+    'snmpv3_authentication_algorithm': ('validate', ['md5', 'sha']),
+    'snmpv3_privacy_algorithm': ('validate', ['aes', 'des']),
+}
 
+# Management Purge Disabled end points ports
+management_purge_disabled_end_point_ports_dependencies = OrderedDict()
+management_purge_disabled_end_point_ports_dependencies = {
+    'purge_disabled_end_point_ports': ['action'],
+    'action': ("validate", ['disable_ports', 'remove_ports']),
+}
+
+def validate_management_fields(cli_path, device_type, settings):
+    if 'snmp' in settings:
+        snmp_all_settings = set()
+        for key, setting in management_snmp_dependencies.items():
+            if isinstance(setting, dict):
+                snmp_all_settings.add(key)
+                for _, asetting in setting.items():
+                    if isinstance(asetting, list):
+                        snmp_all_settings |= set(asetting)
+        if device_type not in management_snmp_support:
+            snmp_all_settings.add('snmp')
+            pop_keys(settings, snmp_all_settings)
+        elif str(settings['snmp']).strip() == 'no':
+            pop_keys(settings, snmp_all_settings)
+        elif str(settings['snmp']).strip() == 'yes':
+            settings = nodegrid_cli_validate_inputs(settings, management_snmp_dependencies)
+            settings = cli_settings_reorder(settings, management_snmp_dependencies, OrderedDict(snmp='yes'))
+
+    if 'purge_disabled_end_point_ports' in settings:
+        purge_all_settings = set()
+        for key, setting in management_purge_disabled_end_point_ports_dependencies.items():
+            if isinstance(setting, list):
+                purge_all_settings |= set(setting)
+        if device_type not in management_purge_disabled_end_point_ports_support:
+            purge_all_settings.add('purge_disabled_end_point_ports')
+            pop_keys(settings, purge_all_settings)
+        elif str(settings['purge_disabled_end_point_ports']).strip() == 'no':
+            pop_keys(settings, purge_all_settings)
+        elif str(settings['purge_disabled_end_point_ports']).strip() == 'yes':
+            settings = nodegrid_cli_validate_inputs(settings, management_purge_disabled_end_point_ports_dependencies)
+            settings = cli_settings_reorder(settings, management_purge_disabled_end_point_ports_dependencies, OrderedDict(purge_disabled_end_point_ports='yes'))
+
+    return format_settings(f"{cli_path}",settings)
 
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -454,35 +523,8 @@ def run_option_device(option, run_opt):
     # Clean the required options
     try:
         settings_tobe_deleted = set(['ssh_key_type', 'ssh_private_key', 'ssh_public_key'])
-        for dependency in device_dependencies:
-            if isinstance(device_dependencies[dependency], dict):
-                for dep_rem in {key:value for key, value in device_dependencies[dependency].items() if dependency in suboptions['access'] and key not in [suboptions['access'][dependency]]}:
-                    for setting in device_dependencies[dependency][dep_rem]:
-                        if (suboptions['access'][dependency] not in device_dependencies[dependency]) or (setting not in device_dependencies[dependency][suboptions['access'][dependency]]):
-                            settings_tobe_deleted.add(setting)
-
-            elif isinstance(device_dependencies[dependency], list) and dependency in suboptions['access'] and suboptions['access'][dependency].lower() == "no":
-                for setting in device_dependencies[dependency]:
-                    settings_tobe_deleted.add(setting)
-            elif isinstance(device_dependencies[dependency], tuple):
-                if not dependency in suboptions['access']:
-                    continue
-                atuple = device_dependencies[dependency]
-                if atuple[0] == "validate" and suboptions['access'][dependency] in atuple[1]:
-                    if dependency in suboptions['access']:
-                        valid_options = atuple[1][suboptions['access'][dependency]]
-                        items_to_validate = {option:values for option,values in atuple[1].items() if not option == suboptions['access'][dependency]}
-                    else:
-                        valid_options = []
-                        items_to_validate = {option:values for option,values in atuple[1].items()}
-                    for key,value in items_to_validate.items():
-                        for v in value:
-                            if not v in valid_options:
-                                settings_tobe_deleted.add(v)
-
-        # Delete settings not required
-        for setting in settings_tobe_deleted:
-            suboptions['access'].pop(setting, None)
+        suboptions["access"] = nodegrid_cli_validate_inputs(suboptions["access"], device_dependencies, settings_tobe_deleted=settings_tobe_deleted)
+        suboptions['access'] = cli_settings_reorder(suboptions['access'], device_dependencies,initial_order=OrderedDict(name=suboptions['access']['name']))
     except Exception as e:
         return {'failed': True, 'changed': False, 'msg': f"{suboptions['access']} | Key/value error: {e} | {traceback.format_exc()}"}
         
@@ -555,23 +597,6 @@ def run_option_device(option, run_opt):
     else:
         cli_path += f"/{suboptions['access']['name'].strip()}"
 
-    if 'access' in suboptions:
-        access_ordered = OrderedDict(suboptions['access'])
-        for ordered_setting, settings in {key:value for key,value in device_dependencies.items() if type(value) is list}.items():
-            if ordered_setting in access_ordered:
-                for setting in [key for key in settings if key in access_ordered]:
-                    tmp_value= access_ordered.pop(setting)
-                    access_ordered[setting] = tmp_value
-
-        for ordered_setting, atuple in {key:value for key,value in device_dependencies.items() if type(value) is tuple}.items():
-            if ordered_setting in access_ordered:
-                if atuple[0] == "validate" and access_ordered[ordered_setting] in atuple[1]:
-                    for setting in atuple[1][access_ordered[ordered_setting]]:
-                        tmp_value= access_ordered.pop(setting)
-                        access_ordered[setting] = tmp_value
-        suboptions['access'] = access_ordered
-        #return result_failed(f"Access: {suboptions['access']}")
-
     for key, value in suboptions.items():
         # commands
         if key in ['commands']:
@@ -598,7 +623,11 @@ def run_option_device(option, run_opt):
         # Management
         elif key in ['management']:
             if not suboptions['access']['type'] in device_type_not_support_management:
-                settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
+                try:
+                    settings_list.extend(validate_management_fields(f"{cli_path}/{key}", suboptions['access']['type'], value))
+                except (Exception, NodegridError) as e:
+                    return result_failed(f"Failed validating Management Fields. Error: {e}")
+                #settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
         # Access 
         elif key in ['access']:
             settings_list.extend( format_settings(f"{cli_path}/{key}",value) )

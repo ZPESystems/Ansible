@@ -298,11 +298,10 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, field_exist, export_settings
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, field_exist, export_settings, nodegrid_cli_validate_inputs, cli_settings_reorder, NodegridError
 
 import os
 from collections import OrderedDict
-import traceback
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -312,73 +311,52 @@ if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
 def run_option_network_settings(option, run_opt):
-    suboptions = option['suboptions']
     # Settings dependencies
-    dependencies = OrderedDict()
-    dependencies = {
+    include_key_if_value_empty = ['ipv4_loopback', 'ipv6_loopback', 'domain_name', 'global_dns_servers', 'dns_proxy']
+    network_settings_dependencies = OrderedDict()
+    network_settings_dependencies = {
         'enable_ipv6_segment_routing': 
         [
             'ipv6_segment_routing_flowlabel',
         ],
+        'reverse_path_filtering': ('validate', ['disabled', 'loose_mode', 'strict_mode']),
+        'ipv6_segment_routing_flowlabel': ('validate', ['based_on_seg6_make_flowlabel', 'copy_from_inner_ipv6', 'zero']),
     }
     try:
-
-        # Identifies and collects configuration settings that should be deleted
-        # based on a mismatch between current suboptions and their declared dependencies.
-        settings_tobe_deleted = set()
-        for dependency in dependencies:
-
-            # If the dependency is a dictionary, iterate over suboption values that do NOT match the current value in suboptions.
-            # For those mismatched values, collect associated settings for deletion,
-            # but only if they aren’t already valid under the current suboption value.
-            if isinstance(dependencies[dependency], dict):
-                for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
-                    for setting in dependencies[dependency][dep_rem]:
-                        if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
-                            settings_tobe_deleted.add(setting)
-
-            # Elif the dependency is a list and the suboption is explicitly set to "no",
-            # mark all associated settings for deletion.
-            elif isinstance(dependencies[dependency], list) and dependency in suboptions and str(suboptions[dependency]).strip().lower() == "no":
-                for setting in dependencies[dependency]:
-                    settings_tobe_deleted.add(setting)
-
-        # Delete settings not required
-        for setting in settings_tobe_deleted:
-            suboptions.pop(setting, None)
-    except Exception as e:
-        return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
-    return run_option(option, run_opt)
+        option['suboptions'] = nodegrid_cli_validate_inputs(option['suboptions'], network_settings_dependencies)
+        option['suboptions'] = cli_settings_reorder(option['suboptions'], network_settings_dependencies)
+        option['include_key_if_value_empty'] = include_key_if_value_empty
+        return run_option(option, run_opt)
+    except (NodegridError, Exception) as e:
+        return {'failed': True, 'changed': False, 'msg': f"{e}"}
+        
 
 def run_option_network_frr(option, run_opt):
-    suboptions = option['suboptions']
-    return run_option(option, run_opt)
+    try:
+        return run_option(option, run_opt)
+    except (NodegridError, Exception) as e:
+        return {'failed': True, 'changed': False, 'msg': f"{e}"}
 
 
 def run_option_network_connections(option, run_opt):
-    # Settings to be deleted/discarded if empty
-    settings_to_delete_if_empty = [
-        'ipv4_default_route_metric', 
+    # Settings that are allowed to be empty
+    include_key_if_value_empty = [
+        'description',
         'ipv4_gateway',
-        'ipv6_default_route_metric',
+        'ipv4_dns_server', 'ipv4_dns_search', 'ipv4_default_route_metric', 
         'ipv6_gateway',
+        'ipv6_dns_server', 'ipv6_dns_search', 'ipv6_default_route_metric',
+        'mtu',  
+        'ip_pass_mac_address', 'ip_pass_port_intercepts', # ip passthrough
         'sim-1_phone_number',
-        'sim-1_apn_configuration',
-        'sim-1_user_name',
-        'sim-1_password',
-        'sim-1_access_point_name',
-        'sim-1_personal_identification_number',
+        'sim-1_user_name', 'sim-1_password', 'sim-1_access_point_name', 'sim-1_personal_identification_number', # sim-1_apn_configuration=manual
         'sim-2_phone_number',
-        'sim-2_apn_configuration',
-        'sim-2_user_name',
-        'sim-2_password',
-        'sim-2_access_point_name',
-        'sim-2_personal_identification_number'
+        'sim-2_user_name', 'sim-2_password', 'sim-2_access_point_name', 'sim-2_personal_identification_number', # sim-2_apn_configuration=manual
     ]
 
     # Settings dependencies
-    dependencies = OrderedDict()
-    dependencies = {
+    network_connection_dependencies = OrderedDict()
+    network_connection_dependencies = {
         'type': 
         {
             'ethernet': 
@@ -722,62 +700,28 @@ def run_option_network_connections(option, run_opt):
         ],
     }
 
-    suboptions = option['suboptions']
-    check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
     field_name = 'name'
-    if field_exist(suboptions, field_name):
-        cli_path =  f"{option['cli_path']}/{suboptions[field_name]}"
-        # Lets export the settings to the cli path
-        state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
-        if not "error" in state:
-            if "ethernet_interface" in option['suboptions']:
-                del option['suboptions']['ethernet_interface']
-        
-        #
-        # Remove invalid parameters
-        #
-        try:
-
-            # Identifies and collects configuration settings that should be deleted
-            # based on a mismatch between current suboptions and their declared dependencies.
-            settings_tobe_deleted = set()
-            for dependency in dependencies:
-
-                # If the dependency is a dictionary, iterate over suboption values that do NOT match the current value in suboptions.
-                # For those mismatched values, collect associated settings for deletion,
-                # but only if they aren’t already valid under the current suboption value.
-                if isinstance(dependencies[dependency], dict):
-                    for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
-                        for setting in dependencies[dependency][dep_rem]:
-                            if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
-                                settings_tobe_deleted.add(setting)
-
-                # Elif the dependency is a list and the suboption is explicitly set to "no",
-                # mark all associated settings for deletion.
-                elif isinstance(dependencies[dependency], list) and dependency in suboptions and str(suboptions[dependency]).strip().lower() == "no":
-                    for setting in dependencies[dependency]:
-                        settings_tobe_deleted.add(setting)
-
-            # Delete settings not required
-            for setting in settings_tobe_deleted:
-                suboptions.pop(setting, None)
-
-            # Delete settings that are empty
-            for setting in settings_to_delete_if_empty:
-                if setting in suboptions and str(suboptions[setting]).strip() == "":
-                    suboptions.pop(setting, None)
-
-            # Delete option set_as_primary_connection if set to no 
-            if 'set_as_primary_connection' in suboptions and str(suboptions['set_as_primary_connection']).strip().lower() == "no":
-                suboptions.pop('set_as_primary_connection', None)
-
-        except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
-
-        return run_option_adding_field_in_the_path(option, run_opt, field_name)
-    else:
+    if not field_exist(option['suboptions'], field_name):
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
+
+    cli_path =  f"{option['cli_path']}/{option['suboptions'][field_name]}"
+    # Lets export the settings to the cli path
+    state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
+    if not "error" in state:
+        if "ethernet_interface" in option['suboptions']:
+            del option['suboptions']['ethernet_interface']
+    
+    try:
+        option['suboptions'] = nodegrid_cli_validate_inputs(option['suboptions'], network_connection_dependencies)
+        option['suboptions'] = cli_settings_reorder(option['suboptions'], network_connection_dependencies)
+        option['include_key_if_value_empty'] = include_key_if_value_empty
+        # Delete option set_as_primary_connection if set to no 
+        if 'set_as_primary_connection' in option['suboptions'] and str(option['suboptions']['set_as_primary_connection']).strip().lower() == "no":
+            option['suboptions'].pop('set_as_primary_connection', None)
+        return run_option_adding_field_in_the_path(option, run_opt, field_name)
+    except (NodegridError, Exception) as e:
+        return {'failed': True, 'changed': False, 'msg': f"{e}"}
 
 
 def run_module():
@@ -788,6 +732,7 @@ def run_module():
         frr=dict(type='str', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
     )
 
     # seed the result dict in the object
@@ -847,7 +792,9 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
+
+    if module.params['debug']:
+        result['nodegrid_facts'] = nodegrid_os
     
     #
     # Lets run the options
@@ -856,17 +803,19 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'timeout': module.params['timeout'],
+        'debug': module.params['debug']
     }
 
     for option in option_list:
         if option['suboptions'] is not None:
             func = option['func']
             res = func(option, run_opt)
-            result['output'][option['name']] = res
             if res['failed']:
+                result.pop('output', None)
                 result['failed'] = True
                 module.fail_json(msg=res['msg'], **result)
+            result['output'][option['name']] = res
 
     if len(result['output'].keys()) == 0:
         module.fail_json(msg='No inputs', **result)

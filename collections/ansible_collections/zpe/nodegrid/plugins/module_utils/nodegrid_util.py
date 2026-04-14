@@ -23,10 +23,16 @@ class CLICommunicationError(NodegridError):
         self.buffer = buffer 
         self.original_exception = original_exception
         super().__init__(self.message)
+    
+    def get_tail_buffer(self, lenght=-200):
+        if self.buffer:
+            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
+        else:
+            return ""
 
     def __str__(self):
         # Logs format: Messagge + the last 200 chars of buffer
-        buf_tail = f"\nOutput Tail:\n{self.buffer[-200:]}" if self.buffer else ""
+        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
         return f"{self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"{self.message} {buf_tail}"
 
 class CLIOutputError(NodegridError):
@@ -39,9 +45,15 @@ class CLIOutputError(NodegridError):
         self.original_exception = original_exception
         super().__init__(self.message)
 
+    def get_tail_buffer(self, lenght=-200):
+        if self.buffer:
+            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
+        else:
+            return ""
+
     def __str__(self):
         # Logs format: Messagge + the last 200 chars of buffer
-        buf_tail = f"\nOutput Tail:\n{self.buffer[-200:]}" if self.buffer else ""
+        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
         return f"CLI cmd: {self.cmd}. {self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"CLI cmd: {self.cmd}. {self.message} {buf_tail}"
 
 class CLISystemRevertError(NodegridError):
@@ -52,11 +64,36 @@ class CLISystemRevertError(NodegridError):
         self.buffer = buffer 
         self.original_exception = original_exception
         super().__init__(self.message)
+    
+    def get_tail_buffer(self, lenght=-200):
+        if self.buffer:
+            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
+        else:
+            return ""
 
     def __str__(self):
         # Logs format: Messagge + the last 200 chars of buffer
-        buf_tail = f"\nOutput Tail:\n{self.buffer[-200:]}" if self.buffer else ""
+        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
         return f"{self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"{self.message} {buf_tail}"
+
+class NodegridLicenseError(NodegridError):
+    """Nodegrid License custom exception for 'Error: No license available.'"""
+    def __init__(self, buffer=None, original_exception=None):
+        # It is assumed that the buffer is already decoded.
+        self.buffer = buffer 
+        self.original_exception = original_exception
+        super().__init__()
+    
+    def get_tail_buffer(self, lenght=-200):
+        if self.buffer:
+            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
+        else:
+            return ""
+
+    def __str__(self):
+        # Logs format: Messagge + the last 200 chars of buffer
+        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
+        return f"Error: No license available. (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"Error: No license available. {buf_tail}"
 
 class InputValidationError(NodegridError):
     """Nodegrid Input Validation exception."""
@@ -101,8 +138,14 @@ pop_keys = lambda data, keys: [data.pop(k, None) for k in keys]
 
 # Funtion that validates the settings inputs as compared with a dict of dependencies
 def nodegrid_cli_validate_inputs(settings, ng_dependencies, settings_tobe_deleted=set()):
+    # Initial set of values to be deleted, if required.
     settings_tobe_deleted = settings_tobe_deleted
+    # Identifies and collects configuration settings that should be deleted
+    # based on a mismatch between the settings submited and the Nodegrid CLI declared dependencies.
     for dependency in ng_dependencies:
+        # If the dependency is a dictionary, iterate over suboption values that do NOT match the current value in suboptions.
+        # For those mismatched values, collect associated settings for deletion,
+        # but only if they aren’t already valid under the current suboption value.
         if isinstance(ng_dependencies[dependency], dict):
             if dependency in settings and settings[dependency] not in ng_dependencies[dependency].keys():
                 raise InputValidationError(message=f"setting '{dependency}={settings[dependency]}' is invalid. Valid options are: {list(ng_dependencies[dependency].keys())}")
@@ -111,9 +154,14 @@ def nodegrid_cli_validate_inputs(settings, ng_dependencies, settings_tobe_delete
                     if (settings[dependency] not in ng_dependencies[dependency]) or (setting not in ng_dependencies[dependency][settings[dependency]]):
                         settings_tobe_deleted.add(setting)
 
+        # Elif the dependency is a list and the suboption is explicitly set to "no",
+        # mark all associated settings for deletion.
         elif isinstance(ng_dependencies[dependency], list) and dependency in settings and settings[dependency].lower() == "no":
             for setting in ng_dependencies[dependency]:
                 settings_tobe_deleted.add(setting)
+        # Elif check special validation tuple dependencies:
+        # - { setting: ("validate", { setting1: [dependencies], setting2: [dependencies]) }
+        # - { setting: ("validate", [allowed_value1, allowed_value2, ...]) }
         elif isinstance(ng_dependencies[dependency], tuple):
             if not dependency in settings or dependency in settings_tobe_deleted:
                 continue
@@ -236,21 +284,26 @@ def execute_cmd(cmd_cli, cmd, timeout=60):
             )
         elif "Error: Another configuration transaction is underway" in output:
             buffer = cmd_cli.before
-            abort_config_session(cmd_cli, timeout=timeout)
+            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLISystemRevertError(
                 message=f"Error: Another configuration transaction is underway. Session aborted/reverted attempted!.",
                 buffer=buffer,
             )
         elif "Error: Another session has started a configuration transaction" in output:
             buffer = cmd_cli.before
-            abort_config_session(cmd_cli, timeout=timeout)
+            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLISystemRevertError(
                 message=f"Error: Another session has started a configuration transaction. Session aborted/reverted attempted!.",
                 buffer=buffer,
             )
+        elif "Error: No license available" in output:
+            buffer = cmd_cli.before
+            raise NodegridLicenseError(
+                buffer=buffer,
+            )
         elif not ignore_error and ("Error" in output or "error" in output):
             buffer = cmd_cli.before
-            abort_config_session(cmd_cli, timeout=timeout)
+            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLIOutputError(
                 cmd = cmd['cmd'],
                 message=f"The CLI command '{cmd['cmd']}' returned an error.",
@@ -342,7 +395,7 @@ def export_settings(cli_path, timeout=60):
     all_settings = []
     cli_output = run_cli_command(f'export_settings {cli_path} --plain-password --include-empty --not-enabled', timeout=timeout)
     if cli_output['error'] is True:
-        return ["error", cli_output.get('msg', f'Error on cmd: export_settings {cli_path} --plain-password --include-empty --not-enabled')], settings, all_settings
+        return ["error", cli_output['msg']], settings, all_settings
     output = cli_output.get('output')
     for line in output.splitlines():
         if "=" in line:
@@ -356,7 +409,7 @@ def export_settings(cli_path, timeout=60):
                 all_settings.append(line[1:])
     return "successful", settings, all_settings
 
-def import_settings(settings, use_config_start=True, timeout=60):
+def import_settings(settings, use_config_start=True, timeout=60, debug=False):
     """Runs the import settings.
 
     Args:
@@ -387,7 +440,7 @@ def import_settings(settings, use_config_start=True, timeout=60):
         output_dict["import_timeout"] = [f"{import_p_timeout}"]
         return output_dict
 
-    failed_to_import_settings = False
+    #failed_to_import_settings = False
     import_settings_error = None
     try:
         with nodegrid_cli(timeout=timeout) as cmd_cli:
@@ -400,7 +453,7 @@ def import_settings(settings, use_config_start=True, timeout=60):
             if use_config_start:
                 cmd_result = execute_cmd(cmd_cli, dict(cmd='config_confirm'), timeout=import_p_timeout)
     except (NodegridError, Exception) as e:
-        failed_to_import_settings = True
+        #failed_to_import_settings = True
         import_settings_error = e
   
     try:
@@ -409,20 +462,12 @@ def import_settings(settings, use_config_start=True, timeout=60):
     except:
         output = output_cmd
 
-    if failed_to_import_settings:
-        output_dict["import_list"] = settings
-        output_dict["import_status"] = "failed"
-        output_dict["import_status_details"] = f"{output[-200:]}"
-        output_dict["import_log_file"] = f"{import_settings_log}"
-        output_dict["error_list"] = [f"{import_settings_error}"]
-        output_dict["import_timeout"] = [f"{import_p_timeout}"]
-        return output_dict
-
-    try:
-        os.remove(import_settings_file)
-        os.remove(import_settings_log)
-    except OSError:
-        pass
+    if not debug:
+        try:
+            os.remove(import_settings_file)
+            os.remove(import_settings_log)
+        except OSError:
+            pass
 
     if isinstance(output, str):
         lines = output.splitlines()
@@ -432,7 +477,7 @@ def import_settings(settings, use_config_start=True, timeout=60):
         lines = []
     for line in lines: #output.splitlines():
         if "Error:" in line:
-            error_list.append(line.strip().split(' ',1)[1])
+            error_list.append((line.strip().split(' ',1)[1]).strip().replace("\\n",""))
         if "Result:" in line:
             settings_status = line.strip().split()
             if len(settings_status) == 4:
@@ -442,7 +487,8 @@ def import_settings(settings, use_config_start=True, timeout=60):
                 ))
                 if settings_status[3] != "succeeded":
                     import_status = "failed"
-                    import_status_details.append(settings_status)
+                    #import_status_details.append(settings_status)
+                    #import_status_details.append(line)
             else:
                 import_status = "unknown, result parsing error"
     if "Error" in output or "error" in output or len(error_list)>0:
@@ -768,8 +814,10 @@ def run_option(option, run_opt):
     cli_path = option['cli_path']
     skip_invalid_keys = run_opt['skip_invalid_keys']
     check_mode = run_opt['check_mode']
+    debug = run_opt.get('debug', False)
     use_config_start_global = run_opt['use_config_start_global']
     timeout = run_opt.get('timeout', 60)
+    include_key_if_value_empty = option.pop('include_key_if_value_empty', [])
 
     if 'no_diff' in run_opt and run_opt['no_diff']:
         no_diff = True
@@ -789,7 +837,7 @@ def run_option(option, run_opt):
     if 'settings' in option:
         new_settings = option['settings']
     else:
-        new_settings = format_settings(cli_path, suboptions)
+        new_settings = format_settings(cli_path, suboptions,include_key_if_value_empty=include_key_if_value_empty)
 
     if no_diff:
         diff = new_settings
@@ -797,7 +845,7 @@ def run_option(option, run_opt):
         # Lets export the settings to the cli path
         state, exported_settings, exported_all_settings = export_settings(cli_path, timeout=timeout)
         if "error" in state:
-            result['export_result'] = state[1]
+            result['export_result'] = state[1] if not check_mode else ''
         else:
             result['export_result'] = state
             # Lets create a list of keys to skip
@@ -836,7 +884,7 @@ def run_option(option, run_opt):
                 use_config_start=use_config_start_global
             ))
         else:
-            import_result = import_settings(diff, use_config_start=use_config_start_global, timeout=timeout)
+            import_result = import_settings(diff, use_config_start=use_config_start_global, timeout=timeout, debug=debug)
 
         result['import_result'] = import_result
         if import_result['import_status'] == 'succeeded':
@@ -844,7 +892,7 @@ def run_option(option, run_opt):
         else:
             if len(import_result['error_list']) > 0:
                 result['message'] = ', '.join(import_result['error_list'])
-            result['msg'] = f"Import failed. {import_result.get('import_status_details', '')}. {', '.join(import_result['error_list'])}"
+            result['msg'] = f"Import failed. Import status: {import_result.get('import_status_details', '')}. Errors: {import_result['error_list']}"
             result['failed'] = True
             result['import_settings_error'] = import_result
             return result

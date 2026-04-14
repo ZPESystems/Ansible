@@ -627,7 +627,6 @@ def run_option_device(option, run_opt):
                     settings_list.extend(validate_management_fields(f"{cli_path}/{key}", suboptions['access']['type'], value))
                 except (Exception, NodegridError) as e:
                     return result_failed(f"Failed validating Management Fields. Error: {e}")
-                #settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
         # Access 
         elif key in ['access']:
             settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
@@ -728,6 +727,7 @@ def run_module():
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         facts=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
     )
 
     # seed the result dict in the object
@@ -785,7 +785,7 @@ def run_module():
     else:
         use_config_start_global = True
 
-    if module.check_mode:
+    if module.params['debug']:
         result['nodegrid_os'] = nodegrid_os
     
     # Not required for Managed Devices to create an snapshot before any task
@@ -797,7 +797,8 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'timeout': module.params['timeout'],
+        'debug': module.params['debug']
     }
 
     for option in option_list:
@@ -805,6 +806,7 @@ def run_module():
             func = option['func']
             res = func(option, run_opt)
             if res['failed']:
+                result.pop('output', None)
                 result['failed'] = True
                 module.fail_json(msg=res['msg'], **result)
             if option['name'] == 'facts':

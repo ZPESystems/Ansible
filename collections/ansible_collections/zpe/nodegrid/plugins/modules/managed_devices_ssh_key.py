@@ -95,6 +95,7 @@ def run_module():
         device=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
     )
 
     # seed the result dict in the object
@@ -140,7 +141,7 @@ def run_module():
     else:
         use_config_start_global = True
     
-    if module.check_mode:
+    if module.params['debug']:
         result['nodegrid_os'] = nodegrid_os
     
     #
@@ -158,13 +159,10 @@ def run_module():
             func = option['func']
             res = func(option, run_opt)
             if res['failed']:
+                result.pop('output', None)
                 result['failed'] = True
                 module.fail_json(msg=res['msg'], **result)
-            if option['name'] == 'facts':
-                result['facts'] = res['devices']
-                result['failed'] = False
-            else:
-                result['output'][option['name']] = res
+            result['output'][option['name']] = res
 
     if len(result['output'].keys()) == 0:
         module.fail_json(msg='No inputs', **result)

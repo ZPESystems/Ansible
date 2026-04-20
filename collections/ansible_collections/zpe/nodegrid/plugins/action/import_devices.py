@@ -132,7 +132,7 @@ class ActionModule(ActionBase):
         rebounce_list = []
         try:
             with open(file_name, mode='r', newline='') as file_obj:
-                reader_obj = csv.DictReader(file_obj)
+                reader_obj = csv.DictReader(file_obj, quotechar="'", delimiter=',')
                 if not reader_obj:
                     display.vvv(f"File {file_name} does not contain devices information!")
                     return None

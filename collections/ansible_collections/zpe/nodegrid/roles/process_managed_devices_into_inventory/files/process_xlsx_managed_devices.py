@@ -11,7 +11,7 @@ special_character = [ '<', '>', ':' ,'"', '/', '\\', '|', '?', '*' ]
 ng_invalid_character = [ '"', '/', '\\', '\'' ]
 
 # columns to ignore special_character check
-ng_ignore_columns = set(['ssh_private_key', 'ssh_public_key', 'web_url'])
+ng_ignore_columns = set(['ssh_private_key', 'ssh_public_key', 'web_url', 'coordinates', 'address_location', 'description', 'password'])
 ng_cols_replace = {'ssh_private_key':[r'[\n\r]+', '<br>']}
 
 colnames = set(['Export', 'ansible_inventory_name', 'ansible_host', 'ansible_port', 'ansible_user', 'ansible_ssh_private_key_file',
@@ -65,8 +65,9 @@ def process_xlsx_to_csv_files(excel_filename):
             for colname, replacement in ng_cols_replace.items():
                 if colname in df.columns:
                     df[colname] = df[colname].str.replace(replacement[0], replacement[1], regex=True)
-            for colname in set(df.columns) - colnames:
-                df[colname] = "'" + df[colname].astype(str) + "'"
+            for colname in set(df.columns) - colnames | set(df.columns) & ng_ignore_columns:
+                df[colname] = df[colname].apply(lambda x: f"'{x}'" if pd.notnull(x) and str(x).strip() != '' else x)
+                #df[colname] = "'" + df[colname].astype(str) + "'"
             df = df.drop('Export', axis=1, errors='ignore')
             df.to_csv(filename, index=False, quoting=csv.QUOTE_NONE, quotechar="'", escapechar="\\")
         return True, ''

@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, result_failed
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, result_failed, NodegridError
 
 import os
 from datetime import datetime, timezone
@@ -67,15 +67,12 @@ def nodegrid_backup(option, run_opt):
     cmd_results = list()
     cmd_result = dict()
     try:
-        cmd_cli = get_cli(timeout=timeout)
-        for cmd in cmds:
-            cmd_result = execute_cmd(cmd_cli, cmd)
-            if cmd_result['error']:
-                return result_failed(f"Failed to create the backup. Results: f{cmd_result}")
-            cmd_results.append(cmd_result)
-        close_cli(cmd_cli)
-    except Exception as exc:
-        return result_failed(f"Failed to create the backup. Results: f{exc}")
+        with nodegrid_cli(timeout) as cmd_cli:
+            for cmd in cmds:
+                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                cmd_results.append(cmd_result)
+    except (NodegridError, Exception) as e:
+        return result_failed(msg=f"Failed to create the backup. Results: f{e}")
 
     try:
         mode_octal = int(backup_file_permissions, 8)

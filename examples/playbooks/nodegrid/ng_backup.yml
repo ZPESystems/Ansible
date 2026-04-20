@@ -1,44 +1,81 @@
----
 - hosts: all
   gather_facts: false
   collections:
     - zpe.nodegrid
+
   vars:
-    backup_filename: "{{ inventory_hostname }}.tar.gz"
-    local_backup_folder: "/var/local/file_manager/admin_group/backup/"
-
+    # Local directory path to store the backup files. The backup files' 
+    # names will follow this pattern: '{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.tar.gz'
+    backup_files_directory: "/var/local/file_manager/admin_group"
+    # Number of backup files to keep/rotate on the Control node
+    backup_files_rotation_number: 5
+    # Number of backup files to keep/rotate on the target devices
+    backup_files_rotation_number_target_device: 0
   tasks:
-    - name: Execute a local Backup
-      zpe.nodegrid.nodegrid_cmds:
-         cmds:
-           - cmd: 'save_settings'
-           - cmd: 'set filename={{ backup_filename }}'
-           - cmd: 'save'
+    - name: Backup files rotation on "{{ inventory_hostname }}"
+      tags: backup-files-rotation, backup-files-rotation-remote, remove-remote
+      block:
+      - name: Get list of backup files
+        ansible.builtin.find:
+          paths: "/backup/"
+          patterns: "{{ inventory_hostname }}*.tar.gz"
+        register: backup_files_remote
+    
+      - name: Show backup files to be removed
+        ansible.builtin.debug:
+          msg: "{{ item.path }}"
+        loop: "{{ backup_files_remote.files | sort(attribute='ctime', reverse=True) | batch(backup_files_rotation_number_target_device | int) | list | last }}"
+        when: backup_files_remote.matched > backup_files_rotation_number_target_device
 
-    - name: Check that Backup was created
-      stat:
-        path: "/backup/{{ backup_filename }}"
-      register: backup_file
+      - name: Remove old backups (keep only "{{ backup_files_rotation_number_target_device }}" newest)
+        ansible.builtin.file:
+          path: "{{ item.path }}"
+          state: absent
+        loop: "{{ backup_files_remote.files | sort(attribute='ctime', reverse=True) | batch(backup_files_rotation_number_target_device | int) | list | last }}"
+        when: backup_files_remote.matched > backup_files_rotation_number_target_device
+        become: yes
 
-    - name: Assert that file exists
-      assert:
-        that: "backup_file.stat.exists == true"
+    - name: Backup Process on "{{ inventory_hostname }}"
+      tags: backup-file
+      block:
+      - name: Create backup file
+        zpe.nodegrid.nodegrid_backup:
+          backup_filename: "{{ inventory_hostname }}.tar.gz"
+        become: true
+        register: nodegrid_backup
+  
+      - name: Show backup filename
+        ansible.builtin.debug:
+          msg: "{{ nodegrid_backup.backup_filename }}"
+        
+      - name: Fetch Backup file to Control Node
+        ansible.builtin.fetch:
+          # Source path on the remote host
+          src: "/backup/{{ nodegrid_backup.backup_filename }}" 
+          # Destination directory on the local (control) machine
+          dest: "/{{backup_files_directory}}/{{ inventory_hostname }}/{{ nodegrid_backup.backup_filename }}"
+          # Optional parameter to save the file directly to the dest path without creating a hostname/path structure
+          flat: yes
+    
+    - name: Backup files rotation on Control Node
+      delegate_to: localhost
+      tags: backup-files-rotation
+      block:
+      - name: Get list of backup files
+        ansible.builtin.find:
+          paths: "{{ backup_files_directory }}/{{ inventory_hostname }}/"
+          patterns: "{{ inventory_hostname }}*.tar.gz"
+        register: backup_files
+    
+      - name: Show backup files to be removed
+        ansible.builtin.debug:
+          msg: "{{ item.path }}"
+        loop: "{{ backup_files.files | sort(attribute='ctime', reverse=True) | batch(backup_files_rotation_number | int) | list | last }}"
+        when: backup_files.matched > backup_files_rotation_number
 
-    - name: Adjust File permissions
-      file:
-        path: "/backup/{{ backup_filename }}"
-        state: file
-        mode: '0755'
-      become: True
-
-    - name: Create backup directory
-      file:
-        path: "{{ local_backup_folder }}"
-        state: directory
-      connection: local
-
-    - name: Copy file to local directory called backup
-      fetch:
-        src: "/backup/{{ backup_filename }}"
-        dest: "{{ local_backup_folder }}"
-        flat: true
+      - name: Remove old backups (keep only "{{ backup_files_rotation_number }}" newest)
+        ansible.builtin.file:
+          path: "{{ item.path }}"
+          state: absent
+        loop: "{{ backup_files.files | sort(attribute='ctime', reverse=True) | batch(backup_files_rotation_number | int) | list | last }}"
+        when: backup_files.matched > backup_files_rotation_number

@@ -2,4 +2,8 @@
   tags: always
   zpe.nodegrid.managed_devices_bulk_import:
     devices: "{{ devices }}"
-    timeout: "{{ nodegrid_timeout | default(120) }}"
+    timeout: "{{ nodegrid_timeout | default(60) }}"
+  register: result
+  until: "'msg' not in result or 'The system configuration has been changed. Please revert.' not in result['msg']"
+  retries: "{{ add_device_retires | default(3) }}"
+  delay: "{{ add_device_delay | default(0) }}" 

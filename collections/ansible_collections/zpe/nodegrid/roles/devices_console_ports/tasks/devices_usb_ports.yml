@@ -6,15 +6,13 @@
       access:
         name: "{{ item.name }}"
         description: "{{ item.description | default('') }}"
-        port_name: "ttyS{{ item.port_number | default('1') }}"
-        type: "{{ item.type | default('local_serial') }}"
+        port_name: "usbS{{ item.port_number | default('1') }}"
+        type: "{{ item.type | default('usb_serialb') }}"
         baud_rate: "{{ item.baud_rate | default('Auto') }}"
         parity: "{{ item.parity | default('None') }}"
         flow_control: "{{ item.flow_control | default('None') }}"
         data_bits: "{{ item.data_bits | default('8') }}"
         stop_bits: "{{ item.stop_bits | default('1') }}"
-        pinout: >-
-          {{ item.pinout if item.pinout is defined }}
         rs-232_signal_for_device_state_detection: "{{ item.rs_232_signal_for_device_state_detection | default('Auto') }}"
         enable_device_state_detection_based_in_data_flow: "{{ item.enable_device_state_detection_based_in_data_flow | default('no') }}"
         data_flow_scan_interval: "{{ item.data_flow_scan_interval | default('3') }}"
@@ -41,11 +39,11 @@
           {{ item.hostname_detection_username if item.hostname_detection_username is defined }}
         hostname_detection_password: >-
           {{ item.hostname_detection_password if item.hostname_detection_password is defined }}
-  with_items: "{{ serial_ports }}"
+  with_items: "{{ usb_ports }}"
   when:
     - ansible_facts is defined and ansible_facts.nodegrid_about is defined
     - ansible_facts.nodegrid_about.model is defined and ansible_facts.nodegrid_about.model != "NSR"
-    - serial_ports is defined
+    - usb_ports is defined
 
 - name: Update Serial Port Settings on NSR (ZPE-NSR-16SRL-EXPN CARD)
   tags: always
@@ -53,15 +51,13 @@
     device:
       access:
         name: "{{ item.name }}"
-        port_name: "ttyS{{ item.slot_number | default('1') }}-{{ item.port_number | default('1') }}"
-        type: "{{ item.type | default('local_serial') }}"
+        port_name: "usbS{{ item.slot_number | default('1') }}-{{ item.port_number | default('1') }}"
+        type: "{{ item.type | default('usb_serialb') }}"
         baud_rate: "{{ item.baud_rate | default('Auto') }}"
         parity: "{{ item.parity | default('None') }}"
         flow_control: "{{ item.flow_control | default('None') }}"
         data_bits: "{{ item.data_bits | default('8') }}"
         stop_bits: "{{ item.stop_bits | default('1') }}"
-        pinout: >-
-          {{ item.pinout if item.pinout is defined }}
         rs-232_signal_for_device_state_detection: "{{ item.rs_232_signal_for_device_state_detection | default('Auto') }}"
         enable_device_state_detection_based_in_data_flow: "{{ item.enable_device_state_detection_based_in_data_flow | default('no') }}"
         data_flow_scan_interval: "{{ item.data_flow_scan_interval | default('3') }}"
@@ -88,9 +84,9 @@
           {{ item.hostname_detection_username if item.hostname_detection_username is defined }}
         hostname_detection_password: >-
           {{ item.hostname_detection_password if item.hostname_detection_password is defined }}
-  with_items: "{{ serial_ports }}"
+  with_items: "{{ usb_ports }}"
   when:
     - ansible_facts is defined and ansible_facts.nodegrid_about is defined
-    - ansible_facts.nodegrid_about.model is defined and ansible_facts.nodegrid_about.model == "NSR"
-    - serial_ports is defined
+    - ansible_facts.about.model is defined and ansible_facts.nodegrid_about.model == "NSR"
+    - usb_ports is defined
 

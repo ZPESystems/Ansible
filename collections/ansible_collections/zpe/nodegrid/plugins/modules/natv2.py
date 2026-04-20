@@ -498,7 +498,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support, dict_diff
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, dict_diff, NodegridError
 
 import os
 from collections import OrderedDict
@@ -527,24 +527,23 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 
 
 def get_chains_present(table, timeout=60) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
-    #build cmd
-    cmd = {
-        'cmd' : f"show /settings/{table}/chains"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = dict(error=False, chains=[], user_chains=[], msg='')
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Cannot get present chains in firewall. Error: {cmd_result['error']}")
-    else:
-        for item in cmd_result['json']:
-            for chain in item['data']:
-                if 'chain' in chain.keys():
-                    data['chains'].append(chain['chain'])
-                    if not chain['chain'] in BUILTIN_CHAINS:
-                        data['user_chains'].append(chain['chain'])
-    close_cli(cmd_cli)
-    return data
+    result = dict(error=False, msg='', chains=[], user_chains=[])
+    cmd = dict(cmd=f"show /settings/{table}/chains")
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
+        result['error'] = True
+        result['msg'] = f"CLI Error: f{e}"
+        return result
+
+    for item in cmd_result['json']:
+        for chain in item['data']:
+            if 'chain' in chain.keys():
+                result['chains'].append(chain['chain'])
+                if not chain['chain'] in BUILTIN_CHAINS:
+                    result['user_chains'].append(chain['chain'])
+    return result
 
 
 def create_chain(table, chain):
@@ -561,57 +560,36 @@ def delete_chain(table, chain):
 
 
 def get_chain_policy(table, chain, timeout=60) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
+    result = dict(error=False, msg='', chain=None, policy=None)
+    cmd = dict(cmd=f"show /settings/{table}/policy/ {chain}")
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
+        result['error'] = True
+        result['msg'] = f"CLI Error: f{e}"
+        return result
 
-    #build cmd
-    cmd = {
-        'cmd': f"show /settings/{table}/policy/ {chain}"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = {}
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Can\'t detect current policy for chain {chain}. Error: {cmd_result['stdout']}")
-    else:
-       data =  cmd_result['json'][0]['data']
-    close_cli(cmd_cli)
-    return dict(error=False, chain=chain, policy=data[chain])
+    result['chain'] = chain
+    result['policy'] = cmd_result['json'][0]['data'][chain]
+    return result
 
 
 def set_chain_policy(table, chain, policy) -> dict:
     return dict(cmd = f"set /settings/{table}/policy/ {chain}={policy}")
 
 
-def _get_rule(table, chain, rule_number, cmd_cli) -> dict:
-    #build cmd
-    cmd: dict = {
-        'cmd' : f"show /settings/{table}/chains/{chain}/{rule_number}"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = {}
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Error getting rule number {rule_number} in chain {chain}. Error: {cmd_result['stdout']}")
-    else:
-        return cmd_result['json'][0]['data']
-
-
 def get_rules_present(table, chain, timeout=60) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
-    #build cmd
-    cmd = {
-        'cmd' : f"show /settings/{table}/chains/{chain}"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    data = dict(error=False, rules=[], msg='')
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Cannot get present rules in chain {chain}. Error: {cmd_result['error']}")
-    else:
-        for item in cmd_result['json']:
-            for rule in item['data']:
-                if 'rules' in rule.keys():
-                    rule_number = rule['rules']
-                    data['rules'].extend([_get_rule(table=table, chain=chain, rule_number=rule_number, cmd_cli=cmd_cli) ])
-    close_cli(cmd_cli)
-    return data
+    result = dict(error=False, msg='', rules=[])
+    cmd = dict(cmd=f"export_settings /settings/{table}/chains/{chain}")
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+            result['rules'] = [ item['data'] for item in cmd_result['json'] ]
+    except (NodegridError, Exception) as e:
+        result['error'] = True
+        result['msg'] = f"CLI Error: f{e}"
+    return result
 
 
 def resort_rule(rule: dict, sort_list: list):
@@ -695,9 +673,9 @@ def insert_rule(table, chain, new_rule):
     for setting in new_rule:
         if new_rule[setting] and len(str(new_rule[setting]).strip()) > 0:
             if setting in rename_settings:
-                cmds.append(dict(cmd=f"set {rename_settings[setting]}={new_rule[setting].replace(' ','_')}"))
+                cmds.append(dict(cmd=f"set {rename_settings[setting]}={str(new_rule[setting]).replace(' ','_')}"))
             else:
-                cmds.append(dict(cmd=f"set {setting}={new_rule[setting].replace(' ','_')}"))
+                cmds.append(dict(cmd=f"set {setting}={str(new_rule[setting]).replace(' ','_')}"))
     return new_rule, cmds
 
 
@@ -753,9 +731,9 @@ def append_rule(table, chain, new_rule):
     for setting in new_rule:
         if new_rule[setting] and len(str(new_rule[setting]).strip()) > 0:
             if setting in rename_settings:
-                cmds.append(dict(cmd=f"set {rename_settings[setting]}={new_rule[setting].replace(' ','_')}"))
+                cmds.append(dict(cmd=f"set {rename_settings[setting]}={str(new_rule[setting]).replace(' ','_')}"))
             else:
-                cmds.append(dict(cmd=f"set {setting}={new_rule[setting].replace(' ','_')}"))
+                cmds.append(dict(cmd=f"set {setting}={str(new_rule[setting]).replace(' ','_')}"))
     return new_rule, cmds
 
 
@@ -771,7 +749,7 @@ def update_rule(table, chain, rule, new_rule):
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/{new_rule['rule_number']}"))
     for setting in diff_state:
         if len(str(diff_state[setting]).strip()) > 0:
-            cmds.append(dict(cmd=f"set {setting}={diff_state[setting].replace(' ','_')}"))
+            cmds.append(dict(cmd=f"set {setting}={str(diff_state[setting]).replace(' ','_')}"))
     return diff_state, cmds
 
     
@@ -893,7 +871,7 @@ def run_module():
     debug = module.params.pop('debug', False)
 
     # Lets get the current status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
@@ -1048,32 +1026,25 @@ def run_module():
         cmds.append({'cmd': f"config_confirm"})
     try:
         cmd_results = []
-        cmd_cli = get_cli(timeout=timeout)
-        for cmd in cmds:
-            cmd_result = execute_cmd(cmd_cli, cmd)
-            if 'template' in cmd.keys():
-                cmd_result['template'] = cmd['template']
-            if 'set_fact' in cmd.keys():
-                cmd_result['set_fact'] = cmd['set_fact']
-            if 'ignore_error' in cmd.keys():
-                cmd_result['ignore_error'] = cmd['ignore_error']
-            if 'json' in cmd.keys():
-                cmd_result['json'] = cmd['json']
-            cmd_result['command'] = cmd.get('cmd')
-            cmd_results.append(cmd_result)
-            if cmd_result['error']:
-                result['failed'] = True
-                result['message'] = cmd_result['stdout'].split('\r\n\r\n')[1]
-                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert'))
-                break;
-            result['changed'] = True
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            for cmd in cmds:
+                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                if 'template' in cmd.keys():
+                    cmd_result['template'] = cmd['template']
+                if 'set_fact' in cmd.keys():
+                    cmd_result['set_fact'] = cmd['set_fact']
+                if 'ignore_error' in cmd.keys():
+                    cmd_result['ignore_error'] = cmd['ignore_error']
+                if 'json' in cmd.keys():
+                    cmd_result['json'] = cmd['json']
+                cmd_result['command'] = cmd.get('cmd')
+                cmd_results.append(cmd_result)
+                result['changed'] = True
         if debug:
             result['cmds_output'] = cmd_results
-    except Exception as exc:
+    except (NodegridError, Exception) as e:
         result['failed'] = True
-        result['message'] = str(exc)
-    finally:
-        close_cli(cmd_cli)
+        result['message'] = f"CLI Error: f{e}"
     
     if result['failed']:
         module.fail_json(msg=result['message'], **result)

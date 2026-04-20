@@ -90,9 +90,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, get_cli, execute_cmd, close_cli, read_table, read_table_row, run_option_no_diff, read_path_option, export_settings, settings_to_dict, result_nochanged, dict_diff
-from collections import defaultdict
-
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, execute_cmd, run_option_no_diff, export_settings, settings_to_dict, result_nochanged, dict_diff, NodegridError
 import os
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -107,6 +105,7 @@ def run_option_local_account(option, run_opt):
         failed=False,
         msg=""
     )
+    timeout = run_opt.get('timeout', 60)
     local_account_config = option['suboptions']
     local_accounts_check = get_local_accounts()
 
@@ -114,7 +113,12 @@ def run_option_local_account(option, run_opt):
         return run_option_adding_field_in_the_path(option, run_opt, 'username')
     for local_account in local_accounts_check['local_accounts']:
         if local_account['username'] == local_account_config['username']:
-            local_account_nodegrid = _get_local_account(local_account['username'])
+            local_account = _get_local_account(local_account['username'], timeout=timeout)
+            if local_account['error']:
+                result['failed'] = True
+                result['msg'] = local_account['msg']
+                return result
+            local_account_nodegrid = local_account['account']
             if local_account_nodegrid.get('error', False):
                 return run_option_adding_field_in_the_path(option, run_opt, 'username')
             if local_account_config['hash_format_password'] == 'no':
@@ -134,37 +138,35 @@ def run_option_local_account(option, run_opt):
     return run_option_adding_field_in_the_path(option, run_opt, 'username')
 
 def get_local_accounts(timeout=60) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
-    #build cmd
-    cmd = {
-        'cmd' : f"show /settings/local_accounts"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    close_cli(cmd_cli)
     result = dict(error=False, local_accounts=[], msg='')
-    local_accounts = []
-    if cmd_result['error']:
+    cmd = dict(cmd=f"show /settings/local_accounts")
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
         result['error'] = True
-        result['msg'] = f"Cannot get local accounts. Error: {cmd_result['error']}"
-    else:
-        for local_account in cmd_result['json'][0]['data']:
-            local_accounts.append(local_account)
-        result['local_accounts'] = local_accounts
+        result['msg'] = f"CLI Error: f{e}"
+        return result
+
+    local_accounts = []
+    for local_account in cmd_result['json'][0]['data']:
+        local_accounts.append(local_account)
+    result['local_accounts'] = local_accounts
     return result
 
 def _get_local_account(username, timeout=60) -> dict:
-    #build cmd
-    cmd_cli = get_cli(timeout=timeout)
-    cmd: dict = {
-        'cmd' : f"export_settings /settings/local_accounts/{username} --plain-password"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    close_cli(cmd_cli)
-    data = {}
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Error getting local_account username {username}. Error: {cmd_result['stdout']}")
-    else:
-       return cmd_result['json'][0]['data']
+    result = dict(error=False, msg='', account=None)
+    cmd = dict(cmd = f"export_settings /settings/local_accounts/{username} --plain-password")
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
+        result['error'] = True
+        result['msg'] = f"CLI Error: f{e}"
+        return result
+
+    result['account'] = cmd_result['json'][0]['data']
+    return result
 
 def run_authorization_profile(option, run_opt):
     profile = option['suboptions']['profile']
@@ -232,7 +234,6 @@ def run_authorization_profile(option, run_opt):
         # Add manage devices permissions in a sigle line cli command
         try:
             timeout = run_opt.get('timeout', 60)
-            cmd_cli = get_cli(timeout=timeout)
             cmd_line = []
             for key, value in permissions_dict.items():
                 cmd_line.append(f"{key}='{value}'")
@@ -242,22 +243,14 @@ def run_authorization_profile(option, run_opt):
                 {'cmd': 'commit'}
             ]
             cmd_results = []
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd)
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                if cmd_result['error']:
-                    profile_result['failed'] = True
-                    profile_result['msg'] = cmd_result['json']
-                    profile_result['changed'] = False
-                    cmd_result = execute_cmd(cmd_cli, dict(cmd='cancel', ignore_error=True))
-                    cmd_result = execute_cmd(cmd_cli, dict(cmd='revert', ignore_error=True))
-                    cmd_result = execute_cmd(cmd_cli, dict(cmd='config_revert', ignore_error=True))
-                    break
-            close_cli(cmd_cli)
+            with nodegrid_cli(timeout=timeout) as cmd_cli:
+                for cmd in cmds:
+                    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                    cmd_result['command'] = cmd.get('cmd')
+                    cmd_results.append(cmd_result)
             profile_result['cmds_output'] = cmd_results
-        except Exception as exc:
-            return result_failed(str(exc))
+        except (NodegridError, Exception) as e:
+            return result_failed(f"CLI Error: f{e}")
     return profile_result
 
 def run_option_authorization(option, run_opt):
@@ -346,7 +339,7 @@ def authentication_servers_validate(servers_nodegrid, servers):
             result['msg'] = f"Error getting Authentication Server. Current {server_nodegrid}, Desired: {server}, Error: {server_nodegrid['msg']}"
             return result
         server = servers[index]
-        diff_state = dict_diff(server,server_nodegrid)
+        diff_state = dict_diff(server,server_nodegrid['server_config'])
         if len(diff_state) != 0:
             result['failed'] = True
             result['msg'] = f"authentication server diff. Current {server_nodegrid}, Desired: {server}, Servers Nodegrid: {servers_nodegrid}, Diff: {diff_state}"
@@ -355,39 +348,34 @@ def authentication_servers_validate(servers_nodegrid, servers):
 
 def _get_authentication_server(server_index, timeout=60) -> dict:
     #build cmd
-    cmd_cli = get_cli(timeout=timeout)
-    cmd: dict = {
-        'cmd' : f"export_settings /settings/authentication/servers/{server_index} --plain-password"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    close_cli(cmd_cli)
-    data = {}
-    if cmd_result['error']:
-        return dict(error=True, msg=f"Error getting authentication server index {server_index}. Error: {cmd_result['stdout']}")
-    else:
-       return cmd_result['json'][0]['data']
+    cmd = dict(cmd = f"export_settings /settings/authentication/servers/{server_index} --plain-password")
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
+        return result_failed(f"CLI Error: f{e}")
+    return dict(error=False, server_config=cmd_result['json'][0]['data'])
 
 def get_servers_present(timeout=60) -> dict:
-    cmd_cli = get_cli(timeout=timeout)
     #build cmd
-    cmd = {
-        'cmd' : f"show /settings/authentication/servers/"
-    }
-    cmd_result = execute_cmd(cmd_cli, cmd)
-    close_cli(cmd_cli)
+    cmd = dict(cmd = f"show /settings/authentication/servers/")
     result = dict(error=False, servers=[], msg='')
+    try:
+        with nodegrid_cli(timeout=timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
+        result['error'] = True 
+        result['msg'] = f"Error: {e}"
+        return result
+
     servers = []
-    if cmd_result['error']:
-        result['error'] = True
-        result['msg'] = f"Cannot get present authentication servers. Error: {cmd_result['error']}"
-    else:
-        for server in cmd_result['json'][0]['data']:
-            servers.append(server)
-        if len(servers) > 0:
-            field = 'number'
-            if 'index' in servers[0]:
-                field = 'index'
-            result['servers'] = sorted(servers, key=lambda x: x.get(field, float('inf')))
+    for server in cmd_result['json'][0]['data']:
+        servers.append(server)
+    if len(servers) > 0:
+        field = 'number'
+        if 'index' in servers[0]:
+            field = 'index'
+        result['servers'] = sorted(servers, key=lambda x: x.get(field, float('inf')))
     return result
 
 
@@ -478,7 +466,10 @@ def run_option_authentication(option, run_opt):
         elif key in ['servers']:
             result_failed(f"Key not valid: {key}. Authentication Servers must be configured defining a list named: 'authentication_servers'.")
 
-        # console, default_group, realms
+        # default_group
+        elif key in ['default_group']:
+            settings_list.extend( format_settings(f"{cli_path}/{key}",value, include_key_if_value_empty=['default_group_for_remote_users']) )
+        # console, realms
         else:
             settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
 

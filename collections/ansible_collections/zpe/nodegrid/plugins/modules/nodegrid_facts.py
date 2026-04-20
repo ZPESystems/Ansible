@@ -53,6 +53,7 @@ from ansible.module_utils.facts.collector import CollectorNotFoundError, CycleFo
 from ansible.module_utils.facts.namespace import PrefixFactNamespace
 
 from ansible_collections.zpe.nodegrid.plugins.module_utils.facts.nodegrid_collector import NodegridFactCollector
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import NodegridError
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
@@ -73,13 +74,14 @@ def run_module():
     result = dict(
         failed=False,
     )
+    
     namespace = PrefixFactNamespace(namespace_name='nodegrid', prefix='nodegrid_')
     try:
         nodegrid_fact_collector = NodegridFactCollector(namespace=namespace)
-    except (TypeError, CollectorNotFoundError, CycleFoundInFactDeps, UnresolvedFactDep) as e:
+        nodegrid_facts = nodegrid_fact_collector.collect_with_namespace(module=module, collected_facts=None)
+    except (TypeError, CollectorNotFoundError, CycleFoundInFactDeps, UnresolvedFactDep, NodegridError) as e:
         module.fail_json(msg=to_text(e))
 
-    nodegrid_facts = nodegrid_fact_collector.collect_with_namespace(module=module, collected_facts=None)
     if nodegrid_facts.pop('nodegrid_failed', False):
         result['failed'] = True
         result['message'] = nodegrid_facts['nodegrid_msg']

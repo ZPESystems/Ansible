@@ -18,8 +18,8 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, get_shell, get_cli, close_cli, execute_cmd, read_path_options
-import os, json, pexpect, re
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, execute_cmd, read_path_options, NodegridError, nodegrid_cli_validate_inputs, pop_keys, cli_settings_reorder
+import os, re
 from collections import OrderedDict
 import traceback
 
@@ -83,6 +83,13 @@ managed_device_type = {
         'virtual_console_vmware'
     ]
 }
+
+# Devices that support SNMP on management tab
+management_snmp_support = ['console_server_acs6000','device_console','door_lock_with_rfid','infrabox','nodegrid_ap','pdu_apc','pdu_austin_hughes','pdu_baytech','pdu_cpi','pdu_cyberpower','pdu_digital_loggers','pdu_eaton','pdu_enconnex','pdu_geist','pdu_hpe_g2','pdu_ice','pdu_mph2','pdu_pm3000','pdu_raritan','pdu_rittal','pdu_rnx','pdu_servertech','pdu_tripplite','switch_edgecore','switch_zpe','ups_apc','ups_netagent']
+# Devices that support 'purge_disabled_end_point_ports' on management tab
+management_purge_disabled_end_point_ports_support = ['console_server_acs','console_server_acs6000','console_server_digicp','console_server_lantronix','console_server_nodegrid','console_server_opengear','console_server_perle','console_server_raritan','kvm_aten','kvm_dsr','kvm_mpu','kvm_raritan']
+
+
 # Define a set with all types of managed devices
 managed_device_types = set([item for sublist in managed_device_type.values() for item in sublist])
 
@@ -415,7 +422,69 @@ device_dependencies = {
     'sec_ip_alias_telnet': ['sec_ip_alias_telnet_port'],
     'sec_ip_alias_binary': ['sec_ip_alias_binary_port']
 }
+# Management SNMP dependencies
+management_snmp_dependencies = OrderedDict()
+management_snmp_dependencies = {
+    'snmp_version':
+    {
+        'v1':
+        [
+            'snmp_community',
+        ],
+        'v2':
+        [
+            'snmp_community',
+        ],
+        'v3':
+        [
+            'snmpv3_username', 'snmpv3_security_level', 'snmpv3_authentication_algorithm','snmpv3_authentication_password', 'snmpv3_privacy_algorithm', 'snmpv3_privacy_password',
+        ],
+    },
+    'snmpv3_security_level': ("validate", ['authnopriv', 'authpriv', 'noauthnopriv']),
+    'snmpv3_authentication_algorithm': ('validate', ['md5', 'sha']),
+    'snmpv3_privacy_algorithm': ('validate', ['aes', 'des']),
+}
 
+# Management Purge Disabled end points ports
+management_purge_disabled_end_point_ports_dependencies = OrderedDict()
+management_purge_disabled_end_point_ports_dependencies = {
+    'purge_disabled_end_point_ports': ['action'],
+    'action': ("validate", ['disable_ports', 'remove_ports']),
+}
+
+def validate_management_fields(cli_path, device_type, settings):
+    if 'snmp' in settings:
+        snmp_all_settings = set()
+        for key, setting in management_snmp_dependencies.items():
+            if isinstance(setting, dict):
+                snmp_all_settings.add(key)
+                for _, asetting in setting.items():
+                    if isinstance(asetting, list):
+                        snmp_all_settings |= set(asetting)
+        if device_type not in management_snmp_support:
+            snmp_all_settings.add('snmp')
+            pop_keys(settings, snmp_all_settings)
+        elif str(settings['snmp']).strip() == 'no':
+            pop_keys(settings, snmp_all_settings)
+        elif str(settings['snmp']).strip() == 'yes':
+            settings = nodegrid_cli_validate_inputs(settings, management_snmp_dependencies)
+            settings = cli_settings_reorder(settings, management_snmp_dependencies, OrderedDict(snmp='yes'))
+
+    if 'purge_disabled_end_point_ports' in settings:
+        purge_all_settings = set()
+        for key, setting in management_purge_disabled_end_point_ports_dependencies.items():
+            if isinstance(setting, list):
+                purge_all_settings |= set(setting)
+        if device_type not in management_purge_disabled_end_point_ports_support:
+            purge_all_settings.add('purge_disabled_end_point_ports')
+            pop_keys(settings, purge_all_settings)
+        elif str(settings['purge_disabled_end_point_ports']).strip() == 'no':
+            pop_keys(settings, purge_all_settings)
+        elif str(settings['purge_disabled_end_point_ports']).strip() == 'yes':
+            settings = nodegrid_cli_validate_inputs(settings, management_purge_disabled_end_point_ports_dependencies)
+            settings = cli_settings_reorder(settings, management_purge_disabled_end_point_ports_dependencies, OrderedDict(purge_disabled_end_point_ports='yes'))
+
+    return format_settings(f"{cli_path}",settings)
 
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -429,7 +498,7 @@ def run_option_devices(option, run_opt):
     devices = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
-    change_name_message = ""
+    change_name_message = ''
     settings_list = []
     cmds = []
     cmd_results = list()
@@ -446,6 +515,8 @@ def run_option_devices(option, run_opt):
             settings_list += device_result['settings']
             if 'cmds' in device_result:
                 cmds += device_result['cmds']
+            if 'change_name_message' in device_result:
+                change_name_message += f"| {device_result['change_name_message']}"
             if 'cmd_results' in device_result:
                 cmd_results.append(device_result['cmd_results'])
 
@@ -479,9 +550,11 @@ def run_option_device(device, cli_path, run_opt):
         'settings': [],
     }
     check_mode = run_opt['check_mode']
+    timeout = run_opt.get('timeout', 60)
     settings_list = []
     cmds = None
     cmd_results = None
+    change_name_message = None
 
     if not ('access' in device and field_exist(device['access'], 'name')):
         return result_failed("Field 'access/name' is required")
@@ -502,35 +575,8 @@ def run_option_device(device, cli_path, run_opt):
     # Clean the required options
     try:
         settings_tobe_deleted = set(['ssh_key_type', 'ssh_private_key', 'ssh_public_key'])
-        for dependency in device_dependencies:
-            if isinstance(device_dependencies[dependency], dict):
-                for dep_rem in {key:value for key, value in device_dependencies[dependency].items() if dependency in device['access'] and key not in [device['access'][dependency]]}:
-                    for setting in device_dependencies[dependency][dep_rem]:
-                        if (device['access'][dependency] not in device_dependencies[dependency]) or (setting not in device_dependencies[dependency][device['access'][dependency]]):
-                            settings_tobe_deleted.add(setting)
-
-            elif isinstance(device_dependencies[dependency], list) and dependency in device['access'] and device['access'][dependency].lower() == "no":
-                for setting in device_dependencies[dependency]:
-                    settings_tobe_deleted.add(setting)
-            elif isinstance(device_dependencies[dependency], tuple):
-                if not dependency in device['access']:
-                    continue
-                atuple = device_dependencies[dependency]
-                if atuple[0] == "validate" and device['access'][dependency] in atuple[1]:
-                    if dependency in device['access']:
-                        valid_options = atuple[1][device['access'][dependency]]
-                        items_to_validate = {option:values for option,values in atuple[1].items() if not option == device['access'][dependency]}
-                    else:
-                        valid_options = []
-                        items_to_validate = {option:values for option,values in atuple[1].items()}
-                    for key,value in items_to_validate.items():
-                        for v in value:
-                            if not v in valid_options:
-                                settings_tobe_deleted.add(v)
-
-        # Delete settings not required
-        for setting in settings_tobe_deleted:
-            device['access'].pop(setting, None)
+        device["access"] = nodegrid_cli_validate_inputs(device["access"], device_dependencies, settings_tobe_deleted=settings_tobe_deleted)
+        device['access'] = cli_settings_reorder(device['access'], device_dependencies,initial_order=OrderedDict(name=device['access']['name']))
     except Exception as e:
         return {'failed': True, 'changed': False, 'msg': f"{device['access']} | Key/value error: {e} | {traceback.format_exc()}"}
         
@@ -548,12 +594,12 @@ def run_option_device(device, cli_path, run_opt):
         # /settings/devices/ttyS1-router1 {spm_rename},ttyS1,spm_name
         #
         # Validate 'port_name' format against the pattern ttyS{numbers} or usbS{numbers}-{numbers}
-        pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$|^usbS([0-9])$|^usbS([0-9]+-[0-9]+)$")
+        pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$|^usbS([0-9]+)$|^usbS([0-9]+)-([0-9]+)$")
         if pattern.match(port_name):
             new_name = device['access']['name'].strip()
             device['access'].pop('name')
             device_options_cli = read_path_options(f"/settings/devices/{port_name}/access")
-            if 'error' in device_options_cli:
+            if device_options_cli['error']:
                 return result_failed(f"Failed to read options: 'show /settings/devices/{port_name}/access'. Error: {device_options_cli}")
 
             device_options = device_options_cli.get('options', None)
@@ -588,39 +634,20 @@ def run_option_device(device, cli_path, run_opt):
                 cmd_result = dict()
                 if not check_mode:
                     try:
-                        cmd_cli = get_cli(timeout=60)
-                        for cmd in cmds:
-                            cmd_result = execute_cmd(cmd_cli, cmd)
-                            if cmd_result['error']:
-                                return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{cmd_result}")
-                            cmd_results.append(cmd_result)
-                        close_cli(cmd_cli)
+                        with nodegrid_cli(timeout) as cmd_cli:
+                            for cmd in cmds:
+                                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                                cmd_results.append(cmd_result)
                         change_name_message = f"managed_device_name: {current_name} -> {new_name}"
                         cli_path += f"/{new_name}"
-                    except Exception as exc:
-                        return result_failed(f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Results: f{exc}")
+                    except (NodegridError, Exception) as e:
+                        return result_failed(msg=f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Error: f{e}")
             else:
                 cli_path += f"/{current_name}"
         else:
             return result_failed(f"Port name '{port_name}' not supported [Device: {device}]. Port names supported include 'ttyS*' and 'usbS*'")
     else:
         cli_path += f"/{device['access']['name'].strip()}"
-
-    if 'access' in device:
-        access_ordered = OrderedDict(device['access'])
-        for ordered_setting, settings in {key:value for key,value in device_dependencies.items() if type(value) is list}.items():
-            if ordered_setting in access_ordered:
-                for setting in [key for key in settings if key in access_ordered]:
-                    tmp_value= access_ordered.pop(setting)
-                    access_ordered[setting] = tmp_value
-
-        for ordered_setting, atuple in {key:value for key,value in device_dependencies.items() if type(value) is tuple}.items():
-            if ordered_setting in access_ordered:
-                if atuple[0] == "validate" and access_ordered[ordered_setting] in atuple[1]:
-                    for setting in atuple[1][access_ordered[ordered_setting]]:
-                        tmp_value= access_ordered.pop(setting)
-                        access_ordered[setting] = tmp_value
-        device['access'] = access_ordered
 
     for key, value in device.items():
         # commands
@@ -648,7 +675,10 @@ def run_option_device(device, cli_path, run_opt):
         # Management
         elif key in ['management']:
             if not device['access']['type'] in device_type_not_support_management:
-                settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
+                try:
+                    settings_list.extend(validate_management_fields(f"{cli_path}/{key}", device['access']['type'], value))
+                except (Exception, NodegridError) as e:
+                    return result_failed(f"Failed validating Management Fields. Error: {e}")
         # Access 
         elif key in ['access']:
             settings_list.extend( format_settings(f"{cli_path}/{key}",value) )
@@ -660,6 +690,8 @@ def run_option_device(device, cli_path, run_opt):
         device_result['cmds'] = cmds
     if cmd_results:
         device_result['cmd_results'] = cmd_results
+    if change_name_message:
+        device_result['change_name_message'] = change_name_message
     device_result['settings'] = settings_list
     return device_result
 
@@ -669,6 +701,7 @@ def run_module():
         devices=dict(type='list', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
     )
 
     # seed the result dict in the object
@@ -714,7 +747,7 @@ def run_module():
     else:
         use_config_start_global = True
 
-    if module.check_mode:
+    if module.params['debug']:
         result['nodegrid_os'] = nodegrid_os
     
     # Not required for Managed Devices to create an snapshot before any task
@@ -726,21 +759,19 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'timeout': module.params['timeout'],
+        'debug': module.params['debug']
     }
 
     for option in option_list:
         if option['suboptions'] is not None:
             func = option['func']
             res = func(option, run_opt)
-            if option['name'] == 'facts':
-                result['facts'] = res['devices']
-                result['failed'] = False
-            else:
-                result['output'][option['name']] = res
             if res['failed']:
+                result.pop('output', None)
                 result['failed'] = True
                 module.fail_json(msg=res['msg'], **result)
+            result['output'][option['name']] = res
 
     if len(result['output'].keys()) == 0 and option['name'] != 'facts':
         module.fail_json(msg='No inputs', **result)

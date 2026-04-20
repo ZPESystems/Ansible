@@ -79,41 +79,39 @@ def run_option_license(option, run_opt):
 
     installed = []
     already_installed = []
-    not_installed = []
 
     if "license_keys" in settings_dict:
         license_keys = settings_dict['license_keys']
         if type(license_keys)==list and len(license_keys) > 0:
             
             if check_mode:
-                result['changed'] = True
+                result['changed'] = False
+                result['cmds'] = [f"cd {cli_path}; add; set license_key={lic_key}; commit" for lic_key in license_keys]
                 return result
             
             for lic_key in license_keys:
                 cmd = f"cd {cli_path}; add; set license_key={lic_key}; commit"
-                cli_output = run_cli_command(cmd, timeout=timeout)
-                if 'error' in cli_output:
-                    result['failed'] = True
-                    result['msg'] = cli_output.get('msg', f'Error on cmd: {cmd}')
-                    return result
-                output = cli_output.get('output')
-                if "Error:".lower() in output.lower():
-                    if "License Already Installed".lower() in output.lower():
+                cli_output = run_cli_command(cmd, ignore_error=True, timeout=timeout)
+                if cli_output['error'] is True:
+                    if 'output' in cli_output and "license_key: License Already Installed" in cli_output['output']:
                         already_installed.append(lic_key)
+                        continue
+                    elif 'output' in cli_output and "license_key: Not a Valid License" in cli_output['output']:
+                        result['installed'] = installed
+                        result['already_installed'] = already_installed
+                        result['failed'] = True
+                        result['msg'] = f"License_key='{lic_key}' error. Not a Valid License"
+                        return result
                     else:
-                        not_installed.append(f"{lic_key}  {output}")
-                else:
-                    result['changed'] = True
-                    installed.append(lic_key)
+                        result['installed'] = installed
+                        result['already_installed'] = already_installed
+                        result['failed'] = True
+                        result['msg'] = cli_output['msg']
+                        return result
+                result['changed'] = True
+                installed.append(lic_key)
 
-    result['result'] = {
-        'installed': installed,
-        'already_installed': already_installed,
-        'not_installed': not_installed,
-    }
-    if len(not_installed) > 0:
-        result['failed'] = True
-        result['msg'] = 'Add license failed'
+    result['result'] = dict(installed=installed, already_installed=already_installed)
     return result
 
 def run_option_ntp_authentication(option, run_opt):

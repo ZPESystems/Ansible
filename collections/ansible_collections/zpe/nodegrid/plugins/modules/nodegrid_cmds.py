@@ -21,9 +21,8 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import get_cli, close_cli, execute_cmd, check_os_version_support
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, NodegridError
 
-import traceback
 import os
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -82,28 +81,27 @@ def run_module():
     cmd_result = dict()
 
     try:
-        cmd_cli = get_cli(timeout=timeout)
-        for cmd in module.params['cmds']:
-            cmd_result = execute_cmd(cmd_cli, cmd)
-            if 'template' in cmd.keys():
-                cmd_result['template'] = cmd['template']
-            if 'set_fact' in cmd.keys():
-                cmd_result['set_fact'] = cmd['set_fact']
-            if 'ignore_error' in cmd.keys():
-                cmd_result['ignore_error'] = cmd['ignore_error']
-            if 'json' in cmd.keys():
-                cmd_result['json'] = cmd['json']
-            cmd_result['command'] = cmd.get('cmd')
-            cmd_results.append(cmd_result)
-            if cmd_result['error']:
-                result['failed'] = True
-                break;
-        close_cli(cmd_cli)
+        with nodegrid_cli(timeout) as cmd_cli:
+            for cmd in module.params['cmds']:
+                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                if 'template' in cmd.keys():
+                    cmd_result['template'] = cmd['template']
+                if 'set_fact' in cmd.keys():
+                    cmd_result['set_fact'] = cmd['set_fact']
+                if 'ignore_error' in cmd.keys():
+                    cmd_result['ignore_error'] = cmd['ignore_error']
+                if 'json' in cmd.keys():
+                    cmd_result['json'] = cmd['json']
+                cmd_result['command'] = cmd.get('cmd')
+                cmd_results.append(cmd_result)
+                if cmd_result['error']:
+                    result['failed'] = True
+                    result['message'] = f"{cmd_result.get('msg', '')}"
+                    break;
         result['cmds_output'] = cmd_results
-    except Exception:
+    except (NodegridError, Exception) as e:
         result['failed'] = True
-        result['message'] = traceback.format_exc()
-
+        result['message'] = f"{e}"
     
     if result['failed']:
         module.fail_json(msg=result['message'], **result)

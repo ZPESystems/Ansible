@@ -8,6 +8,7 @@
   vars:
     nodegrid_timeout: 3600 # Nodegrid CLI commands timeout
     batch_size: 100
+    add_device_retries: 5 # Number of retries when adding a managed device fails
   tasks:
   - name: Import Managed devices in bulk
     include_role:

@@ -86,8 +86,8 @@ managed_device_type = {
 
 # Devices that support SNMP on management tab
 management_snmp_support = ['console_server_acs6000','device_console','door_lock_with_rfid','infrabox','nodegrid_ap','pdu_apc','pdu_austin_hughes','pdu_baytech','pdu_cpi','pdu_cyberpower','pdu_digital_loggers','pdu_eaton','pdu_enconnex','pdu_geist','pdu_hpe_g2','pdu_ice','pdu_mph2','pdu_pm3000','pdu_raritan','pdu_rittal','pdu_rnx','pdu_servertech','pdu_tripplite','switch_edgecore','switch_zpe','ups_apc','ups_netagent']
-# Devices that support 'purge_disabled_end_point_ports' on management tab
-management_purge_disabled_end_point_ports_support = ['console_server_acs','console_server_acs6000','console_server_digicp','console_server_lantronix','console_server_nodegrid','console_server_opengear','console_server_perle','console_server_raritan','kvm_aten','kvm_dsr','kvm_mpu','kvm_raritan']
+# Devices that support 'discover_ports' on management tab
+management_discover_ports_support = ['console_server_acs','console_server_acs6000','console_server_digicp','console_server_lantronix','console_server_nodegrid','console_server_opengear','console_server_perle','console_server_raritan','kvm_aten','kvm_dsr','kvm_mpu','kvm_raritan']
 
 
 # Define a set with all types of managed devices
@@ -445,9 +445,15 @@ management_snmp_dependencies = {
     'snmpv3_privacy_algorithm': ('validate', ['aes', 'des']),
 }
 
-# Management Purge Disabled end points ports
-management_purge_disabled_end_point_ports_dependencies = OrderedDict()
-management_purge_disabled_end_point_ports_dependencies = {
+# Management Discovery Ports dependencies
+management_discover_ports_dependencies = OrderedDict()
+management_discover_ports_dependencies = {
+    'discover_ports': ['discover_interval', 'discovered_name','purge_disabled_end_point_ports'],
+    'discovered_name':
+    {
+        'inherit_from_appliance':[],
+        'use_pattern': ['pattern_name']
+    },
     'purge_disabled_end_point_ports': ['action'],
     'action': ("validate", ['disable_ports', 'remove_ports']),
 }
@@ -470,19 +476,22 @@ def validate_management_fields(cli_path, device_type, settings):
             settings = nodegrid_cli_validate_inputs(settings, management_snmp_dependencies)
             settings = cli_settings_reorder(settings, management_snmp_dependencies, OrderedDict(snmp='yes'))
 
-    if 'purge_disabled_end_point_ports' in settings:
-        purge_all_settings = set()
-        for key, setting in management_purge_disabled_end_point_ports_dependencies.items():
+    if 'discover_ports' in settings:
+        discover_ports_all_settings = set()
+        for key, setting in management_discover_ports_dependencies.items():
             if isinstance(setting, list):
-                purge_all_settings |= set(setting)
-        if device_type not in management_purge_disabled_end_point_ports_support:
-            purge_all_settings.add('purge_disabled_end_point_ports')
-            pop_keys(settings, purge_all_settings)
-        elif str(settings['purge_disabled_end_point_ports']).strip() == 'no':
-            pop_keys(settings, purge_all_settings)
-        elif str(settings['purge_disabled_end_point_ports']).strip() == 'yes':
-            settings = nodegrid_cli_validate_inputs(settings, management_purge_disabled_end_point_ports_dependencies)
-            settings = cli_settings_reorder(settings, management_purge_disabled_end_point_ports_dependencies, OrderedDict(purge_disabled_end_point_ports='yes'))
+                discover_ports_all_settings |= set(setting)
+            if isinstance(setting, dict):
+                for key, values in setting.items():
+                    discover_ports_all_settings |= set(values)
+        if device_type not in management_discover_ports_support:
+            discover_ports_all_settings.add('discover_ports')
+            pop_keys(settings, discover_ports_all_settings)
+        elif str(settings['discover_ports']).strip() == 'no':
+            pop_keys(settings, discover_ports_all_settings)
+        elif str(settings['discover_ports']).strip() == 'yes':
+            settings = nodegrid_cli_validate_inputs(settings, management_discover_ports_dependencies)
+            settings = cli_settings_reorder(settings, management_discover_ports_dependencies, OrderedDict(discover_ports='yes'))
 
     return format_settings(f"{cli_path}",settings)
 

@@ -10,10 +10,32 @@ This use case collects managed-devices inventory from local Nodegrid OpenSearch 
 - Client certificate/key files present on the reports host for report-policy validation tasks
 
 # Example 
-The following example considers two Nodegrid devices, each manages multiple target devices.
+The following example considers two Nodegrid devices, each one manages multiple target devices. The device `ngmanager1` is defined with the `reports` role.
+
+```mermaid
+---
+title: Setup Overview
+---
+flowchart
+ id1["ngmanager1 - Report role"]
+ id2["managed Devices"]
+ id3["boldsr"]
+ id4["managed Devices"]
+
+ subgraph Nodegrid1
+ direction LR
+ id1 --- id2
+ end
+  
+ subgraph Nodegrid2
+ direction LR
+ id3 --- id4
+ end
+
+id1 -.-|IPv4 Network| id3
+```
 
 ## Inventory
-
 
 ### `ngmanager1.yaml`
 Create the file `/etc/ansible/inventories/host_vars/ngmanager1.yaml` with the following content (adapt it accordingly): 
@@ -36,7 +58,7 @@ ansible_port: '22'
 ansible_user: ansible
 ansible_ssh_private_key_file: ~/.ssh/managed@zpesystems.com
 ```
-### `md_report.yaml`
+### Hosts `md_report.yaml`
 Create the file `/etc/ansible/inventories/md_report.yaml` with the following content: 
 
 ```yaml
@@ -71,7 +93,23 @@ ansible@ngmanager1:~$ ansible-inventory --graph md_report
       nodegrid_report_synced_timestamp_field: report_synced_at
 ```
 
+To execute the playbook:
 
+```bash
+ansible-playbook md_report.yaml --limit md_report
+```
+
+## Dashboard Import
+Access the Web UI of the `ngmanager1` device and execute the following:
+
+1. Dashboard -> Stack Management -> Saved Objects -> Import
+2. Select `files/nodegrid_device_report_kibana.ndjson`
+3. Overwrite on conflicts if needed
+4. Refresh the data view fields after the report index has been loaded so all report fields are available
+
+![](images/dashboard.png)
+
+---
 # `nodegrid_elasticsearch_inventory` Role Variables
 
 The role-level variables' defaults values are:
@@ -159,12 +197,6 @@ The role exports a `nodegrid_elasticsearch_inventory` fact with:
 - protection state: `index_template_changed`, `policy_created`, `policy_attachment_changed`, `policy_expected`, `policy_attached`
 - timestamp-field names used by the run
 
-## Dashboard Import
-
-- Saved objects are shipped in `files/nodegrid_device_report_kibana.ndjson`
-- The data view uses `report_synced_at` as the time field
-- The current dashboard intentionally excludes the geolocation/map panel
-- Import instructions are documented in `files/README_kibana_import.md`
 
 ## License
 

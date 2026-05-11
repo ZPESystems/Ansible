@@ -1,0 +1,229 @@
+---
+# nodegrid_elasticsearch_inventory main task
+- name: Include variable definitions
+  ansible.builtin.include_vars: ../vars/main.yml
+  tags: [always, inventory_setup]
+
+- name: Build list of central report host candidates
+  ansible.builtin.set_fact:
+    nodegrid_reports_hosts: "{{ (nodegrid_reports_hosts | default([])) + [item] }}"
+  loop: "{{ groups['all'] | default([]) }}"
+  when: >-
+    'reports' in (
+      (hostvars[item].nodegrid_roles | default([]))
+      + ([hostvars[item].nodegrid_role] if (hostvars[item].nodegrid_role | default('')) != '' else [])
+    )
+  run_once: true
+  delegate_to: localhost
+  delegate_facts: true
+  tags: [always, inventory_setup]
+
+- name: Ensure exactly one reports host is defined
+  ansible.builtin.assert:
+    that:
+      - (hostvars['localhost'].nodegrid_reports_hosts | default([]) | length) == 1
+    fail_msg: >-
+      Expected exactly one host with reports role (nodegrid_roles includes 'reports').
+      Found {{ hostvars['localhost'].nodegrid_reports_hosts | default([]) | length }}:
+      {{ hostvars['localhost'].nodegrid_reports_hosts | default([]) }}
+    success_msg: >-
+      Using central reports host: {{ hostvars['localhost'].nodegrid_reports_hosts[0] }}
+  run_once: true
+  delegate_to: localhost
+  tags: [always, inventory_setup]
+
+- name: Set central reports host fact for this execution host
+  ansible.builtin.set_fact:
+    nodegrid_reports_host: "{{ hostvars['localhost'].nodegrid_reports_hosts[0] }}"
+  tags: [always, inventory_setup]
+
+- name: Collect Nodegrid facts
+  zpe.nodegrid.nodegrid_facts:
+    gather_subset: ["hardware"]
+  register: nodegrid_facts_output
+  tags: [inventory_collect]
+
+- name: Set Nodegrid version and model facts
+  ansible.builtin.set_fact:
+    nodegrid_version: "{{ nodegrid_facts_output.ansible_facts.nodegrid_about.version | default('unknown') }}"
+    nodegrid_model: "{{ nodegrid_facts_output.ansible_facts.nodegrid_about.model | default('unknown') }}"
+  tags: [inventory_collect]
+
+- name: Audit - Inventory collection started
+  include_tasks: audit.yml
+  vars:
+    audit_operation: "elasticsearch_inventory_start"
+    audit_status: "started"
+  tags: [always, audit]
+
+- name: Collect inventory from Elasticsearch
+  zpe.nodegrid.nodegrid_elasticsearch_inventory:
+    es_host: localhost
+    es_port: 9200
+    es_timeout: 10
+    index_pattern: "*_device_en"
+    # schema:
+    #   hostname: str
+    #   ip: str
+    #   mac: str
+    #   model: str
+    #   version: str
+  register: elasticsearch_inventory
+  tags: [inventory_collect]
+
+- name: Audit - Inventory collection completed
+  include_tasks: audit.yml
+  vars:
+    audit_operation: "elasticsearch_inventory_complete"
+    audit_status: "{{ 'success' if elasticsearch_inventory.elasticsearch_status == 'reachable' else 'failure' }}"
+    audit_details:
+      device_count: "{{ elasticsearch_inventory.device_data.valid }}"
+      errors: "{{ elasticsearch_inventory.device_data.invalid }}"
+  tags: [always, audit]
+
+- name: Audit - Report load started
+  include_tasks: audit.yml
+  vars:
+    audit_operation: "elasticsearch_report_load_start"
+    audit_status: "started"
+    audit_details:
+      target_index: "{{ nodegrid_report_target_index }}"
+  tags: [always, audit]
+
+- name: Load inventory rows to central report index host
+  nodegrid_elasticsearch_report_load:
+    es_host: localhost
+    es_port: 9200
+    es_timeout: 30
+    target_index: "{{ nodegrid_report_target_index }}"
+    id_field: uuid
+    batch_size: "{{ nodegrid_report_batch_size }}"
+    check_shard_capacity: "{{ nodegrid_report_check_shard_capacity }}"
+    auto_increase_shard_limit: "{{ nodegrid_report_auto_increase_shard_limit }}"
+    shard_limit_increment: "{{ nodegrid_report_shard_limit_increment }}"
+    shard_limit_hard_cap: "{{ nodegrid_report_shard_limit_hard_cap }}"
+    purge_before_load: "{{ nodegrid_report_purge_before_load }}"
+    add_row_timestamps: "{{ nodegrid_report_add_row_timestamps }}"
+    created_timestamp_field: "{{ nodegrid_report_created_timestamp_field }}"
+    updated_timestamp_field: "{{ nodegrid_report_updated_timestamp_field }}"
+    synced_timestamp_field: "{{ nodegrid_report_synced_timestamp_field }}"
+    protect_index: "{{ nodegrid_report_protect_index }}"
+    policy_id: "{{ nodegrid_report_policy_id }}"
+    devices: "{{ elasticsearch_inventory.device_data.devices }}"
+  delegate_to: "{{ nodegrid_reports_host }}"
+  throttle: 1
+  register: elasticsearch_report_load
+  when:
+    - elasticsearch_inventory.elasticsearch_status == "reachable"
+  tags: [inventory_load]
+
+- name: Audit - Report load completed
+  include_tasks: audit.yml
+  vars:
+    audit_operation: "elasticsearch_report_load_complete"
+    audit_status: "{{ 'success' if elasticsearch_report_load.failed == 0 else 'partial_failure' }}"
+    audit_details:
+      target_index: "{{ elasticsearch_report_load.target_index }}"
+      processed: "{{ elasticsearch_report_load.processed }}"
+      created: "{{ elasticsearch_report_load.created }}"
+      updated: "{{ elasticsearch_report_load.updated }}"
+      failed: "{{ elasticsearch_report_load.failed }}"
+  tags: [always, audit]
+  when:
+    - elasticsearch_inventory.elasticsearch_status == "reachable"
+
+- name: Validate report ISM policy exists on reports host
+  ansible.builtin.uri:
+    url: "https://localhost:9200/_plugins/_ism/policies/{{ nodegrid_report_policy_id }}"
+    method: GET
+    client_cert: "{{ nodegrid_report_client_cert }}"
+    client_key: "{{ nodegrid_report_client_key }}"
+    validate_certs: "{{ nodegrid_report_validate_certs }}"
+    timeout: 30
+    status_code: 200
+  register: elasticsearch_report_policy
+  when:
+    - inventory_hostname == nodegrid_reports_host
+    - elasticsearch_inventory.elasticsearch_status == "reachable"
+    - nodegrid_report_validate_policy_attachment | bool
+    - nodegrid_report_protect_index | bool
+  tags: [policy_check, report_policy]
+
+- name: Validate report index has expected ISM policy attached
+  ansible.builtin.uri:
+    url: "https://localhost:9200/_plugins/_ism/explain/{{ nodegrid_report_target_index }}"
+    method: GET
+    client_cert: "{{ nodegrid_report_client_cert }}"
+    client_key: "{{ nodegrid_report_client_key }}"
+    validate_certs: "{{ nodegrid_report_validate_certs }}"
+    timeout: 30
+    status_code: 200
+  register: elasticsearch_report_policy_explain
+  when:
+    - inventory_hostname == nodegrid_reports_host
+    - elasticsearch_inventory.elasticsearch_status == "reachable"
+    - nodegrid_report_validate_policy_attachment | bool
+    - nodegrid_report_protect_index | bool
+  tags: [policy_check, report_policy]
+
+- name: Assert report policy attachment state
+  ansible.builtin.assert:
+    that:
+      - elasticsearch_report_policy_explain.json[nodegrid_report_target_index] is defined
+      - (elasticsearch_report_policy_explain.json[nodegrid_report_target_index].policy_id | default('')) == nodegrid_report_policy_id
+    fail_msg: >-
+      Report index policy check failed for {{ nodegrid_report_target_index }} on {{ nodegrid_reports_host }}.
+      Expected policy {{ nodegrid_report_policy_id }}.
+      Actual payload: {{ elasticsearch_report_policy_explain.json | default({}) }}
+    success_msg: >-
+      Report index {{ nodegrid_report_target_index }} is attached to policy {{ nodegrid_report_policy_id }}.
+  when:
+    - inventory_hostname == nodegrid_reports_host
+    - elasticsearch_inventory.elasticsearch_status == "reachable"
+    - nodegrid_report_validate_policy_attachment | bool
+    - nodegrid_report_protect_index | bool
+  tags: [policy_check, report_policy]
+
+
+- name: Aggregate final facts
+  ansible.builtin.set_fact:
+    nodegrid_elasticsearch_inventory:
+      nodegrid_version: "{{ nodegrid_version }}"
+      nodegrid_model: "{{ nodegrid_model }}"
+      elasticsearch_status: "{{ elasticsearch_inventory.elasticsearch_status }}"
+      device_data:
+        valid: "{{ elasticsearch_inventory.device_data.valid }}"
+        invalid: "{{ elasticsearch_inventory.device_data.invalid }}"
+        errors: "{{ elasticsearch_inventory.device_data.errors }}"
+        devices: "{{ elasticsearch_inventory.device_data.devices }}"
+      report_load:
+        target_host: "{{ nodegrid_reports_host }}"
+        target_index: "{{ elasticsearch_report_load.target_index | default('system_report') }}"
+        index_created: "{{ elasticsearch_report_load.index_created | default(false) }}"
+        index_purged: "{{ elasticsearch_report_load.index_purged | default(false) }}"
+        processed: "{{ elasticsearch_report_load.processed | default(0) }}"
+        created: "{{ elasticsearch_report_load.created | default(0) }}"
+        updated: "{{ elasticsearch_report_load.updated | default(0) }}"
+        noop: "{{ elasticsearch_report_load.noop | default(0) }}"
+        failed: "{{ elasticsearch_report_load.failed | default(0) }}"
+        shard_open: "{{ elasticsearch_report_load.shard_open | default(None) }}"
+        shard_available: "{{ elasticsearch_report_load.shard_available | default(None) }}"
+        max_shards_per_node: "{{ elasticsearch_report_load.max_shards_per_node | default(None) }}"
+        shard_limit_changed: "{{ elasticsearch_report_load.shard_limit_changed | default(false) }}"
+        shard_increase_error: "{{ elasticsearch_report_load.shard_increase_error | default(None) }}"
+        shard_retry_create_error: "{{ elasticsearch_report_load.shard_retry_create_error | default(None) }}"
+        index_template_changed: "{{ elasticsearch_report_load.index_template_changed | default(false) }}"
+        policy_created: "{{ elasticsearch_report_load.policy_created | default(false) }}"
+        policy_attachment_changed: "{{ elasticsearch_report_load.policy_attachment_changed | default(false) }}"
+        created_timestamp_field: "{{ nodegrid_report_created_timestamp_field }}"
+        updated_timestamp_field: "{{ nodegrid_report_updated_timestamp_field }}"
+        synced_timestamp_field: "{{ nodegrid_report_synced_timestamp_field }}"
+        policy_expected: "{{ nodegrid_report_policy_id }}"
+        policy_attached: "{{ (elasticsearch_report_policy_explain.json[nodegrid_report_target_index].policy_id | default('')) if (elasticsearch_report_policy_explain is defined and elasticsearch_report_policy_explain.json is defined) else None }}"
+  tags: [inventory_summary]
+
+- name: Return results
+  ansible.builtin.debug:
+    msg: "Inventory collection completed"
+  when: elasticsearch_inventory.elasticsearch_status == "reachable"
+  tags: [inventory_summary]

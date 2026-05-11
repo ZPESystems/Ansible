@@ -1,0 +1,10 @@
+- name: Build the central Nodegrid device report
+  hosts: all
+  gather_facts: false
+  roles:
+  - role: nodegrid_elasticsearch_inventory
+    vars:
+      nodegrid_report_target_index: spconfig_system_report
+      nodegrid_report_policy_id: system_report_keep_forever
+      nodegrid_report_add_row_timestamps: true
+      nodegrid_report_synced_timestamp_field: report_synced_at

@@ -1,0 +1,29 @@
+---
+# Central report index load settings (role-level defaults)
+nodegrid_report_target_index: spconfig_system_report
+nodegrid_report_batch_size: 1000
+
+# Shard capacity controls for report index creation
+nodegrid_report_check_shard_capacity: true
+nodegrid_report_auto_increase_shard_limit: true
+nodegrid_report_shard_limit_increment: 100
+nodegrid_report_shard_limit_hard_cap: 1200
+nodegrid_report_purge_before_load: false
+
+# Optional row metadata in target report index
+nodegrid_report_add_row_timestamps: true
+nodegrid_report_created_timestamp_field: report_created_at
+nodegrid_report_updated_timestamp_field: report_updated_at
+nodegrid_report_synced_timestamp_field: report_synced_at
+
+# ISM policy + index template protection against auto-deletion
+nodegrid_report_protect_index: true
+
+# Report policy validation (report-specific checks)
+nodegrid_report_validate_policy_attachment: true
+nodegrid_report_policy_id: system_report_keep_forever
+nodegrid_report_client_cert: /etc/opensearch/config/admin.pem
+nodegrid_report_client_key: /etc/opensearch/config/admin-key.pem
+nodegrid_report_validate_certs: false
+
+

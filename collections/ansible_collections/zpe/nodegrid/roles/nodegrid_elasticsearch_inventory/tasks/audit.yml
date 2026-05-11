@@ -1,0 +1,49 @@
+---
+- name: Log audit event
+  block:
+    - name: Set audit log directory
+      ansible.builtin.set_fact:
+        nodegrid_audit_log_dir: "{{ nodegrid_report_audit_log_dir | default('/home/ansible/logs/audit') }}"
+
+    - name: Ensure primary audit log directory exists
+      block:
+        - name: Create primary audit log directory
+          ansible.builtin.file:
+            path: "{{ nodegrid_audit_log_dir }}"
+            state: directory
+            mode: '0750'
+      rescue:
+        - name: Fallback audit log directory when privileged path is unavailable
+          ansible.builtin.set_fact:
+            nodegrid_audit_log_dir: /tmp/nodegrid-audit
+
+        - name: Create fallback audit log directory
+          ansible.builtin.file:
+            path: "{{ nodegrid_audit_log_dir }}"
+            state: directory
+            mode: '0700'
+
+    - name: Build audit timestamp
+      ansible.builtin.set_fact:
+        nodegrid_audit_timestamp: "{{ ansible_date_time.iso8601_basic_short | default(now(utc=true, fmt='%Y%m%dT%H%M%SZ')) }}"
+
+    - name: Create audit entry
+      ansible.builtin.set_fact:
+        audit_entry:
+          timestamp: "{{ nodegrid_audit_timestamp }}"
+          user: "{{ ansible_user_id | default('unknown') }}"
+          host: "{{ inventory_hostname }}"
+          operation: "{{ audit_operation }}"
+          status: "{{ audit_status | default('pending') }}"
+          details: "{{ audit_details | default({}) }}"
+          playbook: "{{ ansible_playbook_name | default('unknown') }}"
+
+    - name: Write audit log
+      ansible.builtin.copy:
+        content: "{{ audit_entry | to_nice_json }}"
+        dest: "{{ nodegrid_audit_log_dir }}/audit-{{ nodegrid_audit_timestamp }}.log"
+        mode: '0600'
+
+  when:
+    - audit_operation is defined
+

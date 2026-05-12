@@ -141,7 +141,7 @@ ansible-playbook md_report.yaml --limit md_report
     <summary> Playbook execution output example </summary>
 
 ```
-ansible@ngmanager1:/etc/ansible/playbooks/Managed_Devices_report$ ansible-playbook report.yaml --limit ngmanager1
+ansible@ngmanager1:/etc/ansible/playbooks$ ansible-playbook md_report.yaml --limit md_report
 
 PLAY [Build the central Nodegrid device report] *******************************************************************************
 

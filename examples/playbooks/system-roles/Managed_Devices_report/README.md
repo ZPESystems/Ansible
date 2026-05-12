@@ -10,35 +10,60 @@ This use case collects managed-devices inventory from local Nodegrid OpenSearch 
 - Client certificate/key files present on the reports host for report-policy validation tasks
 
 # Example 
-The following example considers two Nodegrid devices, each one manages multiple target devices. The device `ngmanager1` is defined with the `reports` role.
+The following example considers two Nodegrid devices, each one manages multiple target devices. The device `ngmanager1` is defined with the `reports` role in the Ansible inventory.
 
 ```mermaid
 ---
-title: Setup Overview
+title: Managed Devices Report example overview
 ---
-flowchart
- id1["ngmanager1 - Report role"]
- id2["managed Devices"]
- id3["boldsr"]
- id4["managed Devices"]
+graph TB
+  subgraph Rack3
+   direction TB
+   ng-gatesr["gatesr"]
+   subgraph mdgatesr["gatesr managed devices"]
+    direction TB
+     mdgatesr1["router-3-1"]
+     mdgatesr2["router-3-2"]
+     mdgatesr3["switch-3-1"]
+   end
+   ng-gatesr ---|ttyS1-1| mdgatesr1 
+   ng-gatesr ---|usbS0-1| mdgatesr2 
+   ng-gatesr ---|IP| mdgatesr3
+  end
 
- subgraph Nodegrid1
+  subgraph Rack2
+   direction TB
+   ng-boldsr["boldsr"]
+   subgraph mdboldsr["boldsr managed devices"]
+    direction TB
+     mdboldsr1["router-2-1"]
+     mdboldsr2["router-2-2"]
+     mdboldsr3["switch-2-1"]
+   end
+   ng-boldsr ---|ttyS1-1| mdboldsr1 
+   ng-boldsr ---|usbS0-1| mdboldsr2 
+   ng-boldsr ---|IP| mdboldsr3
+  end
+
+subgraph Control_Node["Ansible Control Node"]
  direction LR
- id1 --- id2
- end
+   ng-manager["ng-manager"]
+   subgraph mdmanager["ngmanager managed devices"]
+    direction TB
+     mdmanager1["router-1-1"]
+     mdmanager2["router-1-2"]
+     mdmanager3["switch-1-1"]
+   end
+   ng-manager ---|IP| mdmanager1 & mdmanager2 & mdmanager3
+end
   
- subgraph Nodegrid2
- direction LR
- id3 --- id4
- end
-
-id1 -.-|IPv4 Network| id3
+ng-manager -..-|IPv4/IPv6 \n SSH| ng-boldsr & ng-gatesr
 ```
 
 ## Inventory
 
-### `ngmanager1.yaml`
-Create the file `/etc/ansible/inventories/host_vars/ngmanager1.yaml` with the following content (adapt it accordingly): 
+### `ngmanager.yaml`
+Create the file `/etc/ansible/inventories/host_vars/ngmanager.yaml` with the following content (adapt it accordingly): 
 
 ```yaml
 ansible_host: 192.168.1.21
@@ -58,6 +83,17 @@ ansible_port: '22'
 ansible_user: ansible
 ansible_ssh_private_key_file: ~/.ssh/managed@zpesystems.com
 ```
+
+### `gatesr.yaml`
+Create the file `/etc/ansible/inventories/host_vars/gatesr.yaml` with the following content (adapt it accordingly): 
+
+```yaml
+ansible_host: 192.168.1.23
+ansible_port: '22'
+ansible_user: ansible
+ansible_ssh_private_key_file: ~/.ssh/managed@zpesystems.com
+```
+
 ### Hosts `md_report.yaml`
 Create the file `/etc/ansible/inventories/md_report.yaml` with the following content: 
 
@@ -66,6 +102,7 @@ md_report:
   hosts:
     ngmanager1:
     boldsr:
+    gatesr:
 ```
 
 Test the inventory:
@@ -75,10 +112,12 @@ ansible@ngmanager1:~$ ansible-inventory --graph md_report
 @md_report:
   |--ngmanager1
   |--boldsr
+  |--gatesr
 
 ```
 
-## Playbook
+## Managed Devices Report Playbook
+Create the file `/etc/ansible/playbooks/md_report.yaml` with the following content:
 
 ```yaml
 - name: Build the central Nodegrid device report
@@ -98,16 +137,157 @@ To execute the playbook:
 ```bash
 ansible-playbook md_report.yaml --limit md_report
 ```
+<details>
+    <summary> Playbook execution output example </summary>
 
-## Dashboard Import
+```
+ansible@ngmanager1:/etc/ansible/playbooks/Managed_Devices_report$ ansible-playbook report.yaml --limit ngmanager1
+
+PLAY [Build the central Nodegrid device report] *******************************************************************************
+
+TASK [Nodegrid elastic search inventory] **************************************************************************************
+included: nodegrid_elasticsearch_inventory for ngmanager1
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Include variable definitions] *******************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Build list of central report host candidates] ***************************
+skipping: [ngmanager1] => (item=dev_cimc_ucs)
+skipping: [ngmanager1] => (item=dev_console_server_acs)
+skipping: [ngmanager1] => (item=dev_console_server_acs6000)
+ok: [ngmanager1 -> localhost(127.0.0.1)] => (item=ngmanager1)
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Ensure exactly one reports host is defined] *****************************
+ok: [ngmanager1 -> localhost(127.0.0.1)] => {
+    "changed": false,
+    "msg": "Using central reports host: ngmanager1"
+}
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Set central reports host fact for this execution host] ******************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Collect Nodegrid facts] *************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Set Nodegrid version and model facts] ***********************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Audit - Inventory collection started] ***********************************
+included: /etc/ansible/collections/ansible_collections/zpe/nodegrid/roles/nodegrid_elasticsearch_inventory/tasks/audit.yml for ngmanager1
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Set audit log directory] ************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create primary audit log directory] *************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Build audit timestamp] **************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create audit entry] *****************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Write audit log] ********************************************************
+changed: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Collect inventory from Elasticsearch] ***********************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Audit - Inventory collection completed] *********************************
+included: /etc/ansible/collections/ansible_collections/zpe/nodegrid/roles/nodegrid_elasticsearch_inventory/tasks/audit.yml for ngmanager1
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Set audit log directory] ************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create primary audit log directory] *************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Build audit timestamp] **************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create audit entry] *****************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Write audit log] ********************************************************
+changed: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Audit - Report load started] ********************************************
+included: /etc/ansible/collections/ansible_collections/zpe/nodegrid/roles/nodegrid_elasticsearch_inventory/tasks/audit.yml for ngmanager1
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Set audit log directory] ************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create primary audit log directory] *************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Build audit timestamp] **************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create audit entry] *****************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Write audit log] ********************************************************
+changed: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Load inventory rows to central report index host] ***********************
+changed: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Audit - Report load completed] ******************************************
+included: /etc/ansible/collections/ansible_collections/zpe/nodegrid/roles/nodegrid_elasticsearch_inventory/tasks/audit.yml for ngmanager1
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Set audit log directory] ************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create primary audit log directory] *************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Build audit timestamp] **************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Create audit entry] *****************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Write audit log] ********************************************************
+changed: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Validate report ISM policy exists on reports host] **********************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Validate report index has expected ISM policy attached] *****************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Assert report policy attachment state] **********************************
+ok: [ngmanager1] => {
+    "changed": false,
+    "msg": "Report index spconfig_system_report is attached to policy system_report_keep_forever."
+}
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Aggregate final facts] **************************************************
+ok: [ngmanager1]
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Return results] *********************************************************
+ok: [ngmanager1] => {
+    "msg": "Inventory collection completed"
+}
+
+TASK [zpe.nodegrid.nodegrid_elasticsearch_inventory : Import Dashboard] *******************************************************
+ok: [ngmanager1]
+
+PLAY RECAP ********************************************************************************************************************
+ngmanager1                 : ok=39   changed=5    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+</details>
+
+## Access the Dashboard
+
 Access the Web UI of the `ngmanager1` device and execute the following:
 
-1. Dashboard -> Stack Management -> Saved Objects -> Import
-2. Select `files/nodegrid_device_report_kibana.ndjson`
-3. Overwrite on conflicts if needed
-4. Refresh the data view fields after the report index has been loaded so all report fields are available
+- Dashboard -> Dashboard -> System Report Overview
 
 ![](images/dashboard.png)
+
+
+
 
 ---
 # `nodegrid_elasticsearch_inventory` Role Variables
@@ -197,6 +377,16 @@ The role exports a `nodegrid_elasticsearch_inventory` fact with:
 - protection state: `index_template_changed`, `policy_created`, `policy_attachment_changed`, `policy_expected`, `policy_attached`
 - timestamp-field names used by the run
 
+---
+## Manual Dashboard Import
+Access the Web UI of the `ngmanager1` device and execute the following:
+
+1. Dashboard -> Stack Management -> Saved Objects -> Import
+2. Select `files/nodegrid_device_report_kibana.ndjson`
+3. Overwrite on conflicts if needed
+4. Refresh the data view fields after the report index has been loaded so all report fields are available
+
+![](images/dashboard.png)
 
 ## License
 

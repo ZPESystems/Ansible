@@ -227,3 +227,24 @@
     msg: "Inventory collection completed"
   when: elasticsearch_inventory.elasticsearch_status == "reachable"
   tags: [inventory_summary]
+
+- name: Import Dashboard
+  ansible.builtin.uri:
+    url: "http://localhost:4820/api/saved_objects/_import?overwrite=true" 
+    method: POST
+    client_cert: "{{ nodegrid_report_client_cert }}"
+    client_key: "{{ nodegrid_report_client_key }}"
+    validate_certs: "{{ nodegrid_report_validate_certs }}"
+    headers:
+      osd-xsrf: "true"
+    body_format: form-multipart
+    body:
+      file: 
+        filename: 'files/nodegrid_device_report_kibana.ndjson'
+        mime_type: "application/octet-stream"
+    timeout: 30
+    status_code: 200
+  register: dashboard_import
+  when:
+    - inventory_hostname == nodegrid_reports_host
+  tags: [kibana_dashboard]

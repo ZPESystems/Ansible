@@ -123,8 +123,12 @@ Create the file `/etc/ansible/playbooks/md_report.yaml` with the following conte
 - name: Build the central Nodegrid device report
   hosts: all
   gather_facts: false
-  roles:
-  - role: nodegrid_elasticsearch_inventory
+  collections:
+    - zpe.nodegrid
+  tasks:
+  - name: Create the Opensearch Inventory
+    include_role: 
+      name: nodegrid_elasticsearch_inventory
     vars:
       nodegrid_report_target_index: spconfig_system_report
       nodegrid_report_policy_id: system_report_keep_forever

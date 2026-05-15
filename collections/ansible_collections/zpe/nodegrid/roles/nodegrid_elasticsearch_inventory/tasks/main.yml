@@ -2,7 +2,7 @@
 # nodegrid_elasticsearch_inventory main task
 - name: Include variable definitions
   ansible.builtin.include_vars: ../vars/main.yml
-  tags: [always, inventory_setup]
+  tags: [inventory_setup]
 
 - name: Build list of central report host candidates
   ansible.builtin.set_fact:
@@ -16,7 +16,7 @@
   run_once: true
   delegate_to: localhost
   delegate_facts: true
-  tags: [always, inventory_setup]
+  tags: [inventory_setup]
 
 - name: Ensure exactly one reports host is defined
   ansible.builtin.assert:
@@ -30,12 +30,12 @@
       Using central reports host: {{ hostvars['localhost'].nodegrid_reports_hosts[0] }}
   run_once: true
   delegate_to: localhost
-  tags: [always, inventory_setup]
+  tags: [inventory_setup]
 
 - name: Set central reports host fact for this execution host
   ansible.builtin.set_fact:
     nodegrid_reports_host: "{{ hostvars['localhost'].nodegrid_reports_hosts[0] }}"
-  tags: [always, inventory_setup]
+  tags: [inventory_setup]
 
 - name: Collect Nodegrid facts
   zpe.nodegrid.nodegrid_facts:
@@ -54,7 +54,7 @@
   vars:
     audit_operation: "elasticsearch_inventory_start"
     audit_status: "started"
-  tags: [always, audit]
+  tags: [audit]
 
 - name: Collect inventory from Elasticsearch
   zpe.nodegrid.nodegrid_elasticsearch_inventory:
@@ -79,7 +79,7 @@
     audit_details:
       device_count: "{{ elasticsearch_inventory.device_data.valid }}"
       errors: "{{ elasticsearch_inventory.device_data.invalid }}"
-  tags: [always, audit]
+  tags: [audit]
 
 - name: Audit - Report load started
   include_tasks: audit.yml
@@ -88,7 +88,7 @@
     audit_status: "started"
     audit_details:
       target_index: "{{ nodegrid_report_target_index }}"
-  tags: [always, audit]
+  tags: [audit]
 
 - name: Load inventory rows to central report index host
   nodegrid_elasticsearch_report_load:
@@ -128,7 +128,7 @@
       created: "{{ elasticsearch_report_load.created }}"
       updated: "{{ elasticsearch_report_load.updated }}"
       failed: "{{ elasticsearch_report_load.failed }}"
-  tags: [always, audit]
+  tags: [audit]
   when:
     - elasticsearch_inventory.elasticsearch_status == "reachable"
 
@@ -247,4 +247,4 @@
   register: dashboard_import
   when:
     - inventory_hostname == nodegrid_reports_host
-  tags: [kibana_dashboard]
+  tags: [import_dashboard]

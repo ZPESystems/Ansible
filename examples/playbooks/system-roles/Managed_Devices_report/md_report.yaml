@@ -5,7 +5,7 @@
     - zpe.nodegrid
   tasks:
   - name: Create the Opensearch Inventory
-    include_role: 
+    import_role: 
       name: nodegrid_elasticsearch_inventory
     vars:
       nodegrid_report_target_index: spconfig_system_report

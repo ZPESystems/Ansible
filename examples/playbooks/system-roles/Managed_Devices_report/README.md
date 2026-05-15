@@ -1,6 +1,6 @@
 # Managed Devices Report: `nodegrid_elasticsearch_inventory`
 
-This use case collects managed-devices inventory from local Nodegrid OpenSearch indices, validate and flatten the source rows, and load the result into a central report index on the designated Nodegrid device with `reports` role.
+This use case collects managed-devices inventory information from local Nodegrid OpenSearch indices, validates and flattens the source rows, and loads the result into a central report index on the designated Nodegrid device with `reports` role.
 
 ## Requirements
 
@@ -9,8 +9,8 @@ This use case collects managed-devices inventory from local Nodegrid OpenSearch 
 - OpenSearch reachable on the target Nodegrid reports host via `https://localhost:9200`
 - Client certificate/key files present on the reports host for report-policy validation tasks
 
-# Example 
-The following example considers two Nodegrid devices, each one manages multiple target devices. The device `ngmanager1` is defined with the `reports` role in the Ansible inventory.
+# Use Case Example: 3 Nodegrid devices 
+This example considers three Nodegrid devices, each one manages multiple target managed-devices. Therein, the device `ngmanager1` is defined with the `reports` role in the Ansible inventory, and it is the one which will host the inventory information and provide access to the report dashboard. The following diagram depicts the example setup.
 
 ```mermaid
 ---
@@ -47,8 +47,8 @@ graph TB
 
 subgraph Control_Node["Ansible Control Node"]
  direction LR
-   ng-manager["ng-manager"]
-   subgraph mdmanager["ngmanager managed devices"]
+   ng-manager["ng-manager1"]
+   subgraph mdmanager["ngmanager1 managed devices"]
     direction TB
      mdmanager1["router-1-1"]
      mdmanager2["router-1-2"]
@@ -60,13 +60,13 @@ end
 ng-manager -..-|IPv4/IPv6 \n SSH| ng-boldsr & ng-gatesr
 ```
 
-## Inventory
+## Ansible Inventory
 
-### `ngmanager.yaml`
-Create the file `/etc/ansible/inventories/host_vars/ngmanager.yaml` with the following content (adapt it accordingly): 
+### `ngmanager1.yaml`
+Create the file `/etc/ansible/inventories/host_vars/ngmanager1.yaml` with the following content (adapt it accordingly). **Important:** this is the device that will include the `reports` role. 
 
 ```yaml
-ansible_host: 192.168.1.21
+ansible_host: localhost
 ansible_port: '22'
 ansible_user: ansible
 ansible_ssh_private_key_file: ~/.ssh/managed@zpesystems.com
@@ -75,7 +75,7 @@ nodegrid_roles:
 ```
 
 ### `boldsr.yaml`
-Create the file `/etc/ansible/inventories/host_vars/boldsr.yaml` with the following content (adapt it accordingly): 
+Create the file `/etc/ansible/inventories/host_vars/boldsr.yaml` with the following content (adapt it accordingly). 
 
 ```yaml
 ansible_host: 192.168.1.22
@@ -85,7 +85,7 @@ ansible_ssh_private_key_file: ~/.ssh/managed@zpesystems.com
 ```
 
 ### `gatesr.yaml`
-Create the file `/etc/ansible/inventories/host_vars/gatesr.yaml` with the following content (adapt it accordingly): 
+Create the file `/etc/ansible/inventories/host_vars/gatesr.yaml` with the following content (adapt it accordingly).
 
 ```yaml
 ansible_host: 192.168.1.23
@@ -94,7 +94,7 @@ ansible_user: ansible
 ansible_ssh_private_key_file: ~/.ssh/managed@zpesystems.com
 ```
 
-### Hosts `md_report.yaml`
+### `md_report.yaml` hosts group
 Create the file `/etc/ansible/inventories/md_report.yaml` with the following content: 
 
 ```yaml
@@ -105,7 +105,7 @@ md_report:
     gatesr:
 ```
 
-Test the inventory:
+To verify that Ansible Inventory has been properly configured, execute the following:
 
 ```bash
 ansible@ngmanager1:~$ ansible-inventory --graph md_report
@@ -113,6 +113,24 @@ ansible@ngmanager1:~$ ansible-inventory --graph md_report
   |--ngmanager1
   |--boldsr
   |--gatesr
+
+```
+
+To validate that Ansible is able to reach all the target devices, execute the following:
+```bash
+ansible@ngmanager1:~$ ansible -m ping md_report
+ngmanager1 | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+boldsr | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+gatesr | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
 
 ```
 
@@ -127,7 +145,7 @@ Create the file `/etc/ansible/playbooks/md_report.yaml` with the following conte
     - zpe.nodegrid
   tasks:
   - name: Create the Opensearch Inventory
-    include_role: 
+    import_role: 
       name: nodegrid_elasticsearch_inventory
     vars:
       nodegrid_report_target_index: spconfig_system_report

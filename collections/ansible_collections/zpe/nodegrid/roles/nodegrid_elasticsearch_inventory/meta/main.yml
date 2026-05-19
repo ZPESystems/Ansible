@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  author: ZPE Systems
+  company: ZPE Systems
+  description: Collect Nodegrid managed-device inventory from OpenSearch and load it into a protected report index
+  license: GPL-3.0-or-later
+  min_ansible_version: "2.9"
+  galaxy_tags:
+    - nodegrid
+    - opensearch
+    - inventory
+    - reporting
+    - monitoring
+  platforms:
+    - name: EL
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+    - name: Generic
+      versions:
+        - all
+
+dependencies: []

@@ -11,5 +11,5 @@
     add_device_retries: 5 # Number of retries when adding a managed device fails
   tasks:
   - name: Import Managed devices in bulk
-    include_role:
+    import_role:
       name: managed_devices_bulk_import

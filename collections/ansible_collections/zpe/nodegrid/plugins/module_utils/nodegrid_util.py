@@ -666,7 +666,7 @@ def convert_to_json(cli_output):
             elif "show" in line:
                 cmd, path = split_in_two(line, ' ')
         data.append({'path': path, 'data':details})
-    elif ":" in cli_output and "show" in cli_output:   # Details Detected
+    elif ":" in cli_output and "show" in cli_output and not "export_settings" in cli_output:   # Details Detected
         lines = cli_output.strip().split('\n')
         details = {}
         path = ''

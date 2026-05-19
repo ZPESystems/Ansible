@@ -22,6 +22,7 @@ from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import 
 import os, re
 from collections import OrderedDict
 import traceback
+from ansible_collections.zpe.nodegrid.plugins.module_utils.managed_devices_dependencies import device_dependencies
 
 # Settings dependencies
 device_type_not_support_logging = ['usb_device', 'usb_kvm', 'usb_sensor']
@@ -100,328 +101,6 @@ def get_device_type(device_type):
             return family
     return None
 
-# Managed devices-> Device dependencies
-device_dependencies = OrderedDict()
-device_dependencies = {
-    'type': 
-    {
-        'local_serial': 
-        [
-            'name',
-            'port_name',
-            'type',
-            'description',
-            'address_location',
-            'coordinates',
-            'web_url',
-            'launch_url_via_html5', # yes, no
-            'username',
-            'password',
-            'baud_rate', #baud_rate options: 115200, 19200, 230400, 38400, 57600, 9600, Auto
-            'parity', #parity options: Even, None, Odd
-            'flow_control', #flow_control options: Hardware, None, Software
-            'data_bits', #data_bits options: 5, 6, 7, 8
-            'stop_bits', #stop_bits options: 1, 2
-            'rs-232_signal_for_device_state_detection', #rs-232_signal_for_device_state_detection options: Auto, CTS, DCD, None
-            'enable_device_state_detection_based_in_data_flow', #enable_device_state_detection_based_in_data_flow options: no, yes
-            'data_flow_scan_interval', 
-            'enable_hostname_detection', #enable_hostname_detection options: no, yes
-            'multisession', #multisession options: no, yes
-            'read-write_multisession', #read-write_multisession options: no, yes 
-            'enable_serial_port_settings_via_escape_sequence', #enable_serial_port_settings_via_escape_sequence options: no, yes
-            'icon', #icon options: 128technology.png, fortinet.png, kvm.png, nodegrid.png, paloalto.png, paloalto2.png, paloaltofirewall.png, raritan.png, servertech.png, air_flow-temperature.png, apc.png, apple_black.png, arista.png, aruba.png, centos.png, cisco_color.png, cloudgenix.png, cpi.png, dell.png, docker.png, door_lock.png, dust_particle.png, emc.png, firewall.png, gpio.png, hp.png, ibm_black.png, juniper.png, linux_black.png, linux_color.png, lxc.png, netapp.png, ocp.png, oracle.png, outlet.png, passcode.png, pdu.png, perle.png, pinconfirm.png, pincode.png, relay.png, rfid_reader.png, router_green.png, schneider.png, sdwan.png, serial_console.png, server.png, server_grey.png, signal_indicator.png, signal_tower.png, storage_blue.png, storage_grey.png, storage_grey_dark.png, supermicro.png, switch.png, switch_purple.png, temperature-humidity.png, terminal.png, ups.png, usb.png, vm.png, vmware.png, windows_black.png, windows_color.png, zpe.png
-            'mode', #mode options: disabled, discovered, enabled, on-demand
-            'skip_authentication_to_access_device', #skip_authentication_to_access_device options: no, yes
-            'skip_authentication_in_ssh_sessions', #skip_authentication_in_ssh_sessions options: no, yes
-            'skip_authentication_in_telnet_sessions', #skip_authentication_in_telnet_sessions options: no, yes
-            'skip_authentication_in_raw_sessions', #skip_authentication_in_raw_sessions options: no, yes
-            'skip_authentication_in_web_sessions', #skip_authentication_in_web_sessions options: no, yes
-            'escape_sequence',
-            'power_control_key',
-            'show_text_information', #show_text_information options: no, yes
-            'enable_ip_alias', #enable_ip_alias options: no, yes
-            'ip_alias', 
-            'interface', 
-            'ip_alias_browser_action', #ip_alias_browser_action options: console, web 
-            'ip_alias_telnet', #ip_alias_telnet options: no, yes
-            'ip_alias_telnet_port', 
-            'ip_alias_binary', #ip_alias_binary options: no, yes
-            'ip_alias_binary_port', 
-            'enable_second_ip_alias', #enable_second_ip_alias options: no, yes
-            'sec_ip_alias', 
-            'sec_interface', 
-            'sec_ip_alias_browser_action', #sec_ip_alias_browser_action options: console, web
-            'sec_ip_alias_telnet', #sec_ip_alias_telnet options: no, yes
-            'sec_ip_alias_telnet_port', 
-            'sec_ip_alias_binary', #sec_ip_alias_binary options: no, yes
-            'sec_ip_alias_binary_port', 
-            'allow_ssh_protocol', #allow_ssh_protocol options: no, yes
-            'ssh_port', 
-            'allow_telnet_protocol', #allow_telnet_protocol options: no, yes
-            'telnet_port', 
-            'allow_binary_socket', #allow_binary_socket options: no, yes
-            'tcp_socket_port'
-        ],
-        'pdu_cpi_serial': 
-        [
-            'name',
-            'port_name',
-            'type',
-            'description',
-            'address_location',
-            'coordinates',
-            'web_url',
-            'launch_url_via_html5', # yes, no
-            'username',
-            'password',
-            'baud_rate', #baud_rate options: 115200, 19200, 230400, 38400, 57600, 9600, Auto
-            'parity', #parity options: Even, None, Odd
-            'flow_control', #flow_control options: Hardware, None, Software
-            'data_bits', #data_bits options: 5, 6, 7, 8
-            'stop_bits', #stop_bits options: 1, 2
-            'rs-232_signal_for_device_state_detection', #rs-232_signal_for_device_state_detection options: Auto, CTS, DCD, None
-            'enable_device_state_detection_based_in_data_flow', #enable_device_state_detection_based_in_data_flow options: no, yes
-            'data_flow_scan_interval', 
-            'enable_hostname_detection', #enable_hostname_detection options: no, yes
-            'multisession', #multisession options: no, yes
-            'read-write_multisession', #read-write_multisession options: no, yes 
-            'enable_serial_port_settings_via_escape_sequence', #enable_serial_port_settings_via_escape_sequence options: no, yes
-            'icon', #icon options: 128technology.png, fortinet.png, kvm.png, nodegrid.png, paloalto.png, paloalto2.png, paloaltofirewall.png, raritan.png, servertech.png, air_flow-temperature.png, apc.png, apple_black.png, arista.png, aruba.png, centos.png, cisco_color.png, cloudgenix.png, cpi.png, dell.png, docker.png, door_lock.png, dust_particle.png, emc.png, firewall.png, gpio.png, hp.png, ibm_black.png, juniper.png, linux_black.png, linux_color.png, lxc.png, netapp.png, ocp.png, oracle.png, outlet.png, passcode.png, pdu.png, perle.png, pinconfirm.png, pincode.png, relay.png, rfid_reader.png, router_green.png, schneider.png, sdwan.png, serial_console.png, server.png, server_grey.png, signal_indicator.png, signal_tower.png, storage_blue.png, storage_grey.png, storage_grey_dark.png, supermicro.png, switch.png, switch_purple.png, temperature-humidity.png, terminal.png, ups.png, usb.png, vm.png, vmware.png, windows_black.png, windows_color.png, zpe.png
-            'mode', #mode options: disabled, discovered, enabled, on-demand
-            'skip_authentication_to_access_device', #skip_authentication_to_access_device options: no, yes
-            'skip_authentication_in_ssh_sessions', #skip_authentication_in_ssh_sessions options: no, yes
-            'skip_authentication_in_telnet_sessions', #skip_authentication_in_telnet_sessions options: no, yes
-            'skip_authentication_in_raw_sessions', #skip_authentication_in_raw_sessions options: no, yes
-            'skip_authentication_in_web_sessions', #skip_authentication_in_web_sessions options: no, yes
-            'escape_sequence',
-            'power_control_key',
-            'show_text_information', #show_text_information options: no, yes
-            'enable_ip_alias', #enable_ip_alias options: no, yes
-            'ip_alias', 
-            'interface', 
-            'ip_alias_browser_action', #ip_alias_browser_action options: console, web 
-            'ip_alias_telnet', #ip_alias_telnet options: no, yes
-            'ip_alias_telnet_port', 
-            'ip_alias_binary', #ip_alias_binary options: no, yes
-            'ip_alias_binary_port', 
-            'enable_second_ip_alias', #enable_second_ip_alias options: no, yes
-            'sec_ip_alias', 
-            'sec_interface', 
-            'sec_ip_alias_browser_action', #sec_ip_alias_browser_action options: console, web
-            'sec_ip_alias_telnet', #sec_ip_alias_telnet options: no, yes
-            'sec_ip_alias_telnet_port', 
-            'sec_ip_alias_binary', #sec_ip_alias_binary options: no, yes
-            'sec_ip_alias_binary_port', 
-            'allow_ssh_protocol', #allow_ssh_protocol options: no, yes
-            'ssh_port', 
-            'allow_telnet_protocol', #allow_telnet_protocol options: no, yes
-            'telnet_port', 
-            'allow_binary_socket', #allow_binary_socket options: no, yes
-            'tcp_socket_port'
-        ],
-        'usb_serialb':
-        {
-            'name',
-            'port_name',
-            'type',
-            'description',
-            'address_location',
-            'coordinates',
-            'web_url',
-            'launch_url_via_html5',
-            'username',
-            'password',
-            'baud_rate',
-            'parity',
-            'flow_control',
-            'data_bits',
-            'stop_bits',
-            'rs-232_signal_for_device_state_detection',
-            'enable_device_state_detection_based_in_data_flow',
-            'data_flow_scan_interval',
-            'enable_hostname_detection',
-            'multisession',
-            'read-write_multisession',
-            'enable_serial_port_settings_via_escape_sequence',
-            'map_to_virtual_machine',
-            'virtual_machine_name',
-            'icon',
-            'mode',
-            'skip_authentication_to_access_device',
-            'skip_authentication_in_ssh_sessions',
-            'skip_authentication_in_telnet_sessions',
-            'skip_authentication_in_raw_sessions',
-            'skip_authentication_in_web_sessions',
-            'escape_sequence',
-            'power_control_key',
-            'show_text_information',
-            'enable_ip_alias',
-            'ip_alias',
-            'interface',
-            'ip_alias_browser_action',
-            'ip_alias_telnet',
-            'ip_alias_telnet_port',
-            'ip_alias_binary',
-            'ip_alias_binary_port',
-            'enable_second_ip_alias',
-            'sec_ip_alias',
-            'sec_interface',
-            'sec_ip_alias_browser_action',
-            'sec_ip_alias_telnet',
-            'sec_ip_alias_telnet_port',
-            'sec_ip_alias_binary',
-            'sec_ip_alias_binary_port',
-            'allow_ssh_protocol',
-            'ssh_port',
-            'allow_telnet_protocol',
-            'telnet_port',
-            'allow_binary_socket',
-            'tcp_socket_port'
-        },
-        'usb_device':
-        {
-            'name',
-            'port_name',
-            'type',
-            'description',
-            'address_location',
-            'coordinates',
-            'web_url',
-            'launch_url_via_html5',
-            'icon',
-            'mode',
-            'map_to_virtual_machine',
-            'virtual_machine_name'
-        },
-        'usb_sensor':
-        {
-            'name',
-            'port_name',
-            'type',
-            'description',
-            'address_location',
-            'coordinates',
-            'web_url',
-            'launch_url_via_html5',
-            'icon',
-            'mode',
-            'map_to_virtual_machine',
-            'virtual_machine_name'
-        },
-        'usb_kvm':
-        {
-            'name',
-            'port_name',
-            'type',
-            'description',
-            'address_location',
-            'coordinates',
-            'web_url',
-            'launch_url_via_html5',
-            'icon',
-            'mode',
-            'map_to_virtual_machine',
-            'virtual_machine_name'
-        },
-        'ip_based':
-        [
-            'name',
-            'type',
-            'description',
-            'ip_address',
-            'port',
-            'address_location',
-            'coordinates',
-            'web_url',
-            'launch_url_via_html5',
-            'method',
-            'credential',
-            'username',
-            'password',
-            'allow_pre-shared_ssh_key',
-            'enable_device_state_detection_based_on_network_traffic',
-            'enable_hostname_detection',
-            'multisession',
-            'read-write_multisession',
-            'enable_send_break',
-            'break_sequence',
-            'icon',
-            'mode',
-            'expiration', # date, days, never
-            'expiration_date',
-            'duration',
-            'end_point' # appliance, kvm_port,pdu_port, serial_port,usb_port
-            'port_number',
-            'skip_authentication_to_access_device',
-            'skip_authentication_in_ssh_sessions',
-            'skip_authentication_in_telnet_sessions',
-            'skip_authentication_in_raw_sessions',
-            'skip_authentication_in_web_sessions',
-            'escape_sequence',
-            'power_control_key',
-            'show_text_information',
-            'enable_ip_alias',
-            'ip_alias',
-            'interface',
-            'ip_alias_browser_action',
-            'ip_alias_telnet',
-            'ip_alias_telnet_port',
-            'ip_alias_binary',
-            'ip_alias_binary_port',
-            'enable_second_ip_alias',
-            'sec_ip_alias',
-            'sec_interface',
-            'sec_ip_alias_browser_action',
-            'sec_ip_alias_telnet',
-            'sec_ip_alias_telnet_port',
-            'sec_ip_alias_binary',
-            'sec_ip_alias_binary_port',
-            'allow_ssh_protocol',
-            'ssh_port',
-            'allow_telnet_protocol',
-            'telnet_port',
-            'allow_binary_socket',
-            'tcp_socket_port'
-        ]
-    },
-    'expiration': ("validate", {
-        'never': [],
-        'date': ['expiration_date'],
-        'days': ['duration']
-    }),
-    'end_point': ("validate", { 
-        'appliance': [],
-        'kvm_port': ['port_number'],
-        'pdu_port': ['port_number'],
-        'serial_port': ['port_number'],
-        'usb_port': ['port_number']
-    }),
-    'credential':("validate",{
-        'set_now': ['password'],
-        'ask_during_login': []
-    }),
-    'enable_device_state_detection_based_in_data_flow': 
-    [
-        'data_flow_scan_interval'
-    ],
-    'skip_authentication_to_access_device': 
-    [   'skip_authentication_in_raw_sessions',
-        'skip_authentication_in_ssh_sessions',
-        'skip_authentication_in_telnet_sessions',
-        'skip_authentication_in_web_sessions'
-     ],
-    'allow_ssh_protocol': ['ssh_port'],
-    'allow_telnet_protocol': ['telnet_port'],
-    'allow_binary_socket': ['tcp_socket_port'],
-    'map_to_virtual_machine': ['virtual_machine_name'],
-    'enable_send_break': ['break_sequence'],
-    'enable_ip_alias': ['ip_alias', 'interface', 'ip_alias_browser_action', 'ip_alias_telnet', 'ip_alias_telnet_port', 'ip_alias_binary', 'ip_alias_binary_port'],
-    'ip_alias_telnet': ['ip_alias_telnet_port'],
-    'ip_alias_binary': ['ip_alias_binary_port'],
-    'enable_second_ip_alias': ['sec_ip_alias', 'sec_interface', 'sec_ip_alias_browser_action', 'sec_ip_alias_telnet', 'sec_ip_alias_telnet_port', 'sec_ip_alias_binary', 'sec_ip_alias_binary_port'],
-    'sec_ip_alias_telnet': ['sec_ip_alias_telnet_port'],
-    'sec_ip_alias_binary': ['sec_ip_alias_binary_port']
-}
 # Management SNMP dependencies
 management_snmp_dependencies = OrderedDict()
 management_snmp_dependencies = {
@@ -503,6 +182,17 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
+
+def check_current_managed_device(managed_device, timeout=60):
+    try:
+        cmd = dict(cmd=f"export_settings /settings/devices/{managed_device['name']}/access")
+        with nodegrid_cli(timeout) as cmd_cli:
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+    except (NodegridError, Exception) as e:
+        return dict(error=True, current_type=None, msg=e)
+    return dict(error=False, current_type=cmd_result['json'][0]['data']['type'], msg='')
+
+
 def run_option_devices(option, run_opt):
     devices = option['suboptions']
     cli_path = option['cli_path']
@@ -577,9 +267,7 @@ def run_option_device(device, cli_path, run_opt):
     # Control if device type is ip_based: change device type.
     device_type = get_device_type(device['access']['type'])
     if device_type == "ip_based":
-        device_type = device['access']['type']
         device['access'].pop('port_name', None)
-        device['access']['type'] = "ip_based"
     
     # Clean the required options
     try:
@@ -589,10 +277,6 @@ def run_option_device(device, cli_path, run_opt):
     except Exception as e:
         return {'failed': True, 'changed': False, 'msg': f"{device['access']} | Key/value error: {e} | {traceback.format_exc()}"}
         
-    # Change back if device_type is ip_based
-    if device_type in managed_device_type['ip_based']:
-        device['access']['type'] = device_type
-
     # Control if the device is TTY or USB: it must have the port_name option
     if ('port_name' in device['access']):
         port_name = device['access']['port_name']
@@ -656,6 +340,20 @@ def run_option_device(device, cli_path, run_opt):
         else:
             return result_failed(f"Port name '{port_name}' not supported [Device: {device}]. Port names supported include 'ttyS*' and 'usbS*'")
     else:
+        check_managed_device = check_current_managed_device(device['access'], timeout=timeout)
+        if not check_managed_device['error'] and device["access"]["type"].strip() != check_managed_device["current_type"].strip():
+            # First change the managed device type if the new type is different
+            cmds = [{'confirm': True,'cmd': f"cd /settings/devices/{device['access']['name']}/access; set type={device['access']['type']}"}]
+            cmd_results = list()
+            cmd_result = dict()
+            if not check_mode:
+                try:
+                    with nodegrid_cli(timeout=timeout) as cmd_cli:
+                        for cmd in cmds:
+                            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                            cmd_results.append(cmd_result)
+                except (NodegridError, Exception) as e:
+                    return result_failed(msg=f"Failed changing device '{device['access']['name']}'/access type='{device['access']['type']}'. Current type: '{check_managed_device['current_type']}'. Error: f{e}")
         cli_path += f"/{device['access']['name'].strip()}"
 
     for key, value in device.items():

@@ -1,5 +1,5 @@
 - name: Add Managed Devices loop
-  tags: always
+  tags: [add_managed_devices]
   when: managed_devices is defined
   include_tasks: add_managed_device.yml
   loop: "{{ managed_devices | batch(batch_size | default(100)) | list }}"
@@ -8,7 +8,7 @@
     index_var: i
 
 - name: Configure SSH keys
-  tags: always
+  tags: [configure_ssh_keys]
   when: managed_devices is defined
   include_tasks: setup_ssh_keys.yml
   loop: "{{ managed_devices }}"
@@ -22,7 +22,7 @@
     #  become: true
 
 - name: Add Discovery Rules
-  tags: always
+  tags: [add_discovery_rules]
   when: discovery_rules is defined
   include_tasks: add_discovery_rule.yml
   loop: "{{ discovery_rules }}"
@@ -30,7 +30,7 @@
     loop_var: discovery_rule
 
 - name: Add Authorizations Groups and Devices Permissions
-  tags: always
+  tags: [add_authorization_groups]
   when: authorization is defined
   include_tasks: add_authorization.yml
   loop: "{{ authorization }}"
@@ -38,7 +38,7 @@
     loop_var: group
 
 - name: Disable Managed Devices before Rebounce
-  tags: always
+  tags: [rebounce]
   when: rebounce is defined
   include_tasks: disable_managed_devices.yml
   loop: "{{ rebounce }}"
@@ -46,7 +46,7 @@
     loop_var: device
 
 - name: Rebounce Managed Devices
-  tags: always
+  tags: [rebounce]
   when: rebounce is defined
   include_tasks: rebounce_managed_devices.yml
   loop: "{{ rebounce }}"

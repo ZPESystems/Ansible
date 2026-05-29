@@ -117,6 +117,7 @@ class ActionModule(ActionBase):
             ansible_inventory_path = action_module_args.get('ansible_inventory_path', '/etc/ansible/inventories')
             self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules, device_permissions=device_permissions, rebounce_list=rebounce_list)
             return self._result_changed(msg=f"Managed devices inventory successfully created at {action_module_args['ansible_inventory_path']}. The list of ansible target devices is = {list(target_devices)}. The hosts/group file is {action_module_args['ansible_inventory_path']}/{action_module_args['ansible_inventory_hosts_filename']}. The group name is: {action_module_args['ansible_group_name']}")
+        return self._result_not_changed(msg="No Ansible Target devices were enabled. Nothing configured!")
 
     # #########################################
     # Read a CSV file and return the a dict with the devices. Each device is identified by the 'device_key_id' value.
@@ -311,17 +312,11 @@ class ActionModule(ActionBase):
                     if not device_name:
                         display.vvv(f"Following device permission rule does not have a device name defined. It will not be configured. Device permission info: {device_permission}")
                         continue
-
-                    if not device_name in [device['name'] for device in devices[ansible_device]]:
-                        display.vvv(f"Device_Name '{device_name}' not found as a managed device for target device '{ansible_device}'. It will not be configured. Device permission info: {device_permission}. Managed devices: {[device['name'] for device in devices[ansible_device]]}")
-                        continue
-
                     device_permission['name'] = device_name
                     if not ansible_device in _devices:
                         _devices[ansible_device] = {}
                     if not group_name in _devices[ansible_device]:
                         _devices[ansible_device][group_name]={'devices': []}
-
                     _devices[ansible_device][group_name]['devices'].append(device_permission)
             return _devices
         except FileNotFoundError:
@@ -341,7 +336,7 @@ class ActionModule(ActionBase):
     def process_ansible_devices(self, csv_ansible_devices, ansible_inventory_path="/etc/ansible/inventories",ansible_inventory_hosts_filename="imported_managed_devices.yaml", ansible_group_name="imported_managed_devices"):
         devices = self.read_csv_devices(csv_ansible_devices, device_type=dict)
         if not devices:
-            display.vvv(f"Error Processing the Ansible Devices!.")
+            display.vvv(f"Error Processing Ansible Devices!.")
             return None
         group = {}
         #display.vvv(f"Ansible devices: {devices}")
@@ -363,7 +358,8 @@ class ActionModule(ActionBase):
     def process_device_permissions(self, file_name, devices):
         device_permissions = self.read_csv_device_permissions(file_name, devices, fields_validate=fields_device_permission)
         #display.vvv(f"Device Permissions: {device_permissions}")
-        display.vvv(f"Number of Ansible devices to which Device Permissions are going to be configured: {len(device_permissions.keys())}")
+        if device_permissions:
+            display.vvv(f"Number of Ansible devices to which Device Permissions are going to be configured: {len(device_permissions.keys())}")
         return device_permissions
     # ###################################
     # Process Discovery Rules to be applied to Nodegrid Devices
@@ -371,7 +367,8 @@ class ActionModule(ActionBase):
         # def read_csv_discovery_rules(self, file_name, fields_validate=set()):
         discovery_rules = self.read_csv_discovery_rules(file_name, fields_validate=fields_discovery_rules)
         #display.vvv(f"Discovery Rules: {discovery_rules}")
-        display.vvv(f"Number of Discovery Rules to be processed: {len(discovery_rules.keys())}")
+        if discovery_rules:
+            display.vvv(f"Number of Discovery Rules to be processed: {len(discovery_rules.keys())}")
         return discovery_rules
 
     # ###################################
@@ -379,7 +376,8 @@ class ActionModule(ActionBase):
     def process_ip_based_devices(self, file_name, custom_fields_prefix="", management_fields_prefix=""):
         devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_ip_based, management_fields_prefix=management_fields_prefix)
         #display.vvv(f"IP-based managed devices: {devices}")
-        display.vvv(f"Number of IP-based devices to be processed: {len(devices.keys())}")
+        if devices:
+            display.vvv(f"Number of IP-based devices to be processed: {len(devices.keys())}")
         return devices
     
     # ###################################
@@ -387,7 +385,8 @@ class ActionModule(ActionBase):
     def process_serial_devices(self, file_name, custom_fields_prefix=""):
         devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_serial)
         #display.vvv(f"Serial managed devices: {devices}")
-        display.vvv(f"Number of Serial devices to be processed: {len(devices.keys())}")
+        if devices:
+            display.vvv(f"Number of Serial devices to be processed: {len(devices.keys())}")
         return devices
     
     # ###################################
@@ -395,7 +394,8 @@ class ActionModule(ActionBase):
     def process_usb_devices(self, file_name, custom_fields_prefix=""):
         devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_usb)
         #display.vvv(f"Usb managed devices: {devices}")
-        display.vvv(f"Number of Usb devices to be processed: {len(devices.keys())}")
+        if devices:
+            display.vvv(f"Number of Usb devices to be processed: {len(devices.keys())}")
         return devices
     
     # ###################################
@@ -411,16 +411,21 @@ class ActionModule(ActionBase):
             file_name = os.path.join(ansible_inventory_path,'host_vars',f"{device_name}.yaml")
             device_info = {"managed_devices": managed_devices, "rebounce": rebounce_list}
             display.vvv(f"Writting Managed devices info into: {file_name}")
-            
+            with open(file_name, 'a') as device_file:
+                yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
+
+        # Save discovery rules and device permissions
+        for device_name in target_devices:
+            file_name = os.path.join(ansible_inventory_path,'host_vars',f"{device_name}.yaml")
+            device_info = dict()
             if device_name in discovery_rules:
                 device_info["discovery_rules"] = discovery_rules[device_name]
             if device_name in device_permissions:
                 dev_permissions=[]
                 for group_name, devices in device_permissions[device_name].items():
                     dev_permissions.append({'name': group_name, 'devices': devices['devices']})
-
-                #device_info["authorization"] = device_permissions[device_name]
                 device_info["authorization"] = dev_permissions
+            display.vvv(f"Writting Discovery Rules / Device Permissions into: {file_name}")
             with open(file_name, 'a') as device_file:
                 yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
 

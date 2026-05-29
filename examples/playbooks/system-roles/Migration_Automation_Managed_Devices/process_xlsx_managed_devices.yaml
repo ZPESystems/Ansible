@@ -22,5 +22,5 @@
 
   - name: Process the Nodegrid Importer Template xlsx file
     tags: process-xlsx-managed-devices
-    include_role:
+    import_role:
       name: process_managed_devices_into_inventory

@@ -309,6 +309,13 @@ Access the Web UI of the `ngmanager1` device and execute the following:
 ![](images/dashboard.png)
 
 
+# Update/refresh the Managed Devices data
+
+The following playbook execution will import the managed devices information, and not import the dashboard.
+
+```bash
+ansible-playbook md_report.yaml --limit md_report --skip-tags import_dashboard
+```
 
 
 ---

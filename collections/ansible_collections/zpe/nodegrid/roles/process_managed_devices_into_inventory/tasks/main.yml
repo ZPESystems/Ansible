@@ -1,5 +1,5 @@
 - name: Process the Nodegrid_Importer_Template.xlsx file
-  tags: always
+  tags: [process_excel_template]
   block:
     - name: Attempt to reach a public website
       ansible.builtin.uri:
@@ -10,7 +10,6 @@
       register: internet_check_result
       ignore_errors: true # Continue playbook execution even if it fails
     - name: Install Pandas Python module in virtual environment from Internet
-      tags: always
       ansible.builtin.pip:
         name: pandas, openpyxl
         virtualenv: /tmp/device_importer/venv
@@ -18,12 +17,10 @@
         state: present
       when: internet_check_result is success
     - name: Get ansible user Python site-packages path using command if Internet is not reachable
-      tags: always
       command: sudo su ansible -c "python -m site --user-site"
       register: site_packages_path      
       when: internet_check_result is failed
     - name: Install Pandas Python module in virtual environment from local repo
-      tags: always
       ansible.builtin.pip:
         requirements: "{{ role_path }}/files/requirements.txt"
         virtualenv: /tmp/device_importer/venv
@@ -32,17 +29,15 @@
         state: present
       when: internet_check_result is failed
     - name: Run python script to process the Nodegrid_Importer_Template.xlsx file into CSV files
-      tags: always
       ansible.builtin.script: 
         cmd: files/process_xlsx_managed_devices.py --nodegrid_importer_xlsx "{{ nodegrid_importer_template_xlsx | default('~/Nodegrid_Importer_Template.xlsx') }}"
         executable: /tmp/device_importer/venv/bin/python3 
-        #    - name: Clean the Python Virtual Environment
-        #      tags: always
-        #      ansible.builtin.file:
-        #        path: /tmp/device_importer
-        #        state: absent
+    #- name: Clean the Python Virtual Environment
+    #  ansible.builtin.file:
+    #    path: /tmp/device_importer
+    #    state: absent
 - name: Process Managed Devices from CSVs
-  tags: always
+  tags: [process_csv_files]
   zpe.nodegrid.import_devices:
     csv_ansible_devices: "{{ csv_ansible_devices | default('./zpe_ngm_ansible_devices.csv') }}"
     csv_ip_based: "{{ csv_ip_based | default('./zpe_ngm_ip_devices.csv') }}"

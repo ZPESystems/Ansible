@@ -226,10 +226,7 @@ device_data:
           authzgrouplist: "['admin', 'network', 'user']"
 '''
 
-import json
-import sys
 import os
-import logging
 from ansible.module_utils.basic import AnsibleModule
 
 try:
@@ -238,7 +235,7 @@ except ImportError:
     requests = None
 
 # Set up logging for security audit trail
-logger = logging.getLogger(__name__)
+#logger = logging.getLogger(__name__)
 
 
 def convert_schema_types(schema):
@@ -254,7 +251,7 @@ def convert_schema_types(schema):
         'set': set,
         'NoneType': type(None)
     }
-    
+
     converted_schema = {}
     for key, type_name in schema.items():
         if isinstance(type_name, str) and type_name in type_mapping:
@@ -264,41 +261,35 @@ def convert_schema_types(schema):
     return converted_schema
 
 
-def check_elasticsearch(host, port, timeout, ca_cert, client_cert, client_key, verify_ssl):
-     """Check if OpenSearch is reachable."""
-     url = f"https://{host}:{port}"
+def check_elasticsearch(host, port, timeout, ca_cert, client_cert, client_key, verify_ssl=False):
+    """Check if OpenSearch is reachable."""
+    url = f"https://{host}:{port}"
 
-     # Verify certificate files exist
-     if not os.path.exists(ca_cert):
-         logger.error(f"CA certificate not found: {ca_cert}")
-         return "unreachable", "CA certificate file not found"
-     if not os.path.exists(client_cert):
-         logger.error(f"Client certificate not found: {client_cert}")
-         return "unreachable", "Client certificate file not found"
-     if not os.path.exists(client_key):
-         logger.error(f"Client key not found: {client_key}")
-         return "unreachable", "Client key file not found"
+    # Verify certificate files exist
+    if not os.path.exists(ca_cert):
+        raise Exception(f"CA certificate not found: {ca_cert}")
+    if not os.path.exists(client_cert):
+        raise Exception(f"Client certificate not found: {client_cert}")
+    if not os.path.exists(client_key):
+        raise Exception(f"Client key not found: {client_key}")
 
-     try:
-         response = requests.get(
-             url,
-             cert=(client_cert, client_key),
-             verify=False,  # Disable SSL verification due to dynamic certificate generation
-             timeout=timeout
-         )
-         if response.status_code == 200:
-             return "reachable", None
-         else:
-             logger.warning(f"OpenSearch returned HTTP status {response.status_code}")
-             return "unreachable", "Server responded with error. Check Ansible logs for details."
-     except requests.exceptions.RequestException as e:
-         # Log full error internally, return generic message to user
-         logger.error(f"Connection failed: {type(e).__name__}: {str(e)}", exc_info=True)
-         return "unreachable", "Cannot connect to OpenSearch. Check Ansible logs for details."
+    try:
+        response = requests.get(
+            url,
+            cert=(client_cert, client_key),
+            verify=verify_ssl,  # Disable SSL verification due to dynamic certificate generation
+            timeout=timeout
+        )
+        if response.status_code == 200:
+            return "reachable"
+        else:
+            raise Exception(f"Server responded with error. Request url={response.url}. Status code={response.status_code}")
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Connection failed: {type(e).__name__}: {str(e)}")
 
 
-def get_device_data(host, port, index_pattern, timeout, ca_cert, client_cert, client_key, verify_ssl):
-     """
+def get_device_data(host, port, index_pattern, timeout, ca_cert, client_cert, client_key, verify_ssl=False):
+    """
      Retrieve device data from OpenSearch with pagination and explicit scroll cleanup.
 
      Fetches all documents from indices matching the pattern and preserves the full original
@@ -319,97 +310,90 @@ def get_device_data(host, port, index_pattern, timeout, ca_cert, client_cert, cl
          tuple: (list of device dicts, list of matched index names)
                 Returns ([], []) if certificate files are missing or requests fail
      """
-     all_results = []
+    all_results = []
 
-     # Verify certificate files exist
-     if not os.path.exists(ca_cert) or not os.path.exists(client_cert) or not os.path.exists(client_key):
-         return [], []
+    # Get list of indices matching the pattern
+    indices_url = f"https://{host}:{port}/_cat/indices/{index_pattern}?format=json"
+    try:
+        indices_response = requests.get(
+            indices_url,
+            cert=(client_cert, client_key),
+            verify=verify_ssl,  #Whether to check or disable SSL verification due to dynamic certificate generation
+            timeout=timeout
+        )
+        indices_response.raise_for_status()
+        indices = [idx["index"] for idx in indices_response.json()]
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to list indices with pattern '{index_pattern}'. Error: {e}")
 
-     # Get list of indices matching the pattern
-     indices_url = f"https://{host}:{port}/_cat/indices/{index_pattern}?format=json"
-     try:
-         indices_response = requests.get(
-             indices_url,
-             cert=(client_cert, client_key),
-             verify=False,  # Disable SSL verification due to dynamic certificate generation
-             timeout=timeout
-         )
-         indices_response.raise_for_status()
-         indices = [idx["index"] for idx in indices_response.json()]
-     except requests.exceptions.RequestException as e:
-         logger.error(f"Failed to list indices with pattern '{index_pattern}': {e}", exc_info=True)
-         return [], []
+    for index in indices:
+        scroll_url = f"https://{host}:{port}/{index}/_search?scroll=1m"
+        query = {
+            "query": {"match_all": {}},
+            "size": 1000
+        }
 
-     for index in indices:
-         scroll_url = f"https://{host}:{port}/{index}/_search?scroll=1m"
-         query = {
-             "query": {"match_all": {}},
-             "size": 1000
-         }
+        scroll_id = None
+        try:
+            response = requests.post(
+                scroll_url,
+                json=query,
+                cert=(client_cert, client_key),
+                verify=verify_ssl,  
+                timeout=timeout
+            )
+            response.raise_for_status()
+            result = response.json()
 
-         scroll_id = None
-         try:
-             response = requests.post(
-                 scroll_url,
-                 json=query,
-                 cert=(client_cert, client_key),
-                 verify=False,  # Disable SSL verification due to dynamic certificate generation
-                 timeout=timeout
-             )
-             response.raise_for_status()
-             result = response.json()
+            hits = result.get("hits", {}).get("hits", [])
+            for hit in hits:
+                source = hit.get("_source", {})
+                # Preserve the full original _source payload for valid output.
+                all_results.append(source)
 
-             hits = result.get("hits", {}).get("hits", [])
-             for hit in hits:
-                 source = hit.get("_source", {})
-                 # Preserve the full original _source payload for valid output.
-                 all_results.append(source)
+            # Handle pagination using scroll API with explicit cleanup
+            scroll_id = result.get("_scroll_id")
+            while hits and scroll_id:
+                try:
+                    scroll_response = requests.post(
+                        f"https://{host}:{port}/_search/scroll",
+                        json={"scroll": "1m", "scroll_id": scroll_id},
+                        cert=(client_cert, client_key),
+                        verify=verify_ssl,
+                        timeout=timeout
+                    )
+                    scroll_response.raise_for_status()
+                    result = scroll_response.json()
+                    hits = result.get("hits", {}).get("hits", [])
 
-             # Handle pagination using scroll API with explicit cleanup
-             scroll_id = result.get("_scroll_id")
-             while hits and scroll_id:
-                 try:
-                     scroll_response = requests.post(
-                         f"https://{host}:{port}/_search/scroll",
-                         json={"scroll": "1m", "scroll_id": scroll_id},
-                         cert=(client_cert, client_key),
-                         verify=False,  # Disable SSL verification due to dynamic certificate generation
-                         timeout=timeout
-                     )
-                     scroll_response.raise_for_status()
-                     result = scroll_response.json()
-                     hits = result.get("hits", {}).get("hits", [])
+                    for hit in hits:
+                        source = hit.get("_source", {})
+                        # Preserve the full original _source payload for valid output.
+                        all_results.append(source)
 
-                     for hit in hits:
-                         source = hit.get("_source", {})
-                         # Preserve the full original _source payload for valid output.
-                         all_results.append(source)
+                    scroll_id = result.get("_scroll_id")
+                except requests.exceptions.RequestException as e:
+                    raise Exception(f"Error during scroll pagination for index '{index}'. Error: {e}")
 
-                     scroll_id = result.get("_scroll_id")
-                 except requests.exceptions.RequestException as e:
-                     logger.warning(f"Error during scroll pagination for index '{index}': {e}")
-                     break
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Error retrieving data from index '{index}'. Error: {e}")
+            
+        finally:
+            # Always cleanup scroll context to prevent resource leaks
+            if scroll_id:
+                try:
+                    cleanup_url = f"https://{host}:{port}/_search/scroll"
+                    requests.delete(
+                        cleanup_url,
+                        json={"scroll_id": [scroll_id]},
+                        cert=(client_cert, client_key),
+                        verify=verify_ssl,
+                        timeout=5
+                    )
+                except Exception as e:
+                    raise Exception(f"Failed to cleanup scroll context. Error: {e}")
 
-         except requests.exceptions.RequestException as e:
-             logger.warning(f"Error retrieving data from index '{index}': {e}")
-             continue
-         finally:
-             # Always cleanup scroll context to prevent resource leaks
-             if scroll_id:
-                 try:
-                     cleanup_url = f"https://{host}:{port}/_search/scroll"
-                     requests.delete(
-                         cleanup_url,
-                         json={"scroll_id": [scroll_id]},
-                         cert=(client_cert, client_key),
-                         verify=False,
-                         timeout=5
-                     )
-                     logger.debug(f"Cleaned up scroll context for index '{index}'")
-                 except Exception as e:
-                     logger.warning(f"Failed to cleanup scroll context: {e}")
-
-     return all_results, indices
+    return all_results, indices
 
 
 def flatten_dict(d, parent_key='', sep='_'):
@@ -492,7 +476,7 @@ def validate_data(data, schema):
     """
     # Convert string type names to actual Python types
     converted_schema = convert_schema_types(schema)
-    
+
     valid_records = []
     invalid_records = []
     errors = []
@@ -662,17 +646,18 @@ def run_module():
     verify_ssl = module.params['verify_ssl']
 
     # Check OpenSearch connectivity
-    es_status, error_msg = check_elasticsearch(es_host, es_port, es_timeout, ca_cert, client_cert, client_key, verify_ssl)
+    try:
+        es_status = check_elasticsearch(es_host, es_port, es_timeout, ca_cert, client_cert, client_key, verify_ssl=verify_ssl)
+    except Exception as e:
+        module.fail_json(msg=f"OpenSearch is not reachable at https://{es_host}:{es_port}. Error={e}", **result)
+
     result['elasticsearch_status'] = es_status
 
-    if es_status != 'reachable':
-        module.fail_json(
-            msg=f"OpenSearch is not reachable at https://{es_host}:{es_port}. {error_msg}",
-            **result
-        )
-
+    try:
     # Retrieve device data
-    devices, indices = get_device_data(es_host, es_port, index_pattern, es_timeout, ca_cert, client_cert, client_key, verify_ssl)
+        devices, indices = get_device_data(es_host, es_port, index_pattern, es_timeout, ca_cert, client_cert, client_key, verify_ssl)
+    except Exception as e:
+        module.fail_json(msg=f"OpenSearch get device data failed. Error={e}", **result)
 
     # Validate data
     valid_records, invalid_records, errors = validate_data(devices, schema)

@@ -1,9 +1,4 @@
 ---
-# nodegrid_elasticsearch_inventory main task
-- name: Include variable definitions
-  ansible.builtin.include_vars: ../vars/main.yml
-  tags: [inventory_setup]
-
 - name: Build list of central report host candidates
   ansible.builtin.set_fact:
     nodegrid_reports_hosts: "{{ (nodegrid_reports_hosts | default([])) + [item] }}"
@@ -37,25 +32,6 @@
     nodegrid_reports_host: "{{ hostvars['localhost'].nodegrid_reports_hosts[0] }}"
   tags: [inventory_setup]
 
-- name: Collect Nodegrid facts
-  zpe.nodegrid.nodegrid_facts:
-    gather_subset: ["hardware"]
-  register: nodegrid_facts_output
-  tags: [inventory_collect]
-
-- name: Set Nodegrid version and model facts
-  ansible.builtin.set_fact:
-    nodegrid_version: "{{ nodegrid_facts_output.ansible_facts.nodegrid_about.version | default('unknown') }}"
-    nodegrid_model: "{{ nodegrid_facts_output.ansible_facts.nodegrid_about.model | default('unknown') }}"
-  tags: [inventory_collect]
-
-- name: Audit - Inventory collection started
-  include_tasks: audit.yml
-  vars:
-    audit_operation: "elasticsearch_inventory_start"
-    audit_status: "started"
-  tags: [audit]
-
 - name: Collect inventory from Elasticsearch
   zpe.nodegrid.nodegrid_elasticsearch_inventory:
     es_host: localhost
@@ -70,25 +46,6 @@
     #   version: str
   register: elasticsearch_inventory
   tags: [inventory_collect]
-
-- name: Audit - Inventory collection completed
-  include_tasks: audit.yml
-  vars:
-    audit_operation: "elasticsearch_inventory_complete"
-    audit_status: "{{ 'success' if elasticsearch_inventory.elasticsearch_status == 'reachable' else 'failure' }}"
-    audit_details:
-      device_count: "{{ elasticsearch_inventory.device_data.valid }}"
-      errors: "{{ elasticsearch_inventory.device_data.invalid }}"
-  tags: [audit]
-
-- name: Audit - Report load started
-  include_tasks: audit.yml
-  vars:
-    audit_operation: "elasticsearch_report_load_start"
-    audit_status: "started"
-    audit_details:
-      target_index: "{{ nodegrid_report_target_index }}"
-  tags: [audit]
 
 - name: Load inventory rows to central report index host
   nodegrid_elasticsearch_report_load:
@@ -113,24 +70,9 @@
   delegate_to: "{{ nodegrid_reports_host }}"
   throttle: 1
   register: elasticsearch_report_load
-  when:
-    - elasticsearch_inventory.elasticsearch_status == "reachable"
+#  when:
+#    - elasticsearch_inventory.elasticsearch_status == "reachable"
   tags: [inventory_load]
-
-- name: Audit - Report load completed
-  include_tasks: audit.yml
-  vars:
-    audit_operation: "elasticsearch_report_load_complete"
-    audit_status: "{{ 'success' if elasticsearch_report_load.failed == 0 else 'partial_failure' }}"
-    audit_details:
-      target_index: "{{ elasticsearch_report_load.target_index }}"
-      processed: "{{ elasticsearch_report_load.processed }}"
-      created: "{{ elasticsearch_report_load.created }}"
-      updated: "{{ elasticsearch_report_load.updated }}"
-      failed: "{{ elasticsearch_report_load.failed }}"
-  tags: [audit]
-  when:
-    - elasticsearch_inventory.elasticsearch_status == "reachable"
 
 - name: Validate report ISM policy exists on reports host
   ansible.builtin.uri:
@@ -188,8 +130,8 @@
 - name: Aggregate final facts
   ansible.builtin.set_fact:
     nodegrid_elasticsearch_inventory:
-      nodegrid_version: "{{ nodegrid_version }}"
-      nodegrid_model: "{{ nodegrid_model }}"
+#      nodegrid_version: "{{ nodegrid_version }}"
+#      nodegrid_model: "{{ nodegrid_model }}"
       elasticsearch_status: "{{ elasticsearch_inventory.elasticsearch_status }}"
       device_data:
         valid: "{{ elasticsearch_inventory.device_data.valid }}"
@@ -224,7 +166,7 @@
 
 - name: Return results
   ansible.builtin.debug:
-    msg: "Inventory collection completed"
+    msg: "Inventory collection completed."
   when: elasticsearch_inventory.elasticsearch_status == "reachable"
   tags: [inventory_summary]
 

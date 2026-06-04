@@ -426,8 +426,9 @@ class ActionModule(ActionBase):
                     dev_permissions.append({'name': group_name, 'devices': devices['devices']})
                 device_info["authorization"] = dev_permissions
             display.vvv(f"Writting Discovery Rules / Device Permissions into: {file_name}")
-            with open(file_name, 'a') as device_file:
-                yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
+            if device_info:
+                with open(file_name, 'a') as device_file:
+                    yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
 
     # ###################################
     # Merde the managed devices dict into a single dict

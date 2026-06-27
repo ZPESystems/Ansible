@@ -180,6 +180,11 @@ def nodegrid_cli_validate_inputs(settings, ng_dependencies, settings_tobe_delete
             elif atuple[0] == "validate" and isinstance(atuple[1], list):
                 if not settings[dependency] in atuple[1]:
                     raise InputValidationError(message=f"setting '{dependency}={settings[dependency]}' is invalid. Valid options are: {atuple[1]}")
+#        elif dependency in settings_tobe_deleted:
+#            if isinstance(ng_dependencies[dependency], list):
+#                for setting in ng_dependencies[dependency]:
+#                    settings_tobe_deleted.add(setting)
+
     # Delete settings not required
     pop_keys(settings, settings_tobe_deleted)
     return settings

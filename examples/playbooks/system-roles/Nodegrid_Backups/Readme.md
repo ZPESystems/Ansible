@@ -136,7 +136,7 @@ gatesr | SUCCESS => {
 
 ## Execute the Backup Process
 
-The playbook `ng_backup.yaml` creates a backup for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `backup_files_directory` which defines the main path for the backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
+The playbook [ng_backup.yaml](ng_backup.yaml) creates a backup for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `backup_files_directory` which defines the main path for the backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
 
 To execute the playbook:
 
@@ -212,4 +212,30 @@ Access the Web UI of the `ngmanager1` device:
 - System -> Toolkit -> File Manager -> admin_group -> backup
 
 ![](images/backup_files.png)
+
+# Automate the Backup Process execution.
+
+This section describes how to automate the execution of the backup ansible playbook via the Nodegrid's Central Management feature.
+1. Copy the playbook playbook [ng_backup.yaml](ng_backup.yaml) into the directory `/etc/ansible/playbooks`.
+2. Access the Web UI of the `ngmanager1` device.
+3. Select **System -> Central Management -> Variables -> Add**. Define the variable `backup_files_directory` with value `/var/local/file_manager/admin_group/backup` and group scope `nodegrid_backup`.
+![](images/ng_backup_variable.png)
+4. Select **System -> Central Management -> Inventory**. Look for the `nodegrid_backup` group, select it and click Run. 
+  - Select the playbook: `ng_backup.yaml`
+  - Select Type -> Schedule
+  - Set a task name, e.g., *tast_nodegrid_backup*.
+  - Set the periodicity. For this example, daily at 23:00.
+  - Click **Run**
+![](images/ng_backup_task.png)
+5. To verify the scheduled task go to **System -> Scheduler**
+![](images/ng_backup_task_scheduled.png)
+
+To verify the task execution and results:
+
+1. Select **System -> Central Management -> Logs**
+![](images/ng_backup_execution_task.png)
+2. Select the task `ng_backup.yaml` timestamp
+![](images/ng_backup_execution_logs.png)
+
+To access the backup files, follow the instructions detailed in the above section *'Access to the Backup Files'*.
 

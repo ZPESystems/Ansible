@@ -1,0 +1,17 @@
+- name: Export the Managed Devices report to CSV
+  hosts: all
+  gather_facts: false
+  vars:
+    report_file_path: "/var/local/file_manager/admin_group"
+    report_file_name: "managed_devices_report.csv"
+  tasks:
+  - name: Create the report
+    ansible.builtin.shell: |
+      curl -k --cert /etc/opensearch/config/admin.pem --key /etc/opensearch/config/admin-key.pem -X GET "https://localhost:9200/spconfig_system_report/_search" -H 'Content-Type: application/json' -d '{"size": 5000, "_source": {}}' | jq -r '["report_synced_at", "searchable_nodegrid host_value", "searchable_type_value", "searchable_local serial port_value", "searchable_name_value", "searchable_status_value", "searchable_mode_value", "searchable_baud rate_value", "searchable_groups_value"], (.hits.hits[]._source | [."report_synced_at", ."searchable_nodegrid host_value", .searchable_type_value, ."searchable_local serial port_value", .searchable_name_value, .searchable_status_value, .searchable_mode_value, ."searchable_baud rate_value", .searchable_groups_value]) | @csv' > {{report_file_path}}/{{report_file_name}}
+    register: report_output
+  
+  - name: Show error if export failed
+    ansible.builtin.debug:
+      var: report_output
+    when: report_output.failed
+

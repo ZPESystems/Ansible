@@ -136,7 +136,7 @@ gatesr | SUCCESS => {
 
 ## Execute the Backup Process
 
-The playbook [ng_backup.yaml](ng_backup.yaml) creates a backup for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `backup_files_directory` which defines the main path for the backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
+The playbook [ng_backup.yaml](ng_backup.yaml) creates a backup for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_backup_files_directory` which defines the main path for the backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
 
 To execute the playbook:
 

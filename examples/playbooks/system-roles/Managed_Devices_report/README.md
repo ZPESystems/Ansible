@@ -138,13 +138,13 @@ gatesr | SUCCESS => {
 The playbook [md_report.yaml](md_report.yaml) configures the OpenSearch index on the Nodegrid device with the `reports` role, and also imports the managed devices from the targed Nodegrid devices. To execute the playbook:
 
 ```bash
-ansible-playbook md_report.yaml --limit md_report
+ansible-playbook md_report.yaml --tags all,never --limit md_report
 ```
 <details>
     <summary> Playbook execution output example </summary>
 
 ```
-ansible@ngmanager1:/etc/ansible/playbooks$ ansible-playbook md_report.yaml --limit md_report
+ansible@ngmanager1:/etc/ansible/playbooks$ ansible-playbook md_report.yaml --tags all,never --limit md_report
 
 PLAY [Build the central Nodegrid device report] *******************************************************************************
 
@@ -292,15 +292,25 @@ Access the Web UI of the `ngmanager1` device and execute the following:
 
 # Update/refresh the Managed Devices data
 
-The following playbook execution will import the managed devices information, and not import the dashboard.
+The following playbook execution will import the managed devices information.
 
 ```bash
-ansible-playbook md_report.yaml --limit md_report --skip-tags import_dashboard
+ansible-playbook md_report.yaml --limit md_report
 ```
 
 # Export the Managed Devices data into a CSV file.
 
-The following playbook will export the Managed Devices data into a CSV file which can be found at `/var/local/file_manager/admin_group/managed_devices_report.csv`.
+The playbook [md_export_report_to_csv.yaml](md_export_report_to_csv.yaml) will export the Managed Devices data into a CSV file. The following variables are required to be defined:
+
+|Variable|Value|Comment|
+|:---:|:---:|:---:|
+| es_index | "spconfig_system_report" | OpenSearch index to be exported|
+| es_fields |  ["report_synced_at", "searchable_nodegrid host_value", "searchable_type_value", "searchable_local serial port_value", "searchable_name_value", "searchable_status_value", "searchable_mode_value", "searchable_baud rate_value", "searchable_groups_value"]| Fields to be selected |
+| es_scroll_size | 5000 | OpenSearch records scroll size |
+| csv_file_path | "/var/local/file_manager/admin_group/managed_devices_report.csv" | CSV file path |
+
+
+To execute the playbook:
 
 ```bash
 ansible-playbook md_export_report_to_csv.yaml --limit ngmanager1

@@ -92,7 +92,7 @@ import traceback
 import pexpect
 
 from dataclasses import dataclass, asdict
-from typing import List
+from typing import List, Optional
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import (
@@ -159,9 +159,9 @@ class ManagedDeviceConnection:
 
         # If multisession read-write is enabled, another user may be simultaneously
         # connected with write access, risking command conflicts.
-        if self.multisession_rw and not self.force:
+        if self.multisession and self.multisession_rw and not self.force:
             raise RuntimeError(
-                f'Device "{self.name}" "{self.multisession}" - "{self.multisession_rw}" - "{self.force}" has Read-Write Multisession enabled. '
+                f'Device "{self.name}" has Read-Write Multisession enabled. '
                 f'Another user may be connected simultaneously, which could cause '
                 f'command conflicts. Use force=true to proceed anyway.'
             )
@@ -179,7 +179,7 @@ class ManagedDeviceConnection:
     def __del__(self):
         self._disconnect()
 
-    def _load_configuration(self):
+    def _load_configuration(self) -> None:
         proc = subprocess.run(
             ['llconf', 'ini', '-s', '-f', '/etc/spm_server.ini', 'json', self.name],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10
@@ -205,14 +205,14 @@ class ManagedDeviceConnection:
 
         self.command_prompt = templ.get('shell_prompt', self.MANAGED_DEVICE_DEFAULT_PROMPT)
 
-    def _match_error(self, output):
+    def _match_error(self, output: str) -> Optional[str]:
         for pattern in self.MANAGED_DEVICE_ERROR_PATTERNS:
             match = re.search(pattern, output, re.MULTILINE | re.IGNORECASE)
             if match:
                 return match.group(0).strip()
         return None
 
-    def _connect(self):
+    def _connect(self) -> None:
         # TODO - may check if device is connected before trying to connect
 
         # Navigate to the device path
@@ -264,7 +264,7 @@ class ManagedDeviceConnection:
         self.cmd_cli.sendline('')
         self.cmd_cli.expect(self.command_prompt, timeout=self.timeout)
 
-    def _disconnect(self):
+    def _disconnect(self) -> None:
         if self.cmd_cli is None:
             return
 
@@ -293,7 +293,7 @@ class ManagedDeviceConnection:
             eof=idx == 2,
         )
 
-def _provision(managed_device_connection: ManagedDeviceConnection, commands: List[str]):
+def _provision(managed_device_connection: ManagedDeviceConnection, commands: List[str]) -> List[dict]:
     results = []
 
     for command in commands:

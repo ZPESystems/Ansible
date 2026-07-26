@@ -12,16 +12,17 @@ from ansible.utils.display import Display
 
 display = Display()
 
-def get_timestamp(file_name):
-    timestamp_str = file_name.split('-')[1].removesuffix(".tar.gz")
+def get_timestamp(file_name, backup_file_type=".tar.gz"):
+    timestamp_str = file_name.split('-')[1].removesuffix(backup_file_type)
     timestamp = datetime.strptime(timestamp_str, "%Y%m%dT%H%M%SZ")
     return timestamp
 
-def daily_backup(path, device_name):
+def daily_backup(path, device_name, backup_file_type=".tar.gz"):
     if not os.path.isdir(os.path.join(path,'daily',device_name)):
         return []
-    pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z\.tar\.gz\b$"
-    daily_files = [(file,get_timestamp(file)) for file in os.listdir(os.path.join(path,'daily',device_name)) if re.search(pattern, file)]
+    #pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z\.tar\.gz\b$"
+    pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z" + re.escape(backup_file_type) + r"\b$"
+    daily_files = [(file,get_timestamp(file, backup_file_type=backup_file_type)) for file in os.listdir(os.path.join(path,'daily',device_name)) if re.search(pattern, file)]
     if not daily_files:
         return []
     files_to_be_deleted = set()
@@ -57,14 +58,15 @@ def daily_backup(path, device_name):
             shutil.copy(os.path.join(path,'daily',device_name,file[0]), os.path.join(path,'monthly',device_name,file[0]))
     return [file[0] for file in files_to_be_deleted]
 
-def weekly_backup(path, device_name):
+def weekly_backup(path, device_name, backup_file_type=".tar.gz"):
     # Define your directory path
     dir_path = Path(os.path.join(path,'weekly',device_name))
     # Create the directory if it doesn't exist
     dir_path.mkdir(parents=True, exist_ok=True)
 
-    pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z\.tar\.gz\b$"
-    weekly_files = [(file,get_timestamp(file)) for file in os.listdir(os.path.join(path,'weekly',device_name)) if re.search(pattern, file)]
+    #pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z\.tar\.gz\b$"
+    pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z" + re.escape(backup_file_type) + r"\b$"
+    weekly_files = [(file,get_timestamp(file, backup_file_type=backup_file_type)) for file in os.listdir(os.path.join(path,'weekly',device_name)) if re.search(pattern, file)]
     if not weekly_files:
         return []
     files_to_be_deleted = set()
@@ -86,13 +88,14 @@ def weekly_backup(path, device_name):
     return [file[0] for file in files_to_be_deleted]
 
 
-def monthly_backup(path, device_name):
+def monthly_backup(path, device_name, backup_file_type=".tar.gz"):
     # Define your directory path
     dir_path = Path(os.path.join(path,'monthly',device_name))
     # Create the directory if it doesn't exist
     dir_path.mkdir(parents=True, exist_ok=True)
-    pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z\.tar\.gz\b$"
-    monthly_files = [(file,get_timestamp(file)) for file in os.listdir(os.path.join(path,'monthly',device_name)) if re.search(pattern, file)]
+    #pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z\.tar\.gz\b$"
+    pattern = r"^\b" + re.escape(device_name) + r"-(\d{8})T(\d{6})Z" + re.escape(backup_file_type) + r"\b$"
+    monthly_files = [(file,get_timestamp(file, backup_file_type=backup_file_type)) for file in os.listdir(os.path.join(path,'monthly',device_name)) if re.search(pattern, file)]
     if not monthly_files:
         return []
     files_to_be_deleted = set()
@@ -130,12 +133,13 @@ class ActionModule(ActionBase):
         
         try:
             backup_path = self._task.args.get('backup_path')
+            backup_file_type = self._task.args.get('backup_file_type', ".tar.gz")
             inventory_hostname = task_vars.get('inventory_hostname')
             validate_path(backup_path)
             files_to_be_deleted = dict(daily=(),weekly=(),monthly=())
-            files_to_be_deleted['daily'] = daily_backup(backup_path, inventory_hostname)
-            files_to_be_deleted['weekly'] = weekly_backup(backup_path, inventory_hostname)
-            files_to_be_deleted['monthly'] = monthly_backup(backup_path, inventory_hostname)
+            files_to_be_deleted['daily'] = daily_backup(backup_path, inventory_hostname, backup_file_type=backup_file_type)
+            files_to_be_deleted['weekly'] = weekly_backup(backup_path, inventory_hostname, backup_file_type=backup_file_type)
+            files_to_be_deleted['monthly'] = monthly_backup(backup_path, inventory_hostname, backup_file_type=backup_file_type)
             result['debug'] = f"{files_to_be_deleted}"
             path = Path(backup_path)
             for freq, files in files_to_be_deleted.items():

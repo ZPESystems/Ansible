@@ -7,6 +7,10 @@ This use case describes the Nodegrid backup process with the following files rot
 
 The above cases consider the time window starting from the Nodegrid localtime relative to when the process is executed. 
 
+Two different types of Nodegrid backups are considered:
+- Full Nodegrid backup: `nodegrid_device.tar.gz`
+- Nodegrid text-based export settings backup: `nodegrid_device.cli`
+
 ## Requirements
 
 - Nodegrid Ansible Control Node with the `zpe.nodegrid` collection modules installed.
@@ -205,6 +209,16 @@ ngmanager1                 : ok=7    changed=4    unreachable=0    failed=0    s
 ```
 </details>
 
+## Execute the Export Settings Process
+
+The playbook [ng_export_settings.yaml](ng_export_settings.yaml) creates a tex-based backup of the Nodegrid configuration for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_export_settings_files_directory` which defines the main path for the export settings backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
+
+To execute the playbook:
+
+```bash
+ansible-playbook ng_export_settings.yaml --limit nodegrid_backup
+```
+
 # Access to the Backup Files.
 
 Access the Web UI of the `ngmanager1` device:
@@ -218,7 +232,7 @@ Access the Web UI of the `ngmanager1` device:
 This section describes how to automate the execution of the backup ansible playbook via the Nodegrid's Central Management feature.
 1. Copy the playbook playbook [ng_backup.yaml](ng_backup.yaml) into the directory `/etc/ansible/playbooks`.
 2. Access the Web UI of the `ngmanager1` device.
-3. Select **System -> Central Management -> Variables -> Add**. Define the variable `backup_files_directory` with value `/var/local/file_manager/admin_group/backup` and group scope `nodegrid_backup`.
+3. Select **System -> Central Management -> Variables -> Add**. Define the variable `nodegrid_backup_files_directory` with value `/var/local/file_manager/admin_group/backup` and group scope `nodegrid_backup`.
 ![](images/ng_backup_variable.png)
 4. Select **System -> Central Management -> Inventory**. Look for the `nodegrid_backup` group, select it and click Run. 
   - Select the playbook: `ng_backup.yaml`
@@ -238,4 +252,30 @@ To verify the task execution and results:
 ![](images/ng_backup_execution_logs.png)
 
 To access the backup files, follow the instructions detailed in the above section *'Access to the Backup Files'*.
+
+# Automate the Export Settings backup Process execution.
+
+This section describes how to automate the execution of the export settings ansible playbook via the Nodegrid's Central Management feature.
+1. Copy the playbook playbook [ng_export_settings.yaml](ng_export_settings.yaml) into the directory `/etc/ansible/playbooks`.
+2. Access the Web UI of the `ngmanager1` device.
+3. Select **System -> Central Management -> Variables -> Add**. Define the variable `nodegrid_export_settings_files_directory` with value `/var/local/file_manager/admin_group/backup` and group scope `nodegrid_backup`.
+![](images/ng_export_settings_variable.png)
+4. Select **System -> Central Management -> Inventory**. Look for the `nodegrid_backup` group, select it and click Run. 
+  - Select the playbook: `ng_export_settings.yaml`
+  - Select Type -> Schedule
+  - Set a task name, e.g., *tast_nodegrid_export_settings*.
+  - Set the periodicity. For this example, daily at 23:00.
+  - Click **Run**
+![](images/ng_export_settings_task.png)
+5. To verify the scheduled task go to **System -> Scheduler**
+![](images/ng_export_settings_task_scheduled.png)
+
+To verify the task execution and results:
+
+1. Select **System -> Central Management -> Logs**
+![](images/ng_export_settings_execution_task.png)
+2. Select the task `ng_export_settings.yaml` timestamp
+![](images/ng_export_settings_execution_logs.png)
+
+To access the exported settings files, follow the instructions detailed in the above section *'Access to the Backup Files'*.
 

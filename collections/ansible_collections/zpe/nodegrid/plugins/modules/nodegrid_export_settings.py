@@ -8,7 +8,7 @@ __metaclass__ = type
 
 DOCUMENTATION = r'''
 ---
-module: nodegrid_backup
+module: nodegrid_export_settings
 author: Diego Montero (@zpe-diegom)
 '''
 
@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, result_failed, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import export_settings, nodegrid_cli, execute_cmd, check_os_version_support, result_failed, NodegridError
 
 import os
 from datetime import datetime, timezone
@@ -33,67 +33,62 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-def nodegrid_backup(option, run_opt):
+def nodegrid_export_settings(option, run_opt):
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
     # Generate the timestamp
     now_utc = datetime.now(timezone.utc)
     iso_basic_short = now_utc.strftime("%Y%m%dT%H%M%SZ")
-    filename_split = option['backup_filename'].split('.')
+    filename_split = option['export_settings_filename'].split('.')
     filename_extension = ".".join(filename_split[1:]) 
-    backup_filename = f"{filename_split[0]}-{iso_basic_short}.{filename_extension}" if len(filename_split) > 1 else f"{filename_split[0]}-{iso_basic_short}"
-    backup_file_permissions = option['backup_file_permissions']
+    export_settings_filename = f"{filename_split[0]}-{iso_basic_short}.{filename_extension}" if len(filename_split) > 1 else f"{filename_split[0]}-{iso_basic_short}"
+    export_settings_file_permissions = option['export_settings_file_permissions']
     result = {
         'changed': False,
         'failed': False,
     }
-    result['backup_filename'] = backup_filename
-    cmds = [ 
-        {'cmd': "save_settings"},
-        {'cmd': f"set filename={backup_filename}"},
-        {'cmd': "save"},
-        {'cmd': "finish"},
-    ]
+    result['export_settings_filename'] = export_settings_filename
 
-    #    if run_opt['use_config_start_global']:
-    #        cmds.insert(0, {'cmd': 'config_start'})
-    #        cmds.append({'cmd': 'config_confirm'})
+    options = [ "--{0}".format(cmd_option.replace('_','-')) for cmd_option in ['include_empty', 'no_default', 'not_enabled', 'plain_password', 'with_options'] if option[cmd_option]]
+
+    cmd = {'cmd': f"export_settings /settings --file /tmp/{export_settings_filename} {' '.join(options)}"}
 
     if check_mode:
         result['changed'] = False
-        result['cmds'] = cmds
+        result['cmd'] = cmd
         return result
     
-    cmd_results = list()
     cmd_result = dict()
     try:
         with nodegrid_cli(timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                cmd_results.append(cmd_result)
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
     except (NodegridError, Exception) as e:
-        return result_failed(msg=f"Failed to create the backup. Results: {e}")
+        return result_failed(msg=f"Failed to export settings. Results: {e}")
 
     try:
-        mode_octal = int(backup_file_permissions, 8)
-        backup_filepath = os.path.join("/backup",backup_filename)
-        os.chmod(backup_filepath, mode_octal)
+        mode_octal = int(export_settings_file_permissions, 8)
+        export_settings_filepath = os.path.join("/tmp",export_settings_filename)
+        os.chmod(export_settings_filepath, mode_octal)
     except Exception as e:
-        return result_failed(f"Failed to change backup file '/backup/{backup_filename}' permissions '{backup_file_permissions}'. Error: {e}")
+        return result_failed(f"Failed to change export settings file '{export_settings_filename}' permissions to '{export_settings_file_permissions}'. Error: {e}")
 
-    if cmd_results:
-        result['cmds_output'] = cmd_results
+    if cmd_result:
+        result['cmds_output'] = cmd_result
         result['changed'] = True
     return result
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
-        backup_filename=dict(type='str', required=True),
-        backup_file_permissions=dict(type='str', required=False, default='755'),
-        backup_files_rotation=dict(type='int', required=False, default=5),
+        export_settings_filename=dict(type='str', required=True),
+        export_settings_file_permissions=dict(type='str', required=False, default='755'),
+        include_empty=dict(type='bool', default=False, required=False),
+        no_default=dict(type='bool', default=False, required=False),
+        not_enabled=dict(type='bool', default=False, required=False),
+        plain_password=dict(type='bool', default=False, required=False),
+        with_options=dict(type='bool', default=False, required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type=int, default=60, required=False),
+        timeout=dict(type=int, default=120, required=False),
     )
 
     # seed the result dict in the object
@@ -128,7 +123,7 @@ def run_module():
     else:
         use_config_start_global = True
     
-    backup_msg = f"Backing up configuration for device {nodegrid_os} into file '{module.params['backup_filename']}'"
+    export_settings_msg = f"Exporting the settings for device {nodegrid_os} into file '{module.params['export_settings_filename']}'"
 
     if module.check_mode:
         result['nodegrid_os'] = nodegrid_os
@@ -140,8 +135,8 @@ def run_module():
         'timeout': module.params['timeout']
     }
 
-    result = nodegrid_backup(module.params, run_opt)
-    result['message'] = backup_msg
+    result = nodegrid_export_settings(module.params, run_opt)
+    result['message'] = export_settings_msg
     
     if result.get('failed'):
         module.fail_json(msg=result.pop('msg',''), **result)

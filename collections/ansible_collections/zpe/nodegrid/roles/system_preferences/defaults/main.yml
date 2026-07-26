@@ -5,7 +5,8 @@ sys_address_location: ""
 sys_coordinates: ""
 sys_revision_tag: "r1"
 sys_logo_image: "use_default_logo_image"
-sys_idle_timeout: 1200
+sys_idle_timeout: "1200"
+sys_enable_banner: "yes"
 sys_banner: '''
 WARNING: This private system is provided for authorized use only and it may be 
 monitored for all lawful purposes to ensure its use. All information

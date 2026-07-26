@@ -22,7 +22,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, run_option, check_os_version_support, run_option_adding_field_in_the_path, execute_cmd, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, run_option, check_os_version_support, run_option_adding_field_in_the_path, execute_cmd, nodegrid_cli_validate_inputs, cli_settings_reorder, NodegridError
 
 import os
 from collections import OrderedDict
@@ -41,6 +41,7 @@ def run_option_cluster_settings(option, run_opt):
     # Settings dependencies
     dependencies = OrderedDict()
     dependencies = {
+        'auto_enroll': ['auto_psk', 'auto_interval'],
         'enable_cluster': ['cluster_name', 'type', 'enable_clustering_access'],
         'type': 
         {
@@ -57,26 +58,19 @@ def run_option_cluster_settings(option, run_opt):
                 'psk'
             ],
         },
+        'enable_peer_management': [], 
+        'enable_license_pool': ['lps_type'],
+        'lsp_type':
+        {
+            'server': ['renew_time', 'lease_time'],
+            'client': []
+        },
     }
 
     try:
-        settings_tobe_deleted = set()
-        for dependency in dependencies:
-            if isinstance(dependencies[dependency], dict):
-                for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
-                    for setting in dependencies[dependency][dep_rem]:
-                        if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
-                            settings_tobe_deleted.add(setting)
-
-            elif isinstance(dependencies[dependency], list) and dependency in suboptions and suboptions[dependency].lower() == "no":
-                for setting in dependencies[dependency]:
-                    settings_tobe_deleted.add(setting)
-
-        # Delete settings not required
-        for setting in settings_tobe_deleted:
-            suboptions.pop(setting, None)
-
-    except Exception as e:
+        option['suboptions'] = nodegrid_cli_validate_inputs(option['suboptions'], dependencies)
+        option['suboptions'] = cli_settings_reorder(option['suboptions'], dependencies, initial_order=OrderedDict(auto_enroll={}, enable_cluster={},enable_peer_management={},enable_license_pool={}))
+    except (NodegridError, Exception) as e:
         return {'failed': True, 'changed': False, 'msg': f"{e}"}
 
     if suboptions['type'] == 'peer':

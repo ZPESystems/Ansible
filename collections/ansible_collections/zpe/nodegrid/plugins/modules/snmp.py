@@ -241,7 +241,7 @@ def run_module():
                 if 'rule_number' != setting:
                     cmd = {'cmd': f"set {setting}={rule[setting]}"}
                     cmds.append(cmd)
-        cmds.append({'cmd': "commit"})
+            cmds.append({'cmd': "commit"})
 
     # Build Commands for SNMP System settings
     if len(diff_chains['system']) > 0:
@@ -291,8 +291,7 @@ def run_module():
                 result['changed'] = True
         result['cmds_output'] = cmd_results
     except (NodegridError, Exception) as e:
-        result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        module.fail_json(msg=f"{e}", **result)
 
     if result['failed']:
         module.fail_json(msg=result['msg'], **result)

@@ -2,5 +2,5 @@
   tags: always
   zpe.nodegrid.system:
       preferences:
-        enable_banner: "yes"
+        enable_banner: "{{ sys_enable_banner }}"
         banner: "{{ sys_banner }}"

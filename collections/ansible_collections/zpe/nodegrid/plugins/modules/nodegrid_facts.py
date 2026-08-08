@@ -60,6 +60,9 @@ def run_module():
     module_args = dict(
         gather_subset=dict(default=["all"], required=False, type='list', elements='str'),
         gather_timeout=dict(default=60, required=False, type='int'),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -69,7 +72,7 @@ def run_module():
     module = AnsibleModule(
         argument_spec = module_args,
         supports_check_mode=True,
-    )
+    )   
 
     result = dict(
         failed=False,

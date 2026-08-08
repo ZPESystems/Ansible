@@ -29,11 +29,11 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option_adding_field_in_the_path_and_append_path, field_exist, execute_cmd, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option_adding_field_in_the_path_and_append_path, field_exist, NodegridError, run_cli_command
 
 import os, re
 from collections import OrderedDict
-import traceback, subprocess
+import subprocess
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -74,11 +74,14 @@ def get_wireguard_endpoints_present(timeout=60) -> dict:
         )
     try:
         cmd = dict(cmd='export_settings /settings/wireguard', ignore_error=False)
-        with nodegrid_cli(timeout) as cmd_cli:
-           cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+        cmd_result = run_cli_command(cmd, timeout=timeout)
+        if cmd_result['error']:
+            result['failed'] = True
+            result['msg'] = f"{cmd_result['msg']}"
+            return result
 
         # Parse the wireguard endpoints
-        cmd_output = cmd_result['stdout']
+        cmd_output = cmd_result['output']
         pattern = r"^.*/interfaces"
         interfaces = set(re.findall(pattern, cmd_output, re.MULTILINE))
 
@@ -89,12 +92,14 @@ def get_wireguard_endpoints_present(timeout=60) -> dict:
             iface_config = re.findall(pattern, cmd_output, re.MULTILINE)
             wg['interfaces'] = dict(map(lambda x: x.replace(interface,'').strip().split('=',1), iface_config))
             # peers
-            peers_pattern = interface.replace("interfaces", "peers")
+            #/settings/wireguard/wg1/peers/peer1
+            peers_pattern = f"^/settings/wireguard/{wg_name}/peers/.*"
             pattern = fr"{peers_pattern}.*"
-            iface_peers = set(re.findall(pattern, cmd_output, re.MULTILINE))
+            iface_peers = set(line.split()[0] for line in re.findall(pattern, cmd_output, re.MULTILINE))
             if not 'peers' in wg:
                 wg['peers'] = list()
             for iface_peer in iface_peers:
+                peer_name = iface_peer.split(" ")[0].replace(f"/settings/wireguard/{wg_name}/peers/","").strip()
                 pattern = fr"{iface_peer}.*$"
                 peer_config = [element.replace('\n', '').replace('\r', '') for element in re.findall(pattern, cmd_output, re.MULTILINE)]
                 wg['peers'].append(dict(map(lambda x: x.replace(iface_peer,"").strip().split('=',1), peer_config )))
@@ -218,7 +223,7 @@ def run_option_wireguard_server_endpoint(option, run_opt):
                     suboptions.pop(setting, None)
 
         except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e} | {traceback.format_exc()}"}
+            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e}"}
 
         return run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, 'interfaces')
     else:
@@ -375,7 +380,7 @@ def run_option_wireguard_client_endpoint(option, run_opt):
                     suboptions.pop(setting, None)
 
         except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e} | {traceback.format_exc()}"}
+            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e}"}
 
         return run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, 'interfaces')
     else:
@@ -531,7 +536,7 @@ def run_option_wireguard_mesh_endpoint(option, run_opt):
                     suboptions.pop(setting, None)
 
         except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e} | {traceback.format_exc()}"}
+            return {'failed': True, 'changed': False, 'msg': f"Key/value error: {e}"}
         return run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, 'interfaces')
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
@@ -592,7 +597,10 @@ def run_module():
         mesh_peer=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
-        debug=dict(type='bool', default=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -689,7 +697,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'timeout': module.params.get('timeout', 60),
+        'debug': module.params.get('debug', False),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
     
     for option in option_list:

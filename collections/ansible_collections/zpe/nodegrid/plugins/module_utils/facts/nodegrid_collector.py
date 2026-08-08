@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ansible.module_utils.facts import collector
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import NodegridError, nodegrid_cli, execute_cmd, check_os_version_support
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import NodegridError, check_os_version_support, run_cli_command, run_cli_commands
 
 # ttp templates
 import ansible_collections.zpe.nodegrid.plugins.module_utils.facts.templates.about
@@ -27,7 +27,6 @@ from ttp import ttp
 
 import os
 import re
-#import traceback
 
 
 class NodegridFactCollector(collector.BaseFactCollector):
@@ -71,11 +70,14 @@ class NodegridFactCollector(collector.BaseFactCollector):
             )
         try:
             cmd = dict(cmd='export_settings /settings/wireguard', ignore_error=False)
-            with nodegrid_cli(timeout) as cmd_cli:
-               cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+            cmd_result = run_cli_command(cmd, timeout=timeout)
+            if cmd_result['error']:
+                result['failed'] = True
+                result['msg'] = f"{cmd_result['msg']}"
+                return result
 
             # Parse the wireguard endpoints
-            cmd_output = cmd_result['stdout']
+            cmd_output = cmd_result['output']
             pattern = r"^.*/interfaces"
             interfaces = set(re.findall(pattern, cmd_output, re.MULTILINE))
 
@@ -86,12 +88,14 @@ class NodegridFactCollector(collector.BaseFactCollector):
                 iface_config = re.findall(pattern, cmd_output, re.MULTILINE)
                 wg['interfaces'] = dict(map(lambda x: x.replace(interface,'').strip().split('=',1), iface_config))
                 # peers
-                peers_pattern = interface.replace("interfaces", "peers")
+                #/settings/wireguard/wg1/peers/peer1
+                peers_pattern = f"^/settings/wireguard/{wg_name}/peers/.*"
                 pattern = fr"{peers_pattern}.*"
-                iface_peers = set(re.findall(pattern, cmd_output, re.MULTILINE))
+                iface_peers = set(line.split()[0] for line in re.findall(pattern, cmd_output, re.MULTILINE))
                 if not 'peers' in wg:
                     wg['peers'] = list()
                 for iface_peer in iface_peers:
+                    peer_name = iface_peer.split(" ")[0].replace(f"/settings/wireguard/{wg_name}/peers/","").strip()
                     pattern = fr"{iface_peer}.*$"
                     peer_config = [element.replace('\n', '').replace('\r', '') for element in re.findall(pattern, cmd_output, re.MULTILINE)]
                     wg['peers'].append(dict(map(lambda x: x.replace(iface_peer,"").strip().split('=',1), peer_config )))
@@ -103,37 +107,25 @@ class NodegridFactCollector(collector.BaseFactCollector):
     # #####################################################################################
 
     #def collect(self, module=None, collected_facts=None):
-    def _run_commands(self, cmds, timeout=60):
+    def _run_commands(self, cmds, run_opt=dict()):
         result = dict(
             changed=False,
             failed=False,
-            timeout=False
+            timeout=False,
+            cmds_output=list(),
+            retries=0,
         )
+        timeout = run_opt.get('timeout', 60)
         # run commands and gather output
-        cmd_results = list()
-        cmd_result = dict()
-        try:
-            with nodegrid_cli(timeout) as cmd_cli:
-                for cmd in cmds:
-                    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                    if 'template' in cmd.keys():
-                        cmd_result['template'] = cmd['template']
-                    if 'set_fact' in cmd.keys():
-                        cmd_result['set_fact'] = cmd['set_fact']
-                    ignore_error = 'ignore_error' in cmd.keys() and isinstance(cmd['ignore_error'], bool) and cmd['ignore_error'] is True
-                    if ignore_error:
-                        cmd_result['ignore_error'] = ignore_error
-                    if 'json' in cmd.keys():
-                        cmd_result['json'] = cmd['json']
-                    cmd_result['command'] = cmd.get('cmd')
-                    if ignore_error and 'error' in cmd_result and cmd_result['error']:
-                        cmd_result['failed'] = True
-                    cmd_results.append(cmd_result)
-                result['cmds_output'] = cmd_results
-        except (NodegridError, Exception) as e:
+        run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+        result['retries'] = run_cmds['retries']
+        if run_cmds['error']:
             result['failed'] = True
-            result['message'] = f"{e}"
+            result['msg'] = f"{run_cmds['msg']}"
+            return result
+        result['cmds_output'] = run_cmds['cmds_results']
         return result
+
 
     def _get_cmds(self, system_details):
         cmds = list()
@@ -239,16 +231,21 @@ class NodegridFactCollector(collector.BaseFactCollector):
             del os.environ["DLITF_SID_ENCRYPT"]
 
         # Get timeout from the params module
-        timeout = module.params.get('gather_timeout', 60)
+        run_opt = dict(
+            timeout=module.params.get('gather_timeout', 60),
+            max_retries=module.params.get('max_retries', 2),
+            base_delay=module.params.get('base_delay', 2.0), 
+            max_delay=module.params.get('max_delay',10.0),
+        )
 
         # Nodegrid OS section starts here
         # Lets get the current status and check if it must be changed
-        res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
+        res, err_msg, nodegrid_os = check_os_version_support(timeout=run_opt.get('timeout'))
         if res == 'error' or res == 'unsupported':
             return dict(msg=err_msg, failed=True)
         
         cmds = self._get_cmds(nodegrid_os)
-        cmds_results = self._run_commands(cmds, timeout=timeout)
+        cmds_results = self._run_commands(cmds, run_opt=run_opt)
         result = dict()
         parsed_dict = dict()
     
@@ -280,7 +277,7 @@ class NodegridFactCollector(collector.BaseFactCollector):
             else:
                 return dict(msg=f"Template file could not be found: {cmd_result.get('template')}", failed=True)
 
-        wireguard_endpoints_present = self.get_wireguard_endpoints_present(timeout=timeout)
+        wireguard_endpoints_present = self.get_wireguard_endpoints_present(timeout=run_opt.get('timeout'))
         if not wireguard_endpoints_present["error"]:
             parsed_dict['wireguard'] = wireguard_endpoints_present['endpoints']
 

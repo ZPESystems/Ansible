@@ -9,7 +9,7 @@
     - name: Setup Wireguard Peer for interface_type=server
       zpe.nodegrid.wireguard:
         server_peer:
-          interface_name: wg1
+          interface_name: wg-server1
           interface_type: server # optional
           peer_name: wg1-peer-client1
           allowed_ips: 10.1.1.2/32

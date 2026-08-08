@@ -42,7 +42,7 @@
           left_public_key: "0sAwEAAaFkt67/idZENNCdRSUDV0LUcjV5tK3Y8Ctxrn6oq1NgCZ8cfw2Bw3ZLaZH+zbbGer3qjp6SFTujimd3HQkiVgX2TiW9jhBTtLcVZuErQC5C3B+h7TYDjtQdz6fFW+Ovn0vViw+gRWQ42rzN2VYAESt6rrutzqTg5/LqDTk28lCb6q6q55s1FJY4SiNHuUwoaRLDrce234ETvDfpgImaG///iPxX3RDiClXbxSO/HDO3T5o2s6+UOiPQx5v05LcL60C26/M1nCp41uoSQlF6gv1Do398Kj8iPpgWBD7FhzLHnd8CyDV6Cru94YeSsoutjzA2ZJOA75ETKkzw9gfRrkEYTWwVPLcfnMjvvLUA+JFKmEaX6AtE9bAi/VrOCfg8P6jV6iznhd3bfucG/vaVKFse+TGGD91VFWQt1e6KVLlONyipkQOfu7UtbVX1QpVQxBnyuVFqIgv3E223Jjw5dvaiFXQV4Dm4Rh80Ua7obyfdly04HhgXaAP7xaC2dKFxSYtsVgY0K1gRcXt8/ujMbVBrvCjXpxJHuAalVxdJNpOwi1n0wGzCl23r89ABV4xEFKoJdVeHOsbhk1Onh+CWkypCmQve4HkPcT15Z3WD3Mg/"
           right_public_key: "0sAwEAAaFkt67/idZENNCdRSUDV0LUcjV5tK3Y8Ctxrn6oq1NgCZ8cfw2Bw3ZLaZH+zbbGer3qjp6SFTujimd3HQkiVgX2TiW9jhBTtLcVZuErQC5C3B+h7TYDjtQdz6fFW+Ovn0vViw+gRWQ42rzN2VYAESt6rrutzqTg5/LqDTk28lCb6q6q55s1FJY4SiNHuUwoaRLDrce234ETvDfpgImaG///iPxX3RDiClXbxSO/HDO3T5o2s6+UOiPQx5v05LcL60C26/M1nCp41uoSQlF6gv1Do398Kj8iPpgWBD7FhzLHnd8CyDV6Cru94YeSsoutjzA2ZJOA75ETKkzw9gfRrkEYTWwVPLcfnMjvvLUA+JFKmEaX6AtE9bAi/VrOCfg8P6jV6iznhd3bfucG/vaVKFse+TGGD91VFWQt1e6KVLlONyipkQOfu7UtbVX1QpVQxBnyuVFqIgv3E223Jjw5dvaiFXQV4Dm4Rh80Ua7obyfdly04HhgXaAP7xaC2dKFxSYtsVgY0K1gRcXt8/ujMbVBrvCjXpxJHuAalVxdJNpOwi1n0wGzCl23r89ABV4xEFKoJdVeHOsbhk1Onh+CWkypCmQve4HkPcT15Z3WD3Mg/"
           left_id: "192.168.1.10"
-          left_address: "%eth3"
+          left_address: "%defaultroute"
           #left_address: ip_address
           left_ip_address: 192.168.1.10
           left_source_ip_address: "2001:db7:2::1"

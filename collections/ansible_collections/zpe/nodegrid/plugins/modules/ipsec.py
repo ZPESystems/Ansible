@@ -34,11 +34,10 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, field_exist, export_settings
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, field_exist, export_settings, nodegrid_cli_validate_inputs, cli_settings_reorder
 
 import os
 from collections import OrderedDict
-import traceback
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -58,8 +57,7 @@ def run_option_ipsec_ike_profile(option, run_opt):
         'custom_parameters',
     ]
     # Settings dependencies
-    dependencies = OrderedDict()
-    dependencies = {
+    dependencies = OrderedDict({
         'ike_version': 
         {
             'ikev1': 
@@ -100,72 +98,28 @@ def run_option_ipsec_ike_profile(option, run_opt):
             'dead_peer_detection_interval',
             'dead_peer_detection_action',
         ]
-    }
-    suboptions = option['suboptions']
+    })
     check_mode = run_opt['check_mode']
     field_name = 'profile_name'
-    if field_exist(suboptions, field_name):
-        cli_path =  f"{option['cli_path']}/{suboptions[field_name]}"
-        # Remove invalid parameters
-        #
-        try:
-
-            # Identifies and collects configuration settings that should be deleted
-            # based on a mismatch between current suboptions and their declared dependencies.
-            settings_tobe_deleted = set()
-            for dependency in dependencies:
-
-                # If the dependency is a dictionary, iterate over suboption values that do NOT match the current value in suboptions.
-                # For those mismatched values, collect associated settings for deletion,
-                # but only if they aren’t already valid under the current suboption value.
-                if isinstance(dependencies[dependency], dict):
-                    for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
-                        for setting in dependencies[dependency][dep_rem]:
-                            if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
-                                settings_tobe_deleted.add(setting)
-
-                # Elif the dependency is a list and the suboption is explicitly set to "no",
-                # mark all associated settings for deletion.
-                elif isinstance(dependencies[dependency], list) and dependency in suboptions and str(suboptions[dependency]).strip().lower() == "no":
-                    for setting in dependencies[dependency]:
-                        settings_tobe_deleted.add(setting)
-
-            # Delete settings not required
-            for setting in settings_tobe_deleted:
-                suboptions.pop(setting, None)
-            
-            # Delete settings that are empty
-            for setting in settings_to_delete_if_empty:
-                if setting in suboptions and str(suboptions[setting]).strip() == "":
-                    suboptions.pop(setting, None)
-
-        except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
-
-        return run_option_adding_field_in_the_path(option, run_opt, field_name)
-    else:
+    if not field_exist(option['suboptions'], field_name):
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
 
-'initiate_tunnel',
-'ike_profile',
-'authentication_method',
-'secret',
-'left_public_key',
-'right_public_key',
-'authentication_method',
-'left_certificate',
-'right_certificate',
-'left_id',
-'left_address',
-'right_id',
-'right_address',
-'enable_monitoring',
-'monitoring_source_ip_address',
-'monitoring_destination_ip_address',
-'monitoring_number_of_retries',
-'monitoring_interval',
-'monitoring_action',
-'monitoring_failover_ipsec_tunnel',
+    cli_path =  f"{option['cli_path']}/{option['suboptions'][field_name]}"
+    # Remove invalid parameters
+    #
+    try:
+        option['suboptions'] = nodegrid_cli_validate_inputs(option['suboptions'], dependencies)
+        option['suboptions'] = cli_settings_reorder(option['suboptions'], dependencies, initial_order=OrderedDict(ike_version={}))
+        # Delete settings that are empty
+        for setting in settings_to_delete_if_empty:
+            if setting in option['suboptions'] and str(option['suboptions'][setting]).strip() == "":
+                option['suboptions'].pop(setting, None)
+
+    except Exception as e:
+        return {'failed': True, 'changed': False, 'msg': f"Error validating/ordering input values. Error: {e}"}
+
+    return run_option_adding_field_in_the_path(option, run_opt, field_name)
+
 
 
 def run_option_ipsec_tunnel(option, run_opt):
@@ -179,14 +133,12 @@ def run_option_ipsec_tunnel(option, run_opt):
     ]
 
     # Settings dependencies
-    dependencies = OrderedDict()
-    dependencies = {
-        'authentication_method':  # pre-shared_key, rsa_key, certificate
-        ("validate", {
-            'pre-shared_key': ['secred'],
+    dependencies = OrderedDict({
+        'authentication_method': {  # pre-shared_key, rsa_key, certificate
+            'pre-shared_key': ['secret'],
             'rsa_key': ['left_public_key', 'right_public_key'],
             'certificate': ['left_certificate', 'right_certificate']
-        }),
+        },
         'left_address':
         ("validate", {
             'ip_address': ['left_ip_address'],
@@ -205,88 +157,43 @@ def run_option_ipsec_tunnel(option, run_opt):
             'restart_tunnel': [],
             'failover': ['monitoring_failover_ipsec_tunnel'],
         }),
-    }
+    })
     
     # Settings to be renamed
     rename_settings = {
         'custom_up_down_script': 'custom_up|down_script',
     }
 
-    suboptions = option['suboptions']
     check_mode = run_opt['check_mode']
     field_name = 'name'
-    if field_exist(suboptions, field_name) and suboptions[field_name]:
-        cli_path =  f"{option['cli_path']}/{suboptions[field_name]}"
-        #
-        # Remove invalid parameters
-        #
-        try:
-
-            # Identifies and collects configuration settings that should be deleted
-            # based on a mismatch between current suboptions and their declared dependencies.
-            settings_tobe_deleted = set()
-            for dependency in dependencies:
-
-                # If the dependency is a dictionary, iterate over suboption values that do NOT match the current value in suboptions.
-                # For those mismatched values, collect associated settings for deletion,
-                # but only if they aren’t already valid under the current suboption value.
-                if isinstance(dependencies[dependency], dict):
-                    for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
-                        for setting in dependencies[dependency][dep_rem]:
-                            if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
-                                settings_tobe_deleted.add(setting)
-
-                # Elif the dependency is a list and the suboption is explicitly set to "no",
-                # mark all associated settings for deletion.
-                elif isinstance(dependencies[dependency], list) and dependency in suboptions and str(suboptions[dependency]).strip().lower() == "no":
-                    for setting in dependencies[dependency]:
-                        settings_tobe_deleted.add(setting)
-
-                # Elseif check dependencies that are selectable, and for each selected option, there are dependencies attached.
-                elif isinstance(dependencies[dependency], tuple):
-                    if not dependency in suboptions:
-                        continue
-                    atuple = dependencies[dependency]
-                    items_to_validate = {}
-                    if atuple[0] == "validate" and suboptions[dependency] in atuple[1]:
-                        if dependency in suboptions:
-                            valid_options = atuple[1][suboptions[dependency]]
-                            items_to_validate = {option:values for option,values in atuple[1].items() if not option == suboptions[dependency]}
-                        else:
-                            valid_options = []
-                            items_to_validate = {option:values for option,values in atuple[1].items()}
-                    else:
-                        valid_options = []
-                        items_to_validate = {option:values for option,values in atuple[1].items()}
-
-                    for key,value in items_to_validate.items():
-                        for v in value:
-                            if not v in valid_options:
-                                settings_tobe_deleted.add(v)
-
-            # Delete settings not required
-            for setting in settings_tobe_deleted:
-                suboptions.pop(setting, None)
-
-            # Delete settings that are empty
-            for setting in settings_to_delete_if_empty:
-                if setting in suboptions and str(suboptions[setting]).strip() == "":
-                    suboptions.pop(setting, None)
-
-            # Remove old setting key name, and add its corresponding
-            for setting in rename_settings:
-                if setting in suboptions:
-                    tmp_key = rename_settings[setting]
-                    tmp_value = suboptions[setting]
-                    suboptions.pop(setting, None)
-                    suboptions[tmp_key] = tmp_value
-
-        except Exception as e:
-            return {'failed': True, 'changed': False, 'msg': f"{suboptions} | Key/value error: {e} | {traceback.format_exc()}"}
-
-        return run_option_adding_field_in_the_path(option, run_opt, field_name)
-    else:
+    if not field_exist(option['suboptions'], field_name):
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
+
+    cli_path =  f"{option['cli_path']}/{option['suboptions'][field_name]}"
+    #
+    # Remove invalid parameters
+    #
+    try:
+        option['suboptions'] = nodegrid_cli_validate_inputs(option['suboptions'], dependencies)
+        option['suboptions'] = cli_settings_reorder(option['suboptions'], dependencies, initial_order=OrderedDict(authentication_method={}, enable_monitoring={}))
+
+        # Delete settings that are empty
+        for setting in settings_to_delete_if_empty:
+            if setting in option['suboptions'] and str(option['suboptions'][setting]).strip() == "":
+                option['suboptions'].pop(setting, None)
+
+        # Remove old setting key name, and add its corresponding
+        for setting in rename_settings:
+            if setting in option['suboptions']:
+                tmp_key = rename_settings[setting]
+                tmp_value = option['suboptions'][setting]
+                option['suboptions'].pop(setting, None)
+                option['suboptions'][tmp_key] = tmp_value
+
+    except Exception as e:
+        return {'failed': True, 'changed': False, 'msg': f"Error validating/ordering input values. Error: {e}"}
+
+    return run_option_adding_field_in_the_path(option, run_opt, field_name)
 
 
 def run_module():
@@ -297,6 +204,10 @@ def run_module():
         ipsec_tunnel=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -307,7 +218,7 @@ def run_module():
     result = dict(
         changed=False,
         message='',
-        output={}
+        output={},
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -356,7 +267,9 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
+
+    if module.params['debug']:
+        result['nodegrid_facts'] = nodegrid_os
     
     #
     # Lets run the options
@@ -365,7 +278,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'debug': module.params.get('debug', False),
+        'timeout': module.params.get('timeout', 60),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     for option in option_list:
@@ -408,3 +325,25 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+#'initiate_tunnel',
+#'ike_profile',
+#'authentication_method',
+#'secret',
+#'left_public_key',
+#'right_public_key',
+#'authentication_method',
+#'left_certificate',
+#'right_certificate',
+#'left_id',
+#'left_address',
+#'right_id',
+#'right_address',
+#'enable_monitoring',
+#'monitoring_source_ip_address',
+#'monitoring_destination_ip_address',
+#'monitoring_number_of_retries',
+#'monitoring_interval',
+#'monitoring_action',
+#'monitoring_failover_ipsec_tunnel',

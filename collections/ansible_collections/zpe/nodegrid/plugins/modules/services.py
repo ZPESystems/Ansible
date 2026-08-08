@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, NodegridError, run_cli_command, run_cli_commands
 import os
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -35,13 +35,12 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def get_state(endpoint: str, timeout: int = 60) -> dict:
     result = dict(error=False, msg='', state=None)
     cmd = dict(cmd = f"show /settings/{endpoint}")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
+
     result['state'] = cmd_result['json'][0]['data']
     return result
 
@@ -102,7 +101,10 @@ def run_module():
         services=dict(type='dict', required=False),
         zpe_cloud=dict(type='dict', required=False),
         timeout=dict(type='int', default=60, required=False),
-        debug=dict(type='bool', default=False)
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -135,7 +137,9 @@ def run_module():
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
         result['warning'] = err_msg
-    # result['nodegrid_facts'] = nodegrid_os
+    
+    if module.params.get('debug'):
+        result['nodegrid_facts'] = nodegrid_os
 
     ## Find out what needs to be changed
     diff_chains = {
@@ -232,31 +236,15 @@ def run_module():
     ## Pushing Changes
 
     # Apply Changes
-    try:
-        cmd_results = []
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if 'template' in cmd.keys():
-                    cmd_result['template'] = cmd['template']
-                if 'set_fact' in cmd.keys():
-                    cmd_result['set_fact'] = cmd['set_fact']
-                if 'ignore_error' in cmd.keys():
-                    cmd_result['ignore_error'] = cmd['ignore_error']
-                if 'json' in cmd.keys():
-                    cmd_result['json'] = cmd['json']
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                if cmd_result['error']:
-                    result['failed'] = True
-                    result['msg'] = f"{cmd_result['stdout_lines']}"
-                    break;
-                result['changed'] = True
-        result['cmds_output'] = cmd_results
-    except (NodegridError, Exception) as e:
+    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=module.params.get('max_retries'), base_delay=module.params.get('base_delay'), max_delay=module.params.get('max_delay'))
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
+        result['failed'] = True
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
-        return result
+        result['msg'] = f"CLI Error: {run_cmds['msg']}"
+
+    result['cmds_output'] = run_cmds['cmds_results']
+
 
     if result['failed']:
         module.fail_json(msg=result['msg'], **result)

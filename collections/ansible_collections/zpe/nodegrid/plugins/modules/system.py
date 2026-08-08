@@ -90,8 +90,7 @@ def run_option_license(option, run_opt):
                 return result
             
             for lic_key in license_keys:
-                cmd = f"cd {cli_path}; add; set license_key={lic_key}; commit"
-                cli_output = run_cli_command(cmd, ignore_error=True, timeout=timeout)
+                cli_output = run_cli_command(dict(cmd=f"cd {cli_path}; add; set license_key={lic_key}; commit", ignore_error=True), timeout=timeout)
                 if cli_output['error'] is True:
                     if 'output' in cli_output and "license_key: License Already Installed" in cli_output['output']:
                         already_installed.append(lic_key)
@@ -128,6 +127,10 @@ def run_module():
         system_logging=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -202,7 +205,9 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
+
+    if module.params['debug']:
+        result['nodegrid_os'] = nodegrid_os
     
     #
     # Lets run the options
@@ -211,7 +216,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'timeout': module.params['timeout'],
+        'debug': module.params['debug'],
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     for option in option_list:

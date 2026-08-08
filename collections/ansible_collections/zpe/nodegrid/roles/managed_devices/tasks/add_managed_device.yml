@@ -8,6 +8,7 @@
     device_commands: "{{ device.commands | default([]) }}"
   zpe.nodegrid.managed_devices:
     timeout: "{{ nodegrid_timeout | default(60) }}"
+    max_retries: "{{ add_device_retries | default(3) }}"
     device:
       access: "{{ device_access }}"
       custom_fields: "{{ device_custom_fields }}"

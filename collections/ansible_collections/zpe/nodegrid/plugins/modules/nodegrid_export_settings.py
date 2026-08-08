@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import export_settings, nodegrid_cli, execute_cmd, check_os_version_support, result_failed, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import export_settings, check_os_version_support, result_failed, NodegridError, run_cli_command
 
 import os
 from datetime import datetime, timezone
@@ -43,10 +43,11 @@ def nodegrid_export_settings(option, run_opt):
     filename_extension = ".".join(filename_split[1:]) 
     export_settings_filename = f"{filename_split[0]}-{iso_basic_short}.{filename_extension}" if len(filename_split) > 1 else f"{filename_split[0]}-{iso_basic_short}"
     export_settings_file_permissions = option['export_settings_file_permissions']
-    result = {
-        'changed': False,
-        'failed': False,
-    }
+    result = dict(
+        changed=False,
+        failed=False,
+        export_settings_filename='',
+    )
     result['export_settings_filename'] = export_settings_filename
 
     options = [ "--{0}".format(cmd_option.replace('_','-')) for cmd_option in ['include_empty', 'no_default', 'not_enabled', 'plain_password', 'with_options'] if option[cmd_option]]
@@ -58,12 +59,9 @@ def nodegrid_export_settings(option, run_opt):
         result['cmd'] = cmd
         return result
     
-    cmd_result = dict()
-    try:
-        with nodegrid_cli(timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
-        return result_failed(msg=f"Failed to export settings. Results: {e}")
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
+        return result_failed(msg=f"Failed to export settings. Results: {cmd_result['msg']}")
 
     try:
         mode_octal = int(export_settings_file_permissions, 8)
@@ -88,7 +86,11 @@ def run_module():
         plain_password=dict(type='bool', default=False, required=False),
         with_options=dict(type='bool', default=False, required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type=int, default=120, required=False),
+        timeout=dict(type='int', default=120, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -125,14 +127,18 @@ def run_module():
     
     export_settings_msg = f"Exporting the settings for device {nodegrid_os} into file '{module.params['export_settings_filename']}'"
 
-    if module.check_mode:
+    if module.params.get('debug'):
         result['nodegrid_os'] = nodegrid_os
 
     run_opt = {
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'debug': module.params.get('debug', False),
+        'timeout': module.params.get('timeout', 60),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     result = nodegrid_export_settings(module.params, run_opt)

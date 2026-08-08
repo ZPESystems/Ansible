@@ -170,13 +170,17 @@ def run_option_network_switch_vlan(option, run_opt):
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
-    module_args = {
-        'interfaces': dict(type='dict', required=False),
-        'backplane': dict(type='dict', required=False),
-        'vlan': dict(type='dict', required=False),
-        'skip_invalid_keys': dict(type='bool', default=False, required=False),
-        'timeout': dict(type='int', default=60, required=False),
-    }
+    module_args = dict(
+        interfaces=dict(type='dict', required=False),
+        backplane=dict(type='dict', required=False),
+        vlan=dict(type='dict', required=False),
+        skip_invalid_keys=dict(type='bool', default=False, required=False),
+        timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
+        )
 
     # seed the result dict in the object
     # we primarily care about changed and state
@@ -220,10 +224,6 @@ def run_module():
         },
     ]
 
-    # add name in the cli_path
-    
-
-    #
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
@@ -235,7 +235,9 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
+
+    if module.params['debug']:
+        result['nodegrid_facts'] = nodegrid_os
     
     #
     # Lets run the options
@@ -244,7 +246,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'debug': module.params.get('debug', False),
+        'timeout': module.params.get('timeout', 60),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     for option in option_list:

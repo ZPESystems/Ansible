@@ -22,7 +22,7 @@ RETURN = r'''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.facts.compat import ansible_facts
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, result_failed, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, result_failed, NodegridError, run_cli_commands
 
 import os
 
@@ -90,21 +90,13 @@ def firmware_upgrade(option, run_opt, mounts):
         result['cmds'] = cmds
         return result
     
-
-    cmd_results = list()
-    cmd_result = dict()
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if cmd_result['error']:
-                    return result_failed(f"Failed to execute firmware upgrade. Results: f{cmd_result}")
-                cmd_results.append(cmd_result)
-    except (NodegridError, Exception) as e:
-        return result_failed(f"Failed to execute firmware upgrade. Error: f{e}")
-
-    if cmd_results:
-        result['cmds_output'] = cmd_results
+    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
+        return result_failed(f"Failed to execute firmware upgrade. Error: {run_cmds['msg']}")
+    cmds_results = run_cmds['cmds_results']
+    if cmds_results:
+        result['cmds_output'] = cmds_results
         result['changed'] = True
     return result
 
@@ -115,8 +107,12 @@ def run_module():
         nodegrid_target_version=dict(type='str', required=True),
         nodegrid_available_space=dict(type='str', required=False, default="5GB"),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type=int, default=60, required=False),
         filter=dict(type="str", required=False, default="mounts"),
+        timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -153,14 +149,18 @@ def run_module():
     
     upgrade_msg = f"Upgrading from Nodegrid version {nodegrid_os['version']} to version {module.params['nodegrid_target_version']}"
 
-    if module.check_mode:
+    if module.params.get('debug'):
         result['nodegrid_os'] = nodegrid_os
 
     run_opt = {
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'debug': module.params.get('debug', False),
+        'timeout': module.params.get('timeout', 60),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     mounts = ansible_facts(module)

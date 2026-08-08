@@ -20,7 +20,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, NodegridError, CLIOutputError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, NodegridError, CLIOutputError, run_cli_command, run_cli_commands
 import os
 
 
@@ -39,10 +39,9 @@ def dict_diff(new_dict: dict, current_dict: dict) -> list:
 
 def get_auditing( endpoint: str , timeout: int = 60 ) -> dict:
     cmd = dict(cmd=f"show /settings/{endpoint}")
-    with nodegrid_cli(timeout) as cmd_cli:
-        cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    if not cmd_result['json']:
-        raise CLIOutputError(cmd=cmd['cmd'], message=f"The CLI command '{cmd['cmd']}' did not return a json value.")
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error'] or not cmd_result['json']:
+        raise CLIOutputError(cmd=cmd['cmd'], message=f"The CLI command '{cmd['cmd']}' did not return a json value. Error: {cmd_result['msg']}")
     return cmd_result['json'][0]['data']
 
 def resort_rule(rule: dict):
@@ -94,7 +93,10 @@ def run_module():
         destinations_snmp=dict(type='dict', required=False),
         destinations_email=dict(type='dict', required=False),
         timeout=dict(type='int', default=60),
-        debug=dict(type='bool', default=False)
+        debug=dict(type='bool', default=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -550,29 +552,17 @@ def run_module():
 
     ## Pushing Changes
     # Apply Changes
-    try:
-        cmd_results = []
-        with nodegrid_cli(timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if 'template' in cmd.keys():
-                    cmd_result['template'] = cmd['template']
-                if 'set_fact' in cmd.keys():
-                    cmd_result['set_fact'] = cmd['set_fact']
-                if 'ignore_error' in cmd.keys():
-                    cmd_result['ignore_error'] = cmd['ignore_error']
-                if 'json' in cmd.keys():
-                    cmd_result['json'] = cmd['json']
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                if cmd_result['error']:
-                    result['contains_errors'] = True
-                    result['message'] += f"CLI cmd: {cmd.get('cmd')}. Error = {cmd_result['msg']} |"
-                else:
-                    result['changed'] = True
-        result['cmds_output'] = cmd_results
-    except (NodegridError, Exception) as e:
-            add_error(result, 'apply_changes', e)
+
+    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=module.params.get('max_retries'), base_delay=module.params.get('base_delay'), max_delay=module.params.get('max_delay'))
+    if run_cmds['error']:
+        result['contains_errors'] = True
+        result['message'] += f"Error = {run_cmds['msg']} |"
+        add_error(result, 'apply_changes', Exception(run_cmds['msg']))
+    else:
+        result['changed'] = True
+
+    result['cmds_output'] = run_cmds['cmds_results']
+    result['retries'] = run_cmds['retries']
 
     if result['failed']:
         module.fail_json(msg=result['message'], **result)

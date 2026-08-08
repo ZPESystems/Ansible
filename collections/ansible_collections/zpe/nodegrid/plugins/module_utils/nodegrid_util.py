@@ -7,106 +7,12 @@ import re
 from collections import OrderedDict
 from datetime import datetime
 import os
+import time
+import random
 import uuid
 
-############################################################################
-# Nodegrid Exception
-class NodegridError(Exception):
-    """Base exception for all Nodegrid CLI application-specific errors."""
-    pass
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_exceptions import NodegridError, CLIOutputError, CLISystemRevertError, CLICommunicationError, CLILicenseError, CLITransactionUnderwayError, CLIAnotherTransactionStartedError, InputValidationError
 
-class CLICommunicationError(NodegridError):
-    """Nodegrid CLI custom exception for CLI-specific errors."""
-    def __init__(self, message, buffer=None, original_exception=None):
-        self.message = message
-        # It is assumed that the buffer is already decoded.
-        self.buffer = buffer 
-        self.original_exception = original_exception
-        super().__init__(self.message)
-    
-    def get_tail_buffer(self, lenght=-200):
-        if self.buffer:
-            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
-        else:
-            return ""
-
-    def __str__(self):
-        # Logs format: Messagge + the last 200 chars of buffer
-        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
-        return f"{self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"{self.message} {buf_tail}"
-
-class CLIOutputError(NodegridError):
-    """Nodegrid CLI custom exception for CLI output errors."""
-    def __init__(self, cmd, message, buffer=None, original_exception=None):
-        self.cmd = cmd
-        self.message = message
-        # It is assumed that the buffer is already decoded.
-        self.buffer = buffer 
-        self.original_exception = original_exception
-        super().__init__(self.message)
-
-    def get_tail_buffer(self, lenght=-200):
-        if self.buffer:
-            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
-        else:
-            return ""
-
-    def __str__(self):
-        # Logs format: Messagge + the last 200 chars of buffer
-        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
-        return f"CLI cmd: {self.cmd}. {self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"CLI cmd: {self.cmd}. {self.message} {buf_tail}"
-
-class CLISystemRevertError(NodegridError):
-    """Nodegrid CLI custom exception for 'Error: The system configuration has been changed. Please revert.'."""
-    def __init__(self, message, buffer=None, original_exception=None):
-        self.message = message
-        # It is assumed that the buffer is already decoded.
-        self.buffer = buffer 
-        self.original_exception = original_exception
-        super().__init__(self.message)
-    
-    def get_tail_buffer(self, lenght=-200):
-        if self.buffer:
-            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
-        else:
-            return ""
-
-    def __str__(self):
-        # Logs format: Messagge + the last 200 chars of buffer
-        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
-        return f"{self.message} (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"{self.message} {buf_tail}"
-
-class NodegridLicenseError(NodegridError):
-    """Nodegrid License custom exception for 'Error: No license available.'"""
-    def __init__(self, buffer=None, original_exception=None):
-        # It is assumed that the buffer is already decoded.
-        self.buffer = buffer 
-        self.original_exception = original_exception
-        super().__init__()
-    
-    def get_tail_buffer(self, lenght=-200):
-        if self.buffer:
-            return self.buffer[lenght:].replace("\n",", ").replace("\r","")
-        else:
-            return ""
-
-    def __str__(self):
-        # Logs format: Messagge + the last 200 chars of buffer
-        buf_tail = f"CLI buffer tail: {self.get_tail_buffer()}" if self.buffer else ""
-        return f"Error: No license available. (Orig: {type(self.original_exception).__name__}) {buf_tail}" if self.original_exception else f"Error: No license available. {buf_tail}"
-
-class InputValidationError(NodegridError):
-    """Nodegrid Input Validation exception."""
-    def __init__(self, message, original_exception=None):
-        self.message = message
-        # It is assumed that the buffer is already decoded.
-        self.original_exception = original_exception
-        super().__init__(self.message)
-
-    def __str__(self):
-        return f"{self.message} (Orig: {type(self.original_exception).__name__})" if self.original_exception else f"{self.message}"
-#     
-############################################################################
 
 # Function to order the CLI commands generation based on an OrderedDict dependencies
 def cli_settings_reorder(current_settings, dependencies, initial_order=OrderedDict()):
@@ -211,14 +117,60 @@ def _get_import_process_timeout(import_text):
 
     return ret_timeout
 
+# ############
+# Run a list of commands. Retry the whole commands list if CLI returns either: a) Another transaction underway, 
+#  or b) System Revert, or Another Transaction Started.
+def run_cli_commands(cmds, timeout=60, max_retries=3, base_delay=2.0, max_delay=10.0):
+    delay = base_delay
+    results = dict(error=False, msg='', cmds_results=[], retries=0)
+    cmds_results= [] 
+    for attempt in range(1, max_retries+1):
+        try:
+            with nodegrid_cli(timeout) as cmd_cli:
+                for cmd in cmds:
+                    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
+                    if 'template' in cmd.keys():
+                        cmd_result['template'] = cmd['template']
+                    if 'set_fact' in cmd.keys():
+                        cmd_result['set_fact'] = cmd['set_fact']
+                    if 'ignore_error' in cmd.keys():
+                        cmd_result['ignore_error'] = cmd['ignore_error']
+                    #if 'json' in cmd.keys():
+                    #    cmd_result['json'] = cmd['json']
+                    cmd_result['command'] = cmd.get('cmd')
+                    cmds_results.append(cmd_result)
+                results['cmds_results'] = cmds_results
+                if attempt > 1:
+                    results['retries'] = attempt-1
+                break
+        except (CLITransactionUnderwayError, CLISystemRevertError, CLIAnotherTransactionStartedError) as e:
+            results['retries'] = attempt - 1
+            if attempt == max_retries:
+                e.message += f" [Retries: {results['retries']}]"
+                results['error'] = True
+                results['msg'] = f"{e}"
+                return results
+            jitter = random.uniform(0, 1.0)
+            sleep_time = min(delay + jitter, max_delay)
+            time.sleep(sleep_time)
+            delay *= 2
+            cmds_results= list()
+        except (NodegridError, Exception) as e:
+            results['retries'] = attempt - 1
+            results['error'] = True
+            results['msg'] = f"{e}"
+            break
+    return results
 
-def run_cli_command(cmd, ignore_error=False, timeout=60):
-    result = dict(error=False, msg='', output=None, json=None)
-    _cmd = dict(cmd=cmd, ignore_error=ignore_error)
+def run_cli_command(cmd, timeout=60):
+    if not isinstance(cmd, dict) or not 'cmd' in cmd.keys():
+        return dict(error=True, msg=f"cmd parameter must be a dict type and contain key:value as follows 'cmd':'CLI command'. Invalid value: {cmd}", output=None, output_lines=None, json=None) 
+    result = dict(error=False, msg='', output=None, output_lines=None, json=None)
     try:
         with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, _cmd, timeout=timeout)
+            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
             result['output'] = cmd_result['stdout']
+            result['output_lines'] = cmd_result['stdout_lines']
             result['json'] = cmd_result['json']
             result['error'] = cmd_result['error']
             if result['error']:
@@ -260,7 +212,7 @@ def abort_config_session(cmd_cli, timeout=60):
 def execute_cmd(cmd_cli, cmd, timeout=60):
     # cmd = dict(cmd='CLI command to execute', ignore_error=True|False, confirm=True|False, restore=True|False)
     if not isinstance(cmd, dict) or not 'cmd' in cmd.keys():
-       raise CLICommunicationError(message="cmd parameter must be a dict type and contain key:value {'cmd':'CLI command'}")
+       raise CLICommunicationError(message=f"cmd parameter must be a dict type and contain key:value as follows 'cmd':'CLI command'. Invalid value: {cmd}")
     output_dict = dict(error=False)
     try:
         cmd_cli.sendline(cmd['cmd'])
@@ -277,33 +229,33 @@ def execute_cmd(cmd_cli, cmd, timeout=60):
         else:
             cmd_cli.expect_exact(']# ', timeout=timeout)
         output = cmd_cli.before
-        output = output.replace('\r\r\n', '\r\n')
+        output = output.replace('\r\r\n', '\r\n').replace("\x07", "")
         ignore_error = 'ignore_error' in cmd.keys() and isinstance(cmd['ignore_error'], bool) and cmd['ignore_error'] is True
 
         if "Error: The system configuration has been changed. Please revert" in output:
             buffer = cmd_cli.before
-            abort_config_session(cmd_cli, timeout=timeout)
+            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLISystemRevertError(
-                message=f"Error: The system configuration has been changed. Session aborted/reverted attempted!.",
+                message=f"Error: The system configuration has been changed. Please revert.",
                 buffer=buffer,
             )
         elif "Error: Another configuration transaction is underway" in output:
             buffer = cmd_cli.before
             #abort_config_session(cmd_cli, timeout=timeout)
-            raise CLISystemRevertError(
-                message=f"Error: Another configuration transaction is underway. Session aborted/reverted attempted!.",
+            raise CLITransactionUnderwayError(
+                message=f"Error: Another configuration transaction is underway.",
                 buffer=buffer,
             )
         elif "Error: Another session has started a configuration transaction" in output:
             buffer = cmd_cli.before
             #abort_config_session(cmd_cli, timeout=timeout)
-            raise CLISystemRevertError(
-                message=f"Error: Another session has started a configuration transaction. Session aborted/reverted attempted!.",
+            raise CLIAnotherTransactionStartedError(
+                message=f"Error: Another session has started a configuration transaction.",
                 buffer=buffer,
             )
         elif "Error: No license available" in output:
             buffer = cmd_cli.before
-            raise NodegridLicenseError(
+            raise CLILicenseError(
                 buffer=buffer,
             )
         elif not ignore_error and ("Error" in output or "error" in output):
@@ -355,14 +307,14 @@ def get_nodegrid_os_details(timeout=60):
     Returns:
         dict: Nodegrid OS details
     """
-    cli_output = run_cli_command("show /system/about/", timeout=timeout)
+    cli_output = run_cli_command(dict(cmd="show /system/about/"), timeout=timeout)
 
     if cli_output['error'] is True:
         return {'error': True, 'msg': cli_output.get('msg', 'Error on cmd: show /system/about')}
-    output = cli_output.get('output')
+    output = cli_output.get('output_lines')
     details = dict(error = False)
 
-    for line in output.splitlines():
+    for line in output:
         if ":" in line:
             # output_dict[line] = line.split(':',1)
             key, value = line.split(':', 1)
@@ -398,11 +350,11 @@ def export_settings(cli_path, timeout=60):
     """
     settings = []
     all_settings = []
-    cli_output = run_cli_command(f'export_settings {cli_path} --plain-password --include-empty --not-enabled', timeout=timeout)
+    cli_output = run_cli_command(dict(cmd=f'export_settings {cli_path} --plain-password --include-empty --not-enabled'), timeout=timeout)
     if cli_output['error'] is True:
         return ["error", cli_output['msg']], settings, all_settings
-    output = cli_output.get('output')
-    for line in output.splitlines():
+    output = cli_output.get('output_lines')
+    for line in output:
         if "=" in line:
             keypath, value = line.split('=', 1)
             if line[0] != '#':
@@ -414,7 +366,7 @@ def export_settings(cli_path, timeout=60):
                 all_settings.append(line[1:])
     return "successful", settings, all_settings
 
-def import_settings(settings, use_config_start=True, timeout=60, debug=False):
+def import_settings(settings, use_config_start=True, timeout=60, debug=False, max_retries=3, base_delay=2.0, max_delay=10.0, sleep=None):
     """Runs the import settings.
 
     Args:
@@ -424,11 +376,13 @@ def import_settings(settings, use_config_start=True, timeout=60, debug=False):
     Returns:
         dict: Import settings result
     """
+    delay = base_delay
     import_p_timeout = max([_get_import_process_timeout(("\n").join(settings)), timeout])
     import_settings_file = f"/tmp/import_settings_{str(uuid.uuid4())}.cli"
     import_settings_log = f"/tmp/import_settings_log_{str(uuid.uuid4())}.txt"
     
     output_dict = {}
+    output_dict['retries'] = 0
     output_cmd = ''
     import_status_details = []
     import_status = "succeeded"
@@ -446,20 +400,35 @@ def import_settings(settings, use_config_start=True, timeout=60, debug=False):
         return output_dict
 
     #failed_to_import_settings = False
-    import_settings_error = None
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_cli.logfile = open(import_settings_log, "w")
-            if use_config_start:
-                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_start'), timeout=import_p_timeout)
-            cmd = dict(cmd=f"import_settings --file {import_settings_file}")
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=import_p_timeout)
-            output_cmd = cmd_result.get('output')
-            if use_config_start:
-                cmd_result = execute_cmd(cmd_cli, dict(cmd='config_confirm'), timeout=import_p_timeout)
-    except (NodegridError, Exception) as e:
-        #failed_to_import_settings = True
-        import_settings_error = e
+    for attempt in range(1, max_retries+1):
+        import_settings_error = None
+        try:
+            with nodegrid_cli(timeout=timeout) as cmd_cli:
+                cmd_cli.logfile = open(import_settings_log, "w")
+                if use_config_start:
+                    cmd_result = execute_cmd(cmd_cli, dict(cmd='config_start'), timeout=import_p_timeout)
+                cmd = dict(cmd=f"import_settings --file {import_settings_file}")
+                cmd_result = execute_cmd(cmd_cli, cmd, timeout=import_p_timeout)
+                output_cmd = cmd_result.get('output')
+                if use_config_start:
+                    cmd_result = execute_cmd(cmd_cli, dict(cmd='config_confirm'), timeout=import_p_timeout)
+            break
+        except (CLITransactionUnderwayError, CLISystemRevertError, CLIAnotherTransactionStartedError) as e:
+            output_dict['retries'] = attempt - 1
+            if attempt == max_retries:
+                e.message += f" [Retries: {output_dict['retries']}]"
+                output_dict["import_status"] = "failed"
+                output_dict['error'] = True
+                output_dict['msg'] = f"{e}"
+                break
+            jitter = random.uniform(0, 1.0)
+            sleep_time = min(delay + jitter, max_delay)
+            time.sleep(sleep_time)
+            delay *= 2
+        except (NodegridError, Exception) as e:
+            #failed_to_import_settings = True
+            import_settings_error = e
+            break
   
     try:
         file1 = open(import_settings_log, 'r')
@@ -823,6 +792,10 @@ def run_option(option, run_opt):
     use_config_start_global = run_opt['use_config_start_global']
     timeout = run_opt.get('timeout', 60)
     include_key_if_value_empty = option.pop('include_key_if_value_empty', [])
+    max_retries = int(run_opt.get('max_retries', 3))
+    base_delay = run_opt.get('base_delay', 2.0)
+    max_delay = run_opt.get('max_delay', 10.0)
+    sleep = run_opt.get('sleep', None)
 
     if 'no_diff' in run_opt and run_opt['no_diff']:
         no_diff = True
@@ -889,7 +862,7 @@ def run_option(option, run_opt):
                 use_config_start=use_config_start_global
             ))
         else:
-            import_result = import_settings(diff, use_config_start=use_config_start_global, timeout=timeout, debug=debug)
+            import_result = import_settings(diff, use_config_start=use_config_start_global, timeout=timeout, debug=debug, max_retries=max_retries, base_delay=base_delay, max_delay=max_delay)
 
         result['import_result'] = import_result
         if import_result['import_status'] == 'succeeded':
@@ -897,7 +870,8 @@ def run_option(option, run_opt):
         else:
             if len(import_result['error_list']) > 0:
                 result['message'] = ', '.join(import_result['error_list'])
-            result['msg'] = f"Import failed. Import status: {import_result.get('import_status_details', '')}. Errors: {import_result['error_list']}"
+                result['retries'] = import_result.get('retries', 0)
+            result['msg'] = f"Import failed [Retries: {result['retries']}]. Import status: {import_result.get('import_status_details', '')}. Errors: {import_result['error_list']}"
             result['failed'] = True
             result['import_settings_error'] = import_result
             return result
@@ -1048,8 +1022,7 @@ def read_table_row(table, col_index, col_value):
     return None
 
 def read_path_options(cli_path, timeout=60):
-    _cmd = f"show {cli_path}"
-    cli_output = run_cli_command(_cmd, timeout=timeout)
+    cli_output = run_cli_command(dict(cmd=f"show {cli_path}"), timeout=timeout)
     if cli_output['error'] is True:
         return dict(error=True, msg=f"{cli_output.get('msg')}")
 

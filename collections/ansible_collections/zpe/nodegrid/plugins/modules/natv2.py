@@ -498,7 +498,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, dict_diff, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, dict_diff, NodegridError, run_cli_command, run_cli_commands, nodegrid_cli_validate_inputs, cli_settings_reorder
 
 import os
 from collections import OrderedDict
@@ -510,6 +510,28 @@ TARGET_DEFAULTS ={
     "OUTPUT": ["ACCEPT", "DNAT", "LOG", "REDIRECT", "RETURN"],
     "POSTROUTING": ["ACCEPT", "LOG", "MASQUERADE", "RETURN", "SNAT"]
 } 
+rule_dependencies = OrderedDict(
+    protocol=OrderedDict(
+        numeric=['protocol_number'],
+        tcp=['source_port', 'destination_port', 'tcp_flag_syn', 'tcp_flag_ack', 'tcp_flag_fin', 'tcp_flag_rst', 'tcp_flag_urg', 'tcp_flag_psh', 'to_ports'],
+        udp=['source_udp_port', 'destination_udp_port', 'to_ports'],
+        icmp=['icmp_type']
+    ),
+    enable_state_match=['new', 'established', 'related', 'invalid', 'snat', 'dnat', 'reverse_state_match'],
+)
+
+chain_dependencies = OrderedDict({
+    "PREROUTING": ["source_mac_address", "to_ports", "input_interface", "reverse_match_for_source_mac_address", "reverse_match_for_input_interface"],
+    "INPUT": ["source_mac_address", "input_interface", "reverse_match_for_source_mac_address", "reverse_match_for_input_interface"],
+    "OUTPUT": ["to_ports", "output_interface", "reverse_match_for_output_interface"],
+    "POSTROUTING": ["to_ports", "output_interface", "reverse_match_for_output_interface"],
+    "user-chain": ["to_ports", "input_interface", "output_interface", "reverse_match_for_input_interface", "reverse_match_for_output_interface"],
+})
+rule_rename_settings = {
+    'reverse_match_for_source_ip_mask': 'reverse_match_for_source_ip|mask',
+    'reverse_match_for_destination_ip_mask': 'reverse_match_for_destination_ip|mask'
+}
+
 
 ALL_TARGET_DEFAULTS = set()
 for chain in TARGET_DEFAULTS:
@@ -529,12 +551,10 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def get_chains_present(table, timeout=60) -> dict:
     result = dict(error=False, msg='', chains=[], user_chains=[])
     cmd = dict(cmd=f"show /settings/{table}/chains")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
 
     for item in cmd_result['json']:
@@ -562,12 +582,10 @@ def delete_chain(table, chain):
 def get_chain_policy(table, chain, timeout=60) -> dict:
     result = dict(error=False, msg='', chain=None, policy=None)
     cmd = dict(cmd=f"show /settings/{table}/policy/ {chain}")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
 
     result['chain'] = chain
@@ -582,13 +600,12 @@ def set_chain_policy(table, chain, policy) -> dict:
 def get_rules_present(table, chain, timeout=60) -> dict:
     result = dict(error=False, msg='', rules=[])
     cmd = dict(cmd=f"export_settings /settings/{table}/chains/{chain}")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-            result['rules'] = [ item['data'] for item in cmd_result['json'] ]
-    except (NodegridError, Exception) as e:
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        result['msg'] = f"{cmd_result['msg']}"
+        return result
+    result['rules'] = [ item['data'] for item in cmd_result['json'] ]
     return result
 
 
@@ -624,23 +641,11 @@ def check_rule_present(rules, new_rule, is_insert):
 
 def insert_rule(table, chain, new_rule):
     cmds = []
-    dependencies = {
-        'protocol': {
-            'numeric': ['protocol_number'],
-            'tcp': ['source_port', 'destination_port', 'tcp_flag_syn', 'tcp_flag_ack', 'tcp_flag_fin', 'tcp_flag_rst', 'tcp_flag_urg', 'tcp_flag_psh', 'to_ports'],
-            'udp': ['source_udp_port', 'destination_udp_port', 'to_ports'],
-            'icmp': ['icmp_type']
-        },
-        'enable_state_match': ['new', 'established', 'related', 'invalid', 'snat', 'dnat', 'reverse_state_match'],
-    }
-
-    chain_dependencies = {
-        "PREROUTING": ["source_mac_address", "to_ports", "input_interface", "reverse_match_for_source_mac_address", "reverse_match_for_input_interface"],
-        "INPUT": ["source_mac_address", "input_interface", "reverse_match_for_source_mac_address", "reverse_match_for_input_interface"],
-        "OUTPUT": ["to_ports", "output_interface", "reverse_match_for_output_interface"],
-        "POSTROUTING": ["to_ports", "output_interface", "reverse_match_for_output_interface"],
-        "user-chain": ["to_ports", "input_interface", "output_interface", "reverse_match_for_input_interface", "reverse_match_for_output_interface"],
-    }
+    try:
+        new_rule = nodegrid_cli_validate_inputs(new_rule, rule_dependencies)
+        new_rule = cli_settings_reorder(new_rule, rule_dependencies, initial_order=OrderedDict(protocol={}))
+    except (NodegridError, Exception) as e:
+        return None, None, True, f"Error validating/ordering input values. Error: {e}"
 
     _chain = chain if chain in BUILTIN_CHAINS else "user-chain"
     all_chain_dependencies = set()
@@ -650,21 +655,6 @@ def insert_rule(table, chain, new_rule):
     for setting in chain_dependencies[_chain]:
         all_chain_dependencies.discard(setting)
 
-    rename_settings = {
-        'reverse_match_for_source_ip_mask': 'reverse_match_for_source_ip|mask',
-        'reverse_match_for_destination_ip_mask': 'reverse_match_for_destination_ip|mask'
-    }
-
-    for dependency in dependencies:
-        if isinstance(dependencies[dependency], dict):
-            for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule[dependency]]}:
-                for setting in dependencies[dependency][dep_rem]:
-                    if not setting in dependencies[dependency][new_rule[dependency]]:
-                        new_rule.pop(setting, None)
-        elif isinstance(dependencies[dependency], list) and new_rule[dependency].lower() == "no":
-            for setting in dependencies[dependency]:
-                new_rule.pop(setting, None)
-
     for setting in all_chain_dependencies:
         new_rule.pop(setting, None)
 
@@ -672,33 +662,21 @@ def insert_rule(table, chain, new_rule):
     cmds.append(dict(cmd="add"))
     for setting in new_rule:
         if new_rule[setting] and len(str(new_rule[setting]).strip()) > 0:
-            if setting in rename_settings:
-                cmds.append(dict(cmd=f"set {rename_settings[setting]}={str(new_rule[setting]).replace(' ','_')}"))
+            if setting in rule_rename_settings:
+                cmds.append(dict(cmd=f"set {rule_rename_settings[setting]}={str(new_rule[setting]).replace(' ','_')}"))
             else:
                 cmds.append(dict(cmd=f"set {setting}={str(new_rule[setting]).replace(' ','_')}"))
-    return new_rule, cmds
+    return new_rule, cmds, False, ''
 
 
 def append_rule(table, chain, new_rule):
     cmds = []
     new_rule.pop("rule_number", None)
-    dependencies = {
-        'protocol': {
-            'numeric': ['protocol_number'],
-            'tcp': ['source_port', 'destination_port', 'tcp_flag_syn', 'tcp_flag_ack', 'tcp_flag_fin', 'tcp_flag_rst', 'tcp_flag_urg', 'tcp_flag_psh'],
-            'udp': ['source_udp_port', 'destination_udp_port'],
-            'icmp': ['icmp_type']
-        },
-        'enable_state_match': ['new', 'established', 'related', 'invalid', 'snat', 'dnat', 'reverse_state_match'],
-    }
-
-    chain_dependencies = {
-        "PREROUTING": ["source_mac_address", "to_ports", "input_interface", "reverse_match_for_source_mac_address", "reverse_match_for_input_interface"],
-        "INPUT": ["source_mac_address", "input_interface", "reverse_match_for_source_mac_address", "reverse_match_for_input_interface"],
-        "OUTPUT": ["to_ports", "output_interface", "reverse_match_for_output_interface"],
-        "POSTROUTING": ["to_ports", "output_interface", "reverse_match_for_output_interface"],
-        "user-chain": ["to_ports", "input_interface", "output_interface", "reverse_match_for_input_interface", "reverse_match_for_output_interface"]
-    }
+    try:
+        new_rule = nodegrid_cli_validate_inputs(new_rule, rule_dependencies)
+        new_rule = cli_settings_reorder(new_rule, rule_dependencies, initial_order=OrderedDict(protocol={}))
+    except (NodegridError, Exception) as e:
+        return None, None, True, f"Error validating/ordering input values. Error: {e}"
 
     _chain = chain if chain in BUILTIN_CHAINS else "user-chain"
     all_chain_dependencies = set()
@@ -708,21 +686,6 @@ def append_rule(table, chain, new_rule):
     for setting in chain_dependencies[_chain]:
         all_chain_dependencies.discard(setting)
 
-    rename_settings = {
-        'reverse_match_for_source_ip_mask': 'reverse_match_for_source_ip|mask',
-        'reverse_match_for_destination_ip_mask': 'reverse_match_for_destination_ip|mask'
-    }
-
-    for dependency in dependencies:
-        if isinstance(dependencies[dependency], dict):
-            for dep_rem in {key:value for key, value in dependencies[dependency].items() if key not in [new_rule[dependency]]}:
-                for setting in dependencies[dependency][dep_rem]:
-                    if not setting in dependencies[dependency][new_rule[dependency]]:
-                        new_rule.pop(setting, None)
-        elif isinstance(dependencies[dependency], list) and new_rule[dependency].lower() == "no":
-            for setting in dependencies[dependency]:
-                new_rule.pop(setting, None)
-
     for setting in all_chain_dependencies:
         new_rule.pop(setting, None)
 
@@ -730,11 +693,11 @@ def append_rule(table, chain, new_rule):
     cmds.append(dict(cmd="add"))
     for setting in new_rule:
         if new_rule[setting] and len(str(new_rule[setting]).strip()) > 0:
-            if setting in rename_settings:
-                cmds.append(dict(cmd=f"set {rename_settings[setting]}={str(new_rule[setting]).replace(' ','_')}"))
+            if setting in rule_rename_settings:
+                cmds.append(dict(cmd=f"set {rule_rename_settings[setting]}={str(new_rule[setting]).replace(' ','_')}"))
             else:
                 cmds.append(dict(cmd=f"set {setting}={str(new_rule[setting]).replace(' ','_')}"))
-    return new_rule, cmds
+    return new_rule, cmds, False, ''
 
 
 def update_rule(table, chain, rule, new_rule):
@@ -744,13 +707,13 @@ def update_rule(table, chain, rule, new_rule):
     else:
         diff_state = new_rule
     if len(diff_state) == 0:
-        return diff_state, []
+        return diff_state, [], False, ''
 
     cmds.append(dict(cmd=f"cd /settings/{table}/chains/{chain}/{new_rule['rule_number']}"))
     for setting in diff_state:
         if len(str(diff_state[setting]).strip()) > 0:
             cmds.append(dict(cmd=f"set {setting}={str(diff_state[setting]).replace(' ','_')}"))
-    return diff_state, cmds
+    return diff_state, cmds, False, ''
 
     
 def delete_rule(table, chain, rule):
@@ -833,7 +796,10 @@ def run_module():
         log_pefix=dict(type='str', default=""),
         log_tcp_sequence_numbers=dict(type='str', default='no', choices=['yes', 'no']),
         log_options_from_the_tcp_packet_header=dict(type='str', default='no', choices=['yes', 'no']),
-        log_options_from_the_ip_packet_header=dict(type='str', default='no', choices=['yes', 'no'])
+        log_options_from_the_ip_packet_header=dict(type='str', default='no', choices=['yes', 'no']),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -863,12 +829,16 @@ def run_module():
         table=table,
         chain=module.params['chain'],
         state=module.params['state'],
+        retries=0,
     )
     #
     # Nodegrid OS section starts here
     #
     timeout = int(module.params.pop('timeout', 60))
     debug = module.params.pop('debug', False)
+    max_retries = module.params.pop('max_retries')
+    base_delay = module.params.pop('base_delay')
+    max_delay = module.params.pop('max_delay')
 
     # Lets get the current status and check if it must be changed
     res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
@@ -876,6 +846,12 @@ def run_module():
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
         result['warning'] = err_msg
+        use_config_start_global = False
+    else:
+        use_config_start_global = True
+
+    if debug:
+        result['nodegrid_facts'] = nodegrid_os
 
     # Check chain
     chain_management = module.params['chain_management']
@@ -975,12 +951,17 @@ def run_module():
                 result['message'] = "Rule already configured."
                 module.exit_json(**result)
             else:
+                error = False
+                msg = ''
                 if insert:
-                    diff_state, cmds = insert_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
+                    diff_state, cmds, error, msg = insert_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
                 elif modify:
-                    diff_state, cmds = update_rule(table=table, chain=module.params['chain'], rule=rule_present, new_rule=parsed_rule)
+                    diff_state, cmds, error, msg = update_rule(table=table, chain=module.params['chain'], rule=rule_present, new_rule=parsed_rule)
                 elif append:
-                    diff_state, cmds = append_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
+                    diff_state, cmds, error, msg = append_rule(table=table, chain=module.params['chain'], new_rule=parsed_rule)
+                if error:
+                    result['failed'] = True
+                    module.fail_json(msg=msg, **result)
         else:
             if module.params["rule_number"].isdigit() and int(parsed_rule['rule_number']) < len(rules_present['rules']):
                 rule_is_present, rule_present = check_rule_present(rules=rules_present['rules'], new_rule=parsed_rule, is_insert=True)
@@ -1021,30 +1002,21 @@ def run_module():
         result['changed'] = False
         module.exit_json(**result)
     else:
-        cmds.insert(0, {'cmd': f"config_start"})
         cmds.append({'cmd': f"commit"})
-        cmds.append({'cmd': f"config_confirm"})
-    try:
-        cmd_results = []
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if 'template' in cmd.keys():
-                    cmd_result['template'] = cmd['template']
-                if 'set_fact' in cmd.keys():
-                    cmd_result['set_fact'] = cmd['set_fact']
-                if 'ignore_error' in cmd.keys():
-                    cmd_result['ignore_error'] = cmd['ignore_error']
-                if 'json' in cmd.keys():
-                    cmd_result['json'] = cmd['json']
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                result['changed'] = True
-        if debug:
-            result['cmds_output'] = cmd_results
-    except (NodegridError, Exception) as e:
+        if use_config_start_global:
+            cmds.insert(0, {'cmd': f"config_start"})
+            cmds.append({'cmd': f"config_confirm"})
+    
+    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=max_retries, base_delay=base_delay, max_delay=max_delay)
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
         result['failed'] = True
-        result['message'] = f"CLI Error: f{e}"
+        result['msg'] = f"{run_cmds['msg']}"
+    else:
+        result['changed'] = True
+
+    if debug:
+        result['cmds_output'] = run_cmds['cmds_results']
     
     if result['failed']:
         module.fail_json(msg=result['message'], **result)

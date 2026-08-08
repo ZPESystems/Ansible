@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, result_failed, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, result_failed, NodegridError, run_cli_commands
 
 import os
 from datetime import datetime, timezone
@@ -43,10 +43,12 @@ def nodegrid_backup(option, run_opt):
     filename_extension = ".".join(filename_split[1:]) 
     backup_filename = f"{filename_split[0]}-{iso_basic_short}.{filename_extension}" if len(filename_split) > 1 else f"{filename_split[0]}-{iso_basic_short}"
     backup_file_permissions = option['backup_file_permissions']
-    result = {
-        'changed': False,
-        'failed': False,
-    }
+    result = dict(
+        changed=False,
+        failed=False,
+        backup_filename='',
+        retries=0,
+        )
     result['backup_filename'] = backup_filename
     cmds = [ 
         {'cmd': "save_settings"},
@@ -64,16 +66,12 @@ def nodegrid_backup(option, run_opt):
         result['cmds'] = cmds
         return result
     
-    cmd_results = list()
-    cmd_result = dict()
-    try:
-        with nodegrid_cli(timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                cmd_results.append(cmd_result)
-    except (NodegridError, Exception) as e:
-        return result_failed(msg=f"Failed to create the backup. Results: {e}")
 
+    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
+        return result_failed(msg=f"Failed to create the backup. Results: {run_cmds['msg']}")
+    cmds_results = run_cmds['cmds_results']
     try:
         mode_octal = int(backup_file_permissions, 8)
         backup_filepath = os.path.join("/backup",backup_filename)
@@ -81,8 +79,8 @@ def nodegrid_backup(option, run_opt):
     except Exception as e:
         return result_failed(f"Failed to change backup file '/backup/{backup_filename}' permissions '{backup_file_permissions}'. Error: {e}")
 
-    if cmd_results:
-        result['cmds_output'] = cmd_results
+    if cmds_results:
+        result['cmds_output'] = cmds_results
         result['changed'] = True
     return result
 
@@ -93,7 +91,11 @@ def run_module():
         backup_file_permissions=dict(type='str', required=False, default='755'),
         backup_files_rotation=dict(type='int', required=False, default=5),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type=int, default=60, required=False),
+        timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -137,7 +139,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'debug': module.params.get('debug', False),
+        'timeout': module.params.get('timeout', 60),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     result = nodegrid_backup(module.params, run_opt)

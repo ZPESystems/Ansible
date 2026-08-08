@@ -20,7 +20,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, dict_diff, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, dict_diff, NodegridError, run_cli_command, run_cli_commands
 import os, copy
 
 
@@ -34,43 +34,43 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 
 def get_rules(endpoint , rule , timeout=60):
     result = dict(error=False, msg='', rules=dict())
-    try:
-        cmd = dict(cmd=f"ls /settings/{endpoint}/{rule}")
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-            if len(cmd_result['json']) > 0:
-                rule_data = {}
-                for item in cmd_result['json']:
-                    rule_state = _get_rule(f"{endpoint}/{rule}", item['path'], cmd_cli, timeout=timeout)
-                    if 'rule' in rule_state:
-                        rule_data.update({item['path'] : rule_state['rule']} )
-                result['rules'][rule] = {'current_state': rule_data}
-            #else:
-            #    result['rules'][rule] = {'current_state': cmd_result}
-    except (NodegridError, Exception) as e:
+    cmd = dict(cmd=f"ls /settings/{endpoint}/{rule}")
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
-    return result
+    if not len(cmd_result['json']) > 0:
+        return result
+    
+    cmds = list()
+    for item in cmd_result['json']:
+        cmds.append(dict(cmd=f"export_settings /settings/{endpoint}/{rule}/{item['path']} --plain-password"))
 
-def _get_rule(endpoint: str, rule_number: str, cmd_cli, timeout=60) -> dict:
-    result = dict(error=False, msg='', rule=None)
-    cmd = dict(cmd=f"export_settings /settings/{endpoint}/{rule_number} --plain-password")
-    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    if cmd_result['json']:
-        result['rule'] = cmd_result['json'][0]['data']
+    run_cmds =  run_cli_commands(cmds, timeout=timeout)
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
+        result['error'] = True
+        result['msg'] = f"{run_cmds['msg']}"
+        return result
+
+    rule_data = {}
+    for cmd_result in run_cmds['cmds_results']:
+        rule_name = cmd_result['json'][0]['path'].replace(f"/settings/{endpoint}/{rule}/","")
+        rule_state = cmd_result['json'][0]['data']
+        if rule_state:
+            rule_data.update({rule_name: rule_state})
+    result['rules'][rule] = {'current_state': rule_data}
     return result
 
 
 def get_snmp_system(endpoint: str , timeout: int = 60) -> dict:
     result = dict(error=False, msg='', state=dict())
     cmd = dict(cmd=f"show /settings/{endpoint}")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
-        result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
+        result['failed'] = True
+        result['msg'] = f"{cmd_result['msg']}"
         return result
     result['state'] =  cmd_result['json'][0]['data']
     return result
@@ -94,7 +94,10 @@ def run_module():
         system=dict(type='dict', required=False),
         rules=dict(type='list', required=False),
         timeout=dict(type='int', default=60, required=False),
-        debug=dict(type='bool', default=False)
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -149,7 +152,7 @@ def run_module():
         if get_rules_current['error']:
             result['failed'] = True
             result['msg'] = f"{get_rules_current['msg']}"
-            module.fail_json(msg=result['msg'], **result)
+            module.fail_json(msg=result.pop('msg'), **result)
 
         rules_current.update(get_rules_current['rules'])
         # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
@@ -269,29 +272,11 @@ def run_module():
     ## Pushing Changes
 
     # Apply Changes
-    try:
-        cmd_results = []
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if 'template' in cmd.keys():
-                    cmd_result['template'] = cmd['template']
-                if 'set_fact' in cmd.keys():
-                    cmd_result['set_fact'] = cmd['set_fact']
-                if 'ignore_error' in cmd.keys():
-                    cmd_result['ignore_error'] = cmd['ignore_error']
-                if 'json' in cmd.keys():
-                    cmd_result['json'] = cmd['json']
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                if cmd_result['error']:
-                    result['failed'] = True
-                    result['msg'] = cmd_result['stdout_lines']
-                    break;
-                result['changed'] = True
-        result['cmds_output'] = cmd_results
-    except (NodegridError, Exception) as e:
-        module.fail_json(msg=f"{e}", **result)
+    run_cmds =  run_cli_commands(cmds, timeout=timeout)
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
+        module.fail_json(msg=f"{run_cmds['msg']}", **result)
+    result['cmds_output'] = run_cmds['cmds_results']
 
     if result['failed']:
         module.fail_json(msg=result['msg'], **result)

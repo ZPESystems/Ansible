@@ -18,11 +18,10 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, execute_cmd, read_path_options, NodegridError, nodegrid_cli_validate_inputs, cli_settings_reorder
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, format_settings, field_exist, result_failed, to_list, read_path_options, NodegridError, nodegrid_cli_validate_inputs, cli_settings_reorder, run_cli_command, run_cli_commands
+from ansible_collections.zpe.nodegrid.plugins.module_utils.managed_devices_dependencies import validate_management_fields, validate_logging_fields, local_managed_device_type, protected_devices_types, get_device_family_dependencies, device_family_type_dependencies, device_family_type_protocol_options 
 import os, json, pexpect, re
 from collections import OrderedDict
-import traceback
-from ansible_collections.zpe.nodegrid.plugins.module_utils.managed_devices_dependencies import validate_management_fields, validate_logging_fields, local_managed_device_type, protected_devices_types, get_device_family_dependencies, device_family_type_dependencies, device_family_type_protocol_options 
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -32,48 +31,42 @@ if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
 
-
 def check_current_managed_device(managed_device, timeout=60):
-    try:
-        cmd = dict(cmd=f"export_settings /settings/devices/{managed_device['name']}/access")
-        with nodegrid_cli(timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
-        return dict(error=True, current_type=None, msg=e)
+    cmd = dict(cmd=f"export_settings /settings/devices/{managed_device['name']}/access")
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
+        return dict(error=True, current_type=None, msg=cmd_result['msg'])
     return dict(error=False, current_type=cmd_result['json'][0]['data']['type'], msg='')
+
 
 def check_managed_device_type(device_type, timeout=60):
     device_type_details = None
-    try:
-        cmds = [dict(cmd=f"show /settings/types/{device_type}"), dict(cmd=f"export_settings /settings/types/{device_type}")]
-        with nodegrid_cli(timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if not device_type_details:
-                    device_type_details = cmd_result['json'][0]['data']
-                else:
-                    device_type_details['clone_key'] = cmd_result['json'][0]['data']['#clone_key']
-    except (NodegridError, Exception) as e:
-        return dict(error=True, device_type=None, msg=e)
+    cmds = [dict(cmd=f"show /settings/types/{device_type}", json=True), dict(cmd=f"export_settings /settings/types/{device_type}", json=True)]
+    run_cmds =  run_cli_commands(cmds, timeout=timeout)
+    if run_cmds['error']:
+        return dict(error=True, device_type=None, msg=run_cmds['msg'])
+    device_type_details = run_cmds['cmds_results'][0]['json'][0]['data']
+    device_type_details['clone_key'] = run_cmds['cmds_results'][1]['json'][0]['data']['#clone_key']
     return dict(error=False, device_type=device_type_details, msg='')
 
+
 def get_managed_device_types(timeout=60):
-    try:
-        cmd = dict(cmd=f"show /settings/types/")
-        with nodegrid_cli(timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
-        return dict(error=True, current_type=None, msg=e)
+    cmd = dict(cmd=f"show /settings/types/")
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
+        return dict(error=True, managed_device_types=[], msg=cmd_result['msg'])
     return dict(error=False, managed_device_types=[md_type.get('device type name').lower() for md_type in cmd_result['json'][0]['data']], msg='')
 
 
+# ##############################################################################################################
+# Nodegrid Managed Device Type implementation
 def run_option_device_type(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
-    cmds = []
-    cmd_results = None
+    cmds = list()
+    cmds_results = list()
     
     if not ('clone_type' in suboptions):
         return result_failed("Field 'clone_type' is required")
@@ -111,29 +104,27 @@ def run_option_device_type(option, run_opt):
 
     else:
         cmds.append({'confirm': True,'cmd': f"cd /settings/types; clone_type {suboptions['clone_type']}; set device_type_name={suboptions['device_type_name']}; commit"})
-        cmd_results = list()
-        cmd_result = dict()
         if not check_mode:
-            try:
-                with nodegrid_cli(timeout=timeout) as cmd_cli:
-                    for cmd in cmds:
-                        cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                        cmd_results.append(cmd_result)
-            except (NodegridError, Exception) as e:
-                return result_failed(msg=f"Failed cloning device type. Clone type='{suboptions['clone_type']}', device_type_name='{suboptions['device_type_name']}'. Error: f{e}")
+            run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+            if run_cmds['error']:
+                return result_failed(msg=f"Failed cloning device type. Clone type='{suboptions['clone_type']}', device_type_name='{suboptions['device_type_name']}'. Error: {run_cmds['msg']}")
+            cmds_results.extend(run_cmds['cmds_results'])
+
     suboptions['family'] = clone_family
     device_type_name = suboptions['device_type_name']
     # Clean the required options
     try:
         settings_tobe_deleted = set(['clone_type', 'device_type_name'])
         suboptions = nodegrid_cli_validate_inputs(suboptions, device_family_type_dependencies, settings_tobe_deleted=settings_tobe_deleted)
+        suboptions = cli_settings_reorder(suboptions, device_family_type_dependencies, initial_order=OrderedDict())
     except Exception as e:
-        return {'failed': True, 'changed': False, 'msg': f"{suboptions['access']} | Key/value error: {e} | {traceback.format_exc()}"}
+        return {'failed': True, 'changed': False, 'msg': f"Error validating/ordering input values. Error: {e}"}
     suboptions.pop('family')
 
     if 'protocol' in suboptions and not suboptions['protocol'] in device_family_type_protocol_options[clone_family]:
         return result_failed(f"Protol option '{suboptions['protocol']}' is not valid. Valid options: {device_family_type_protocol_options[clone_family]}")
 
+    option['suboptions'] = suboptions
     cli_path += f"/{device_type_name}"   
     option['cli_path'] = cli_path
     #option['settings'] = settings_list
@@ -145,20 +136,22 @@ def run_option_device_type(option, run_opt):
         return result
 
     # If device named was changed, update the return result
-    if cmd_results:
-        result['cmds_output'] = cmd_results
+    if cmds_results:
+        result['cmds_output'] = cmds_results
         result['changed'] = True
     return result
 
 
+# ##############################################################################################################
+# Nodegrid Managed Device implementation
 def run_option_device(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
     settings_list = []
-    cmds = []
-    cmd_results = None
+    cmds = list()
+    cmds_results = list()
     change_name_message = None
 
     if not ('access' in suboptions and field_exist(suboptions['access'], 'name')):
@@ -197,7 +190,7 @@ def run_option_device(option, run_opt):
         suboptions["access"] = nodegrid_cli_validate_inputs(suboptions["access"], device_dependencies, settings_tobe_deleted=settings_tobe_deleted)
         suboptions['access'] = cli_settings_reorder(suboptions['access'], device_dependencies,initial_order=OrderedDict(name=suboptions['access']['name']))
     except Exception as e:
-        return {'failed': True, 'changed': False, 'msg': f"{suboptions['access']} | Key/value error: {e} | {traceback.format_exc()}"}
+        return {'failed': True, 'changed': False, 'msg': f"Error validating/ordering input values. Error: {e}"}
     
     suboptions["access"].pop("family", None)
         
@@ -225,7 +218,7 @@ def run_option_device(option, run_opt):
 
             current_name = device_options.get('name',None)
             if current_name is None:
-                return result_failed(f"Failing to get device name for port '{port_name}'. Device options: f{device_options_cli}")
+                return result_failed(f"Failing to get device name for port '{port_name}'. Device options: {device_options_cli}")
 
             pattern = re.compile("^ttyS([0-9]+)$|^ttyS([0-9]+)-([0-9]+)$")
             if pattern.match(port_name):
@@ -240,31 +233,21 @@ def run_option_device(option, run_opt):
             # First change the managed device type if the new type is different
             if suboptions["access"]["type"].strip() != device_options["type"].strip():
                 cmds.append({'confirm': True,'cmd': f"cd /settings/devices/{current_name}/access; set type={suboptions['access']['type']}"})
-                cmd_results = list()
-                cmd_result = dict()
                 if not check_mode:
-                    try:
-                        with nodegrid_cli(timeout=timeout) as cmd_cli:
-                            for cmd in cmds:
-                                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                                cmd_results.append(cmd_result)
-                    except (NodegridError, Exception) as e:
-                        return result_failed(msg=f"Failed changing device '{current_name}'/access type='{suboptions['access']['type']}'. Current type: '{device_options['type']}'. Error: f{e}")
+                    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+                    if run_cmds['error']:
+                        return result_failed(msg=f"Failed changing device '{current_name}'/access type='{suboptions['access']['type']}'. Current type: '{device_options['type']}'. Error: {run_cmds['msg']}")
+                    cmds_results.extend(run_cmds['cmds_results'])
             # Change the managed device  name if it is different
             if new_name != current_name:
                 cmds.append({'confirm': True,'cmd': f"cd /settings/devices; rename {current_name}; set new_name={new_name}"})
-                cmd_results = list()
-                cmd_result = dict()
                 if not check_mode:
-                    try:
-                        with nodegrid_cli(timeout=timeout) as cmd_cli:
-                            for cmd in cmds:
-                                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                                cmd_results.append(cmd_result)
-                        change_name_message = f"managed_device_name: {current_name} -> {new_name}"
-                        cli_path += f"/{new_name}"
-                    except (NodegridError, Exception) as e:
-                        return result_failed(msg=f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Error: f{e}")
+                    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+                    if run_cmds['error']:
+                        return result_failed(msg=f"Failed changing name device '{current_name}'/port name='{port_name}' with name '{new_name}'. Error: {run_cmds['msg']}")
+                    cmds_results.extend(run_cmds['cmds_results'])
+                    change_name_message = f"managed_device_name: {current_name} -> {new_name}"
+                    cli_path += f"/{new_name}"
             else:
                 cli_path += f"/{current_name}"
         else:
@@ -274,16 +257,11 @@ def run_option_device(option, run_opt):
         if not check_managed_device['error'] and suboptions["access"]["type"].strip() != check_managed_device["current_type"].strip():
             # First change the managed device type if the new type is different
             cmds.append({'confirm': True,'cmd': f"cd /settings/devices/{suboptions['access']['name']}/access; set type={suboptions['access']['type']}"})
-            cmd_results = list()
-            cmd_result = dict()
             if not check_mode:
-                try:
-                    with nodegrid_cli(timeout=timeout) as cmd_cli:
-                        for cmd in cmds:
-                            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                            cmd_results.append(cmd_result)
-                except (NodegridError, Exception) as e:
-                    return result_failed(msg=f"Failed changing device '{suboptions['access']['name']}'/access type='{suboptions['access']['type']}'. Current type: '{check_managed_device['current_type']}'. Error: f{e}")
+                run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+                if run_cmds['error']:
+                    return result_failed(msg=f"Failed changing device '{suboptions['access']['name']}'/access type='{suboptions['access']['type']}'. Current type: '{check_managed_device['current_type']}'. Error: {run_cmds['msg']}")
+                cmds_results.extend(run_cmds['cmds_results'])
         cli_path += f"/{suboptions['access']['name'].strip()}"
 
     for key, value in suboptions.items():
@@ -333,8 +311,8 @@ def run_option_device(option, run_opt):
         return result
 
     # If device named was changed, update the return result
-    if cmd_results:
-        result['cmds_output'] = cmd_results
+    if cmds_results:
+        result['cmds_output'] = cmds_results
         result['changed'] = True
         if result['message'] == 'No change required':
             result['message'] = change_name_message
@@ -343,6 +321,8 @@ def run_option_device(option, run_opt):
     return result
 
 
+# ##############################################################################################################
+# Nodegrid Managed Device Auto Discovery implementation
 def run_option_auto_discovery(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
@@ -373,12 +353,16 @@ def run_option_auto_discovery(option, run_opt):
     option['settings'] = settings_list
     return run_option(option, run_opt)
 
+
+# ##############################################################################################################
+# Nodegrid Managed Device Facts implementation
 def facts(option, run_opt):
     suboptions = option['suboptions']
     cli_path = option['cli_path']
     result = dict(
         changed=False,
         failed=False,
+        msg='',
     )
 
     try:
@@ -410,6 +394,9 @@ def facts(option, run_opt):
     result['devices'] = inventory
     return result
 
+
+# ##############################################################################################################
+# Nodegrid Managed Device Ansible Module implementation
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
@@ -420,6 +407,9 @@ def run_module():
         facts=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
         debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -496,7 +486,10 @@ def run_module():
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
         'timeout': module.params['timeout'],
-        'debug': module.params['debug']
+        'debug': module.params['debug'],
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     for option in option_list:

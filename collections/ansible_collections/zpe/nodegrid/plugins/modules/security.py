@@ -90,7 +90,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, execute_cmd, run_option_no_diff, export_settings, settings_to_dict, result_nochanged, dict_diff, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, format_settings, run_option_adding_field_in_the_path, field_exist, result_failed, field_not_exist, to_list, run_option_no_diff, export_settings, settings_to_dict, result_nochanged, dict_diff, NodegridError, run_cli_command, run_cli_commands
 import os
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -140,12 +140,10 @@ def run_option_local_account(option, run_opt):
 def get_local_accounts(timeout=60) -> dict:
     result = dict(error=False, local_accounts=[], msg='')
     cmd = dict(cmd=f"show /settings/local_accounts")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
 
     local_accounts = []
@@ -157,12 +155,10 @@ def get_local_accounts(timeout=60) -> dict:
 def _get_local_account(username, timeout=60) -> dict:
     result = dict(error=False, msg='', account=None)
     cmd = dict(cmd = f"export_settings /settings/local_accounts/{username} --plain-password")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['error'] = True
-        result['msg'] = f"CLI Error: f{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
 
     result['account'] = cmd_result['json'][0]['data']
@@ -232,25 +228,21 @@ def run_authorization_profile(option, run_opt):
         profile_result['changed'] = True
 
         # Add manage devices permissions in a sigle line cli command
-        try:
-            timeout = run_opt.get('timeout', 60)
-            cmd_line = []
-            for key, value in permissions_dict.items():
-                cmd_line.append(f"{key}='{value}'")
-            cmds = [
-                {'cmd': f"cd {profile_path}"},
-                {'cmd': f"set {' '.join(cmd_line)}"},
-                {'cmd': 'commit'}
-            ]
-            cmd_results = []
-            with nodegrid_cli(timeout=timeout) as cmd_cli:
-                for cmd in cmds:
-                    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                    cmd_result['command'] = cmd.get('cmd')
-                    cmd_results.append(cmd_result)
-            profile_result['cmds_output'] = cmd_results
-        except (NodegridError, Exception) as e:
-            return result_failed(f"CLI Error: f{e}")
+        timeout = run_opt.get('timeout', 60)
+        cmd_line = list()
+        for key, value in permissions_dict.items():
+            cmd_line.append(f"{key}='{value}'")
+        cmds = [
+            {'cmd': f"cd {profile_path}"},
+            {'cmd': f"set {' '.join(cmd_line)}"},
+            {'cmd': 'commit'}
+        ]
+
+        run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+        profile_result['retries'] = run_cmds['retries']
+        if run_cmds['error']:
+            return result_failed(f"CLI Error: {run_cmds['msg']}")
+        profile_result['cmds_output'] = run_cmds['cmds_results']
     return profile_result
 
 def run_option_authorization(option, run_opt):
@@ -349,23 +341,19 @@ def authentication_servers_validate(servers_nodegrid, servers):
 def _get_authentication_server(server_index, timeout=60) -> dict:
     #build cmd
     cmd = dict(cmd = f"export_settings /settings/authentication/servers/{server_index} --plain-password")
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
-        return result_failed(f"CLI Error: f{e}")
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
+        return result_failed(f"CLI Error: {cmd_result['msg']}")
     return dict(error=False, server_config=cmd_result['json'][0]['data'])
 
 def get_servers_present(timeout=60) -> dict:
     #build cmd
     cmd = dict(cmd = f"show /settings/authentication/servers/")
     result = dict(error=False, servers=[], msg='')
-    try:
-        with nodegrid_cli(timeout=timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
-        result['error'] = True 
-        result['msg'] = f"Error: {e}"
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
+        result['error'] = True
+        result['msg'] = f"{cmd_result['msg']}"
         return result
 
     servers = []
@@ -488,7 +476,11 @@ def run_module():
         authorization=dict(type='dict', required=False),
         password_rules=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        timeout=dict(type='int', default=60, required=False)
+        timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -563,7 +555,9 @@ def run_module():
         use_config_start_global = False
     else:
         use_config_start_global = True
-    result['nodegrid_facts'] = nodegrid_os
+    
+    if module.params.get('debug'):
+        result['nodegrid_facts'] = nodegrid_os
 
     #
     # Lets run the options
@@ -572,7 +566,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout']
+        'timeout': module.params.get('timeout', 60),
+        'debug': module.params.get('debug', False),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     for option in option_list:

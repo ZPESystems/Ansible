@@ -129,7 +129,7 @@ def run_module():
     #
     # Nodegrid OS section starts here
     #
-    timeout = module.params['timeout']
+    timeout = module.params.get('timeout')
 
     # Lets get the current status and check if it must be changed
     res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
@@ -155,8 +155,7 @@ def run_module():
         get_services_current = get_state("services", timeout=module.params['timeout'])
         if get_services_current['error']:
             result['failed'] = True
-            result['msg'] = get_services_current['msg']
-            return result
+            module.fail_json(msg=get_services_current['msg'], **result)
         services_current.update(get_services_current['state'])
         # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
         diff = []
@@ -169,6 +168,7 @@ def run_module():
         except Exception as e:
             result['failed'] = True
             result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
+            module.fail_json(msg=f"Error: creating system settings diff. Error Message: {str(e)}", **result)
         finally:
             diff_chains['services'] = diff
     
@@ -179,8 +179,7 @@ def run_module():
         get_zpe_cloud_current = get_state("zpe_cloud", timeout=module.params['timeout'])
         if get_zpe_cloud_current['error']:
             result['failed'] = True
-            result['msg'] = get_zpe_cloud_current['msg']
-            return result
+            module.fail_json(msg=get_zpe_cloud_current['msg'], **result)
         zpe_cloud_current.update(get_zpe_cloud_current['state'])
         diff = []
         try:
@@ -192,6 +191,7 @@ def run_module():
         except Exception as e:
             result['failed'] = True
             result['error'] = f"Error: creating system settings diff. Error Message: {str(e)}"
+            module.fail_json(msg=f"Error: creating system settings diff. Error Message: {str(e)}", **result)
         finally:
             diff_chains['zpe_cloud'] = diff
 
@@ -247,7 +247,7 @@ def run_module():
 
 
     if result['failed']:
-        module.fail_json(msg=result['msg'], **result)
+        module.fail_json(msg=result.pop('msg',''), **result)
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results

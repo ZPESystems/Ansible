@@ -20,79 +20,66 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, dict_diff, NodegridError, run_cli_command, run_cli_commands
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, dict_diff, NodegridError, run_cli_command, run_cli_commands, run_option, result_failed, nodegrid_cli_validate_inputs, cli_settings_reorder
 import os, copy
-
+from collections import OrderedDict
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
-if "DLITF_SID" in os.environ:
-    del os.environ["DLITF_SID"]
-if "DLITF_SID_ENCRYPT" in os.environ:
-    del os.environ["DLITF_SID_ENCRYPT"]
+if 'DLITF_SID' in os.environ:
+    del os.environ['DLITF_SID']
+if 'DLITF_SID_ENCRYPT' in os.environ:
+    del os.environ['DLITF_SID_ENCRYPT']
 
 
-def get_rules(endpoint , rule , timeout=60):
-    result = dict(error=False, msg='', rules=dict())
-    cmd = dict(cmd=f"ls /settings/{endpoint}/{rule}")
-    cmd_result = run_cli_command(cmd, timeout=timeout)
-    if cmd_result['error']:
-        result['error'] = True
-        result['msg'] = f"{cmd_result['msg']}"
-        return result
-    if not len(cmd_result['json']) > 0:
-        return result
+# Managed Device Management dependencies
+snmp_rule_dependencies= OrderedDict({
+    'version': OrderedDict({
+        'version_v1|v2': ['access_type', 'oid', 'source', 'community', 'snmp_for_ipv6'],
+        'version_3': ['access_type', 'oid', 'security_level', 'authentication_algorithm', 'privacy_algorithm', 'username', 'authentication_password', 'privacy_password']
+        }),
+    'access_type': ('validate', ['read_only', 'read_and_write']),
+    'security_level': ('validate', ['authnopriv', 'noauthnopriv', 'authpriv']),
+    'authentication_algorithm': ('validate', ['md5', 'sha', 'sha-224', 'sha-256', 'sha-384', 'sha-512']),
+    'privacy_algorithm': ('validate', ['aes', 'aes-192', 'aes-256', 'des']),
+    })
+
+def run_option_snmp_rule(option,run_opt):
+    suboptions = option['suboptions']
     
-    cmds = list()
-    for item in cmd_result['json']:
-        cmds.append(dict(cmd=f"export_settings /settings/{endpoint}/{rule}/{item['path']} --plain-password"))
+    if not 'version' in suboptions:
+        return result_failed(f"Field 'version' is required. Supported version values: {', '.join(snmp_rule_dependencies['version'].keys())}")
 
-    run_cmds =  run_cli_commands(cmds, timeout=timeout)
-    result['retries'] = run_cmds['retries']
-    if run_cmds['error']:
-        result['error'] = True
-        result['msg'] = f"{run_cmds['msg']}"
-        return result
+    # Clean the required options
+    try:
+        option['suboptions'] = nodegrid_cli_validate_inputs(suboptions, snmp_rule_dependencies)
+        option['suboptions'] = cli_settings_reorder(suboptions, snmp_rule_dependencies, initial_order=OrderedDict())
+    except Exception as e:
+        return {'failed': True, 'changed': False, 'msg': f"Error validating/ordering input values. Error: {e}"}
 
-    rule_data = {}
-    for cmd_result in run_cmds['cmds_results']:
-        rule_name = cmd_result['json'][0]['path'].replace(f"/settings/{endpoint}/{rule}/","")
-        rule_state = cmd_result['json'][0]['data']
-        if rule_state:
-            rule_data.update({rule_name: rule_state})
-    result['rules'][rule] = {'current_state': rule_data}
-    return result
+    if suboptions['version'] == "version_v1|v2":
+        if not 'community' in option['suboptions'] or len(option['suboptions']['community'].strip()) == 0:
+            return result_failed("Field 'community' is required")
+        source = option['suboptions']['source'] if 'source' in option['suboptions'] and len(option['suboptions']['source'].strip())>0 else 'default'
+        option['cli_path'] += f"/{option['suboptions']['community']}_{source}"
+    elif suboptions['version'] == "version_3":
+        if not 'username' in option['suboptions'] or len(option['suboptions']['username'].strip()) == 0:
+            return result_failed("Field 'username' is required")
+        option['cli_path'] += f"/{option['suboptions']['username']}"
 
-
-def get_snmp_system(endpoint: str , timeout: int = 60) -> dict:
-    result = dict(error=False, msg='', state=dict())
-    cmd = dict(cmd=f"show /settings/{endpoint}")
-    cmd_result = run_cli_command(cmd, timeout=timeout)
-    if cmd_result['error']:
-        result['failed'] = True
-        result['msg'] = f"{cmd_result['msg']}"
-        return result
-    result['state'] =  cmd_result['json'][0]['data']
-    return result
+    return run_option(option, run_opt)
 
 
-def resort_rule(rule: dict):
-    new_rule: dict = {}
-    sort_list = ['version','community','source', 'verison', 'username', 'security_level', 'authentication_algorithm',
-                 'authentication_password', 'privacy_algorithm', 'privacy_password']
-    for key in sort_list:
-        if key in rule.keys():
-            new_rule[key] = rule[key]
-            rule.pop(key)
-    new_rule = {**new_rule, **rule}
-    return new_rule
+def run_option_snmp_system(option,run_opt):
+    return run_option(option, run_opt)
 
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         system=dict(type='dict', required=False),
-        rules=dict(type='list', required=False),
+        rule=dict(type='dict', required=False),
+        skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
         debug=dict(type='bool', default=False, required=False),
         max_retries=dict(type='int', default=3, required=False),
@@ -108,6 +95,7 @@ def run_module():
     result = dict(
         changed=False,
         failed=False,
+        output=dict(),
         message=''
     )
 
@@ -119,167 +107,86 @@ def run_module():
         argument_spec=module_args,
         supports_check_mode=True
     )
+    
+    # Nodegrid CLI pexpect timeout
+    timeout = module.params['timeout']
+    
+    # List of options to run
+    option_list = [
+        {
+            'name': 'rule',
+            'suboptions': module.params['rule'],
+            'cli_path': '/settings/snmp/v1_v2_v3',
+            'func': run_option_snmp_rule
+        },
+        {
+            'name': 'system',
+            'suboptions': module.params['system'],
+            'cli_path': '/settings/snmp/system',
+            'func': run_option_snmp_system
+        },
+    ]
+
     #
     # Nodegrid OS section starts here
     #
-    timeout = module.params['timeout']
-
-    # Lets get the current status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
+    # Lets get the current interface status and check if it must be changed
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
         result['warning'] = err_msg
+        use_config_start_global = False
+    else:
+        use_config_start_global = True
 
     if module.params['debug']:
         result['nodegrid_os'] = nodegrid_os
-
-  ## Find out what needs to be changed
-    diff_chains = {
-        'system': {},
-        'snmp_rules': {}
+    
+    # Lets run the options
+    #
+    run_opt = {
+        'skip_invalid_keys': module.params['skip_invalid_keys'],
+        'use_config_start_global' : use_config_start_global,
+        'check_mode': module.check_mode,
+        'timeout': module.params['timeout'],
+        'debug': module.params['debug'],
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
-    # Look at SNMP settings rules
-    #desired_state_rules = []
-    if module.params['rules']:
-        snmp_rules = module.params['rules']
-        # Look at Firewall rules
-        rules_current = {}
-        chain = "v1_v2_v3"
-        # Get the current state of the rules
-        get_rules_current = get_rules("snmp", chain, timeout=timeout)
-        if get_rules_current['error']:
-            result['failed'] = True
-            result['msg'] = f"{get_rules_current['msg']}"
-            module.fail_json(msg=result.pop('msg'), **result)
-
-        rules_current.update(get_rules_current['rules'])
-        # [TODO] This Section needs to expanded to cover different actions, currently we will consider only add and update
-        diff_rules = []
-        if module.params['debug']:
-            result['rules_current'] = copy.deepcopy(rules_current)
-            result['rules_desired'] = copy.deepcopy(snmp_rules)
-        for rule in snmp_rules:
-            # The v3 needs to be handled different to v1 and v2
-            if 'version' in rule.keys():
-                # Before continue, do we ensure that a source is defined, by default value will be set default
-                if 'source' not in rule.keys() and rule['version'] == 'version_v1|v2':
-                    rule['source'] = "default"
-                if 'source' in rule.keys() and len(rule['source']) == 0 and rule['version'] == 'version_v1|v2':
-                    rule['source'] = "default"
-                # Lets define the rule number
-                if str(rule['version']).strip() == 'version_v1|v2':
-                    rule['rule_number'] = str(rule['community'] + "_" + rule['source'])
-                if str(rule['version']).strip() == 'version_3':
-                    if 'username' in rule.keys():
-                        rule['rule_number'] = rule['username']
-                    else:
-                        result['failed'] = True
-                        result['msg'] = "For SNMP Version 3 must a username parameter be defined"
-                        module.fail_json(msg=result['msg'], **result)
-
-                # Ansible inventory dose not honor the order or dictonaries and sort alphabetically, as order is
-                # important to some settings are we reordering the rule dictinorary
-                rule = resort_rule(rule)
-                if 'rule_number' in rule.keys():
-                    if module.params['debug']:
-                        result[rule['rule_number']] = rule.copy()
-                    # We set the desired state
-                    desired_state = rule
-                    # We found a matching rule number in the current state, we will check against this specific rule
-                    if 'current_state' in rules_current and isinstance(rules_current[chain]['current_state'], dict) and rule['rule_number'] in rules_current[chain]['current_state'].keys():
-                        diff_chains['snmp_rules'] = {}
-                        current_state = rules_current[chain]['current_state'][str(rule['rule_number'])]
-                        diff_state = dict_diff(desired_state,current_state)
-                        if module.params['debug']:
-                            result['diff_state'] = diff_state.copy()
-                        if len(diff_state) > 0:
-                            diff_state['rule_number'] = rule['rule_number']
-                            diff_rules.append(diff_state)
-                    else:
-                         rule.pop('rule_number', None)
-                         diff_rules.append(rule)
-                    diff_chains['snmp_rules'] = diff_rules
-            else:
+    for option in option_list:
+        if option['suboptions'] is not None:
+            func = option['func']
+            res = func(option, run_opt)
+            if res['failed']:
+                result.pop('output', None)
                 result['failed'] = True
-                result['msg'] = "SNMP version parameter must be defined"
-                module.fail_json(msg=result['msg'], **result)
-
-    # Look at SNMP System details
-    if module.params['system']:
-        snmp_system = module.params['system']
-        system_current = {}
-        # Get the current state of the policy
-        snmp_system_current = get_snmp_system("snmp/system", timeout=timeout)
-        if snmp_system_current['error']:
-            result['failed'] = True 
-            result['msg'] = snmp_system_current['msg']
-            module.fail_json(msg=result['msg'], **result)
-
-        system_current.update(snmp_system_current['state'])
-        if module.params['debug']:
-            result['system_current'] = system_current.copy()
-            result['system_desired'] = snmp_system.copy()
-        # Create a diff
-        diff = []
-        for item in snmp_system:
-            if system_current[item]:
-                if str(snmp_system[item]).strip() != str(system_current[item]).strip():
-                    diff.append({item: snmp_system[item]})
-        diff_chains['system'] = diff
-
-
-    # Build out commands
-    cmds = []
-    # # Build Commands for SNMP  rules
-    if len(diff_chains['snmp_rules']) > 0:
-        for rule in diff_chains['snmp_rules']:
-            if 'rule_number' in rule.keys():
-                cmds.append({'cmd': f"cd /settings/snmp/v1_v2_v3/{rule['rule_number']}"})
+                module.fail_json(msg=res['msg'], **result)
+            if option['name'] == 'facts':
+                result['facts'] = res['devices']
+                result['failed'] = False
             else:
-                cmds.append({'cmd': f"cd /settings/snmp/v1_v2_v3/"})
-                cmds.append({'cmd': "add"})
-            for setting in rule:
-                if 'rule_number' != setting:
-                    cmd = {'cmd': f"set {setting}={rule[setting]}"}
-                    cmds.append(cmd)
-            cmds.append({'cmd': "commit"})
+                result['output'][option['name']] = res
 
-    # Build Commands for SNMP System settings
-    if len(diff_chains['system']) > 0:
-        cmds.append({'cmd': f"cd /settings/snmp/system/"})
-        for rule in diff_chains['system']:
-            for setting in rule:
-                cmd = {'cmd': f"set {setting}='{rule[setting]}'"}
-                cmds.append(cmd)
-        cmds.append({'cmd': "commit"})
-
-    # as fail save add system roll back
-    if len(cmds) > 0:
-        cmds.insert(0, {'cmd': f"config_start"})
-        cmds.append({'cmd': f"config_confirm"})
-
-    if module.params['debug']:
-        result['cmds'] = cmds
-        result['diff'] = diff_chains
-
+    # if the user is working with this module in only check mode we do not
+    # want to make any changes to the environment, just return the current
+    # state with no modifications
     if module.check_mode:
-        # Display Changes
-        result['diff'] = diff_chains
+        result['changed'] = False
         result['message'] = "No changes where performed, running in check_mode"
         module.exit_json(**result)
-    ## Pushing Changes
 
-    # Apply Changes
-    run_cmds =  run_cli_commands(cmds, timeout=timeout)
-    result['retries'] = run_cmds['retries']
-    if run_cmds['error']:
-        module.fail_json(msg=f"{run_cmds['msg']}", **result)
-    result['cmds_output'] = run_cmds['cmds_results']
-
-    if result['failed']:
-        module.fail_json(msg=result['msg'], **result)
+    # manipulate or modify the state as needed (this is going to be the
+    # part where your module will do what it needs to do)
+    result['message'] = 'No change required'
+    for key in result['output'].keys():
+        item = result['output'][key]
+        if item['changed']:
+            result['changed'] = True
+            result['message'] = 'Import was successful'
+            break
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results

@@ -7,6 +7,21 @@
     csv_file_path: "{{nodegrid_csv_file_path | default('/var/local/file_manager/admin_group/managed_devices_report.csv')}}" # 
 
   tasks:
+  - name: Check if the target CSV file exists
+    ansible.builtin.stat:
+      path: "{{ csv_file_path }}"
+    register: file_details
+
+  - name: Change file permissions to 7if it exists
+    ansible.builtin.file:
+      path: "{{ csv_file_path }}"
+      mode: "0766"
+      owner: ansible
+      group: admin
+      state: file
+    when: file_details.stat.exists
+    become: yes
+
   - name: Create the Managed Devices CSV report
     zpe.nodegrid.nodegrid_elasticsearch_export:
       es_index: "spconfig_system_report"

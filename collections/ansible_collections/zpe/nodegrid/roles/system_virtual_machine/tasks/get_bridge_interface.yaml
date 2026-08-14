@@ -2,7 +2,9 @@
   zpe.nodegrid.nodegrid_cmds:
     cmds:
       - cmd: "show /settings/network_connections/{{ network_connection }}"
-gister: _connection_interface
+  register: _connection_interface
+
 - name: Create bridges interfaces list
   set_fact:
     bridge_interface: "{{ bridge_interface | default([]) + [_connection_interface.cmds_output[0].json[0].data.interface] }}"
+  when: _connection_interface.cmds_output | length > 0

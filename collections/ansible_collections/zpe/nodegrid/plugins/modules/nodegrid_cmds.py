@@ -52,7 +52,8 @@ def run_module():
         changed=False,
         failed=False,
         message='',
-        retries=0
+        cmds_output=list(),
+        retries=0,
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -85,11 +86,11 @@ def run_module():
 
     # run commands and gather output
     run_cmds =  run_cli_commands(module.params['cmds'], timeout=timeout, max_retries=module.params.get('max_retries'), base_delay=module.params.get('base_delay'), max_delay=module.params.get('max_delay'))
+    result['cmds_output'] = run_cmds['cmds_results']
     result['retries'] = run_cmds['retries']
     if run_cmds['error']:
         result['failed'] = True
         result['message'] = f"{run_cmds['msg']}"
-    result['cmds_output'] = run_cmds['cmds_results']
 
     if result['failed']:
         module.fail_json(msg=result['message'], **result)

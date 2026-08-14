@@ -355,8 +355,7 @@ def run_option_network_connections(option, run_opt):
     ]
 
     # Settings dependencies
-    network_connection_dependencies = OrderedDict()
-    network_connection_dependencies = {
+    network_connection_dependencies = OrderedDict({
         'type': 
         {
             'ethernet': 
@@ -698,7 +697,7 @@ def run_option_network_connections(option, run_opt):
             'sim-2_data_warning', 
             'sim-2_renew_day'
         ],
-    }
+    })
 
     timeout = run_opt.get('timeout', 60)
     field_name = 'name'
@@ -733,6 +732,9 @@ def run_module():
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
         debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -803,8 +805,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
-        'timeout': module.params['timeout'],
-        'debug': module.params['debug']
+        'debug': module.params.get('debug', False),
+        'timeout': module.params.get('timeout', 60),
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     for option in option_list:

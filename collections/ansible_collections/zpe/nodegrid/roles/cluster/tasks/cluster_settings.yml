@@ -13,6 +13,10 @@
       auto_enroll: "{{ cluster_settings_auto_enroll }}"
       enable_peer_management: "{{ cluster_settings_enable_peer_management }}"
       enable_license_pool: "{{ cluster_settings_enable_license_pool }}"
+      lps_type: "{{ cluster_settings_lps_type }}"
+      renew_time: "{{ cluster_settings_renew_time }}"
+      lease_time: "{{ cluster_settings_lease_time }}"
+
   when: cluster_settings_type is defined and "coordinator" is in cluster_settings_type
 
 - name: configure cluster peer
@@ -31,4 +35,7 @@
       auto_enroll: "{{ cluster_settings_auto_enroll }}"
       enable_peer_management: "{{ cluster_settings_enable_peer_management }}"
       enable_license_pool: "{{ cluster_settings_enable_license_pool }}"
+      lps_type: "{{ cluster_settings_lps_type }}"
+      renew_time: "{{ cluster_settings_renew_time }}"
+      lease_time: "{{ cluster_settings_lease_time }}"
   when: cluster_settings_type is defined and "peer" is in cluster_settings_type

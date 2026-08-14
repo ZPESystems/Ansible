@@ -1,0 +1,27 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  tasks:
+  - name: Add device type 'test'
+    zpe.nodegrid.managed_devices:
+      type:
+        device_type_name: 'test'
+        clone_type: 'console_server_acs6000' #'cimc_ucs' # 'console_server_acs'
+        protocol: 'ipmi'
+        ssh_options: '-N'
+        login_prompt: 'ogin'
+        password_prompt: 'sword'
+        command_prompt: '([[][^]]+[]][#\\$])'
+        console_escape_sequence: ''
+  - name: Add device type 'test 1'
+    zpe.nodegrid.managed_devices:
+      type:
+        device_type_name: 'test1'
+        clone_type: 'test' 
+        protocol: 'ipmi'
+        ssh_options: '-N'
+        login_prompt: 'ogin'
+        password_prompt: 'sword'
+        command_prompt: '([[][^]]+[]][#\\$])'
+        console_escape_sequence: ''

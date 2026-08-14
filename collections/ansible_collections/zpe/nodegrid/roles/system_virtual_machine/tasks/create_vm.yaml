@@ -83,7 +83,7 @@
       include_tasks: get_bridge_interface.yaml
       loop: "{{ vm.network_bridges }}"
       loop_control:
-        loop_var: connection
+        loop_var: network_connection
       #when: "'network_bridges' in vm and vm.network_bridges"
       when: "'network_bridges' in vm"
     - name: show interfaces

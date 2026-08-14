@@ -18,7 +18,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, check_os_version_support, run_option, field_exist, result_failed, execute_cmd, read_path_options, NodegridError 
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_option, field_exist, result_failed, read_path_options, NodegridError, run_cli_commands
 import os
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
@@ -34,8 +34,8 @@ def run_option_device(option, run_opt):
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
     settings_list = []
-    cmds = None
-    cmd_results = None
+    cmds = list()
+    cmds_results = list()
 
     if not (field_exist(suboptions, 'name')):
         return result_failed("Field device 'name' is required")
@@ -62,16 +62,11 @@ def run_option_device(option, run_opt):
         return result_failed(f"Device '{device_name}' setting 'allow_pre-shared_ssh_key' is set to '{path_options['allow_pre-shared_ssh_key']}'. It is required to be enabled ('yes' option)")
 
     cmds = [{'confirm': True,'cmd': f"cd /settings/devices/{device_name}/access; ssh_keys; set ssh_key_type={ssh_key_type}; generate_key_pair; return;"}]
-    cmd_results = list()
-    cmd_result = dict()
     if not check_mode:
-        try:
-            with nodegrid_cli(timeout) as cmd_cli:
-                for cmd in cmds:
-                    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                    cmd_results.append(cmd_result)
-        except (NodegridError, Exception) as e:
-            return result_failed(msg=f"Failed SSH generate_key_pair for device '{device_name}'. Error: f{e}")
+        run_cmds =  run_cli_commands(cmds, timeout=timeout)
+        if run_cmds['error']:
+            return result_failed(msg=f"Failed SSH generate_key_pair for device '{device_name}'. Error: {run_cmds['msg']}")
+        cmds_results = run_cmds['cmds_results']
 
     option['cli_path'] = cli_path
     option['settings'] = settings_list
@@ -83,8 +78,8 @@ def run_option_device(option, run_opt):
         return result
 
     # If device named was changed, update the return result
-    if cmd_results:
-        result['cmds_output'] = cmd_results
+    if cmds_results:
+        result['cmds_output'] = cmds_results
         result['changed'] = True
         result['message'] = f"Manage device '{device_name}' ssh key type '{ssh_key_type}' generated successfully."
     return result

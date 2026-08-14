@@ -11,7 +11,7 @@
   run_once: true
   delegate_to: localhost
   delegate_facts: true
-  tags: [inventory_setup]
+  tags: [inventory_setup, import_dashboard]
 
 - name: Ensure exactly one reports host is defined
   ansible.builtin.assert:
@@ -25,12 +25,12 @@
       Using central reports host: {{ hostvars['localhost'].nodegrid_reports_hosts[0] }}
   run_once: true
   delegate_to: localhost
-  tags: [inventory_setup]
+  tags: [inventory_setup, import_dashboard]
 
 - name: Set central reports host fact for this execution host
   ansible.builtin.set_fact:
     nodegrid_reports_host: "{{ hostvars['localhost'].nodegrid_reports_hosts[0] }}"
-  tags: [inventory_setup]
+  tags: [inventory_setup, import_dashboard]
 
 - name: Collect inventory from Elasticsearch
   zpe.nodegrid.nodegrid_elasticsearch_inventory:
@@ -189,4 +189,4 @@
   register: dashboard_import
   when:
     - inventory_hostname == nodegrid_reports_host
-  tags: [import_dashboard]
+  tags: [never, import_dashboard]

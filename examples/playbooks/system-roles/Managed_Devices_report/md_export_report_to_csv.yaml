@@ -1,0 +1,31 @@
+- name: Export the Managed Devices report to CSV
+  hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+  vars:
+    csv_file_path: "{{nodegrid_csv_file_path | default('/var/local/file_manager/admin_group/managed_devices_report.csv')}}" # 
+
+  tasks:
+  - name: Check if the target CSV file exists
+    ansible.builtin.stat:
+      path: "{{ csv_file_path }}"
+    register: file_details
+
+  - name: Change file permissions to 7if it exists
+    ansible.builtin.file:
+      path: "{{ csv_file_path }}"
+      mode: "0766"
+      owner: ansible
+      group: admin
+      state: file
+    when: file_details.stat.exists
+    become: yes
+
+  - name: Create the Managed Devices CSV report
+    zpe.nodegrid.nodegrid_elasticsearch_export:
+      es_index: "spconfig_system_report"
+      es_fields:  ["report_synced_at", "searchable_nodegrid host_value", "searchable_type_value", "searchable_local serial port_value", "searchable_name_value", "searchable_status_value", "searchable_mode_value", "searchable_baud rate_value", "searchable_groups_value"]
+      es_scroll_size: 5000
+      csv_file_path: "{{ csv_file_path }}"
+  

@@ -8,7 +8,7 @@ __metaclass__ = type
 
 DOCUMENTATION = r'''
 ---
-module: firmware_upgrade
+module: nodegrid_export_settings
 author: Diego Montero (@zpe-diegom)
 '''
 
@@ -21,10 +21,10 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.facts.compat import ansible_facts
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, result_failed, NodegridError, run_cli_commands
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import export_settings, check_os_version_support, result_failed, NodegridError, run_cli_command
 
 import os
+from datetime import datetime, timezone
 
 # We have to remove the SID from the Environmental settings, to avoid an issue
 # were we can not run pexpect.run multiple times
@@ -33,82 +33,60 @@ if "DLITF_SID" in os.environ:
 if "DLITF_SID_ENCRYPT" in os.environ:
     del os.environ["DLITF_SID_ENCRYPT"]
 
-CONVERSION_FACTORS = { "B": 1, "KB":1024, "MB":1048576, "GB": 1073741824, "TB": 1099511627776, "PB": 1125899906842624, "EB":1152921504606846976 , "ZB": 1180591620717411303424, "YB": 1208925819614629174706176}
-def human_read_to_byte(size):
-    num_ndx = 0
-    while num_ndx < len(size):
-        if str.isdigit(size[num_ndx]):
-            num_ndx += 1
-        else:
-            break
-    num_part = int(size[:num_ndx])
-    str_part = size[num_ndx:].strip().upper()
-    return num_part * CONVERSION_FACTORS[str_part]
-
-def firmware_upgrade(option, run_opt, mounts):
+def nodegrid_export_settings(option, run_opt):
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
-    result = {
-        'changed': False,
-        'failed': False,
-    }
-    
-    if not os.path.exists(f"/var/sw/{option.get('nodegrid_iso_filename')}"):
-        result['failed'] = True
-        result['msg'] = f"Nodegrid iso file does not exists: '/var/sw/{option.get('nodegrid_iso_filename')}'"
-        return result
+    # Generate the timestamp
+    now_utc = datetime.now(timezone.utc)
+    iso_basic_short = now_utc.strftime("%Y%m%dT%H%M%SZ")
+    filename_split = option['export_settings_filename'].split('.')
+    filename_extension = ".".join(filename_split[1:]) 
+    export_settings_filename = f"{filename_split[0]}-{iso_basic_short}.{filename_extension}" if len(filename_split) > 1 else f"{filename_split[0]}-{iso_basic_short}"
+    export_settings_file_permissions = option['export_settings_file_permissions']
+    result = dict(
+        changed=False,
+        failed=False,
+        export_settings_filename='',
+    )
+    result['export_settings_filename'] = export_settings_filename
 
-    size_available = -1
-    for mount in mounts:
-        if mount['mount'] == '/var':
-            size_available = mount['size_available']
+    options = [ "--{0}".format(cmd_option.replace('_','-')) for cmd_option in ['include_empty', 'no_default', 'not_enabled', 'plain_password', 'with_options'] if option[cmd_option]]
 
-    if size_available == -1:
-        result['failed'] = True
-        result['msg'] = f"/var mount path not available. Mounts: {mounts}"
-        return result
-
-    requested_size = human_read_to_byte(option['nodegrid_available_space'])
-    if size_available < requested_size:
-        result['failed'] = True
-        result['msg'] = f"About 5.0 GB (plus the image size) is needed in '/var' before starting the upgrade. '/var' mount path size_available={size_available}bytes < requested_size={requested_size}bytes (nodegrid_available_space: {option['nodegrid_available_space']})"
-        return result
-
-    cmds = [ 
-        {'cmd': "software_upgrade"},
-        {'cmd': "set image_location=local_system"},
-        {'cmd': f"set filename={option.get('nodegrid_iso_filename')}"},
-        {'cmd': "commit"},
-    ]
-
-    #    if run_opt['use_config_start_global']:
-    #        cmds.insert(0, {'cmd': 'config_start'})
-    #        cmds.append({'cmd': 'config_confirm'})
+    cmd = {'cmd': f"export_settings /settings --file /tmp/{export_settings_filename} {' '.join(options)}"}
 
     if check_mode:
         result['changed'] = False
-        result['cmds'] = cmds
+        result['cmd'] = cmd
         return result
     
-    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
-    result['retries'] = run_cmds['retries']
-    if run_cmds['error']:
-        return result_failed(f"Failed to execute firmware upgrade. Error: {run_cmds['msg']}")
-    cmds_results = run_cmds['cmds_results']
-    if cmds_results:
-        result['cmds_output'] = cmds_results
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
+        return result_failed(msg=f"Failed to export settings. Results: {cmd_result['msg']}")
+
+    try:
+        mode_octal = int(export_settings_file_permissions, 8)
+        export_settings_filepath = os.path.join("/tmp",export_settings_filename)
+        os.chmod(export_settings_filepath, mode_octal)
+    except Exception as e:
+        return result_failed(f"Failed to change export settings file '{export_settings_filename}' permissions to '{export_settings_file_permissions}'. Error: {e}")
+
+    if cmd_result:
+        result['cmds_output'] = cmd_result
         result['changed'] = True
     return result
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
-        nodegrid_iso_filename=dict(type='str', required=True),
-        nodegrid_target_version=dict(type='str', required=True),
-        nodegrid_available_space=dict(type='str', required=False, default="5GB"),
+        export_settings_filename=dict(type='str', required=True),
+        export_settings_file_permissions=dict(type='str', required=False, default='755'),
+        include_empty=dict(type='bool', default=False, required=False),
+        no_default=dict(type='bool', default=False, required=False),
+        not_enabled=dict(type='bool', default=False, required=False),
+        plain_password=dict(type='bool', default=False, required=False),
+        with_options=dict(type='bool', default=False, required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
-        filter=dict(type="str", required=False, default="mounts"),
-        timeout=dict(type='int', default=60, required=False),
+        timeout=dict(type='int', default=120, required=False),
         debug=dict(type='bool', default=False, required=False),
         max_retries=dict(type='int', default=3, required=False),
         base_delay=dict(type='float', default=2.0, required=False),
@@ -147,7 +125,7 @@ def run_module():
     else:
         use_config_start_global = True
     
-    upgrade_msg = f"Upgrading from Nodegrid version {nodegrid_os['version']} to version {module.params['nodegrid_target_version']}"
+    export_settings_msg = f"Exporting the settings for device {nodegrid_os} into file '{module.params['export_settings_filename']}'"
 
     if module.params.get('debug'):
         result['nodegrid_os'] = nodegrid_os
@@ -163,10 +141,8 @@ def run_module():
         'max_delay': module.params.get('max_delay',10.0),
     }
 
-    mounts = ansible_facts(module)
-
-    result = firmware_upgrade(module.params, run_opt, mounts['mounts'])
-    result['message'] = upgrade_msg
+    result = nodegrid_export_settings(module.params, run_opt)
+    result['message'] = export_settings_msg
     
     if result.get('failed'):
         module.fail_json(msg=result.pop('msg',''), **result)

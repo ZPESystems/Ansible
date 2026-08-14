@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, execute_cmd, check_os_version_support, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, run_cli_commands
 
 import os
 
@@ -36,7 +36,11 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         cmds=dict(type='list', required=True),
-        timeout=dict(type=int, default=60, required=False)
+        timeout=dict(type='int', default=60, required=False),
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -47,7 +51,9 @@ def run_module():
     result = dict(
         changed=False,
         failed=False,
-        message=''
+        message='',
+        cmds_output=list(),
+        retries=0,
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -63,12 +69,14 @@ def run_module():
     # Nodegrid OS section starts here
     #
     # Lets get the current interface status and check if it must be changed
-    res, err_msg, nodegrid_os = check_os_version_support(timeout=timeout)
+    res, err_msg, nodegrid_os = check_os_version_support(timeout=module.params['timeout'])
     if res == 'error' or res == 'unsupported':
         module.fail_json(msg=err_msg, **result)
     elif res == 'warning':
         result['warning'] = err_msg
-    result['nodegrid_facts'] = nodegrid_os
+
+    if module.params.get('debug'):
+        result['nodegrid_facts'] = nodegrid_os
 
     # if the user is working with this module in only check mode we do not
     # want to make any changes to the environment, just return the current
@@ -77,32 +85,13 @@ def run_module():
         module.exit_json(**result)
 
     # run commands and gather output
-    cmd_results = list()
-    cmd_result = dict()
-
-    try:
-        with nodegrid_cli(timeout) as cmd_cli:
-            for cmd in module.params['cmds']:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if 'template' in cmd.keys():
-                    cmd_result['template'] = cmd['template']
-                if 'set_fact' in cmd.keys():
-                    cmd_result['set_fact'] = cmd['set_fact']
-                if 'ignore_error' in cmd.keys():
-                    cmd_result['ignore_error'] = cmd['ignore_error']
-                if 'json' in cmd.keys():
-                    cmd_result['json'] = cmd['json']
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                if cmd_result['error']:
-                    result['failed'] = True
-                    result['message'] = f"{cmd_result.get('msg', '')}"
-                    break;
-        result['cmds_output'] = cmd_results
-    except (NodegridError, Exception) as e:
+    run_cmds =  run_cli_commands(module.params['cmds'], timeout=timeout, max_retries=module.params.get('max_retries'), base_delay=module.params.get('base_delay'), max_delay=module.params.get('max_delay'))
+    result['cmds_output'] = run_cmds['cmds_results']
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
         result['failed'] = True
-        result['message'] = f"{e}"
-    
+        result['message'] = f"{run_cmds['msg']}"
+
     if result['failed']:
         module.fail_json(msg=result['message'], **result)
 

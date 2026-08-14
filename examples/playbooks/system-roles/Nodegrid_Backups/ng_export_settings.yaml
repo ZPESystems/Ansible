@@ -1,0 +1,130 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  vars:
+    # Local directory path to store the export_settings files. The export_settings files' names will follow 
+    # this pattern: '{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.cli'
+    export_settings_files_directory: "{{nodegrid_export_settings_files_directory | default('/var/local/file_manager/admin_group/backup') }}"
+    # Timeout for export settings in seconds
+    export_settings_timeout: "{{ nodegrid_export_settings_timeout | default(600) }}"
+    # Number of export_settings files to keep/rotate on the target devices
+    export_settings_files_rotation_number_target_device: 0
+  tasks:
+    - name: export_settings Directory verification
+      tags: export-settings-directory-check
+      delegate_to: localhost
+      run_once: true
+      block:
+        - name: Retrieve export_settings directory status
+          ansible.builtin.stat:
+            path: "{{ export_settings_files_directory }}"
+          register: dir_status
+        - name: Fail if the export_settings directory is not a directory
+          ansible.builtin.fail:
+            msg: "The path {{ export_settings_files_directory }} is not a directory!"
+          when: dir_status.stat.exists and not dir_status.stat.isdir
+        - name: Fail if the user lacks write permission
+          ansible.builtin.fail:
+            msg: "The current user does not have write permissions to {{ export_settings_files_directory }}!"
+          when: dir_status.stat.exists and dir_status.stat.isdir and not dir_status.stat.writeable
+        - name: Create the directory if it does not exist
+          ansible.builtin.file:
+            path: "{{ export_settings_files_directory }}"
+            state: directory
+            mode: '0775'
+            owner: ansible
+            group: ansible
+          when: not dir_status.stat.exists
+        - name: Create the daily, weekly, and monthly directories
+          ansible.builtin.file:
+            path: "{{ export_settings_files_directory }}/{{ item }}"
+            state: directory
+            mode: '0775'
+            owner: ansible
+            group: ansible
+          become: yes
+          loop:
+            - daily
+            - weekly
+            - monthly
+    - name: Create the daily, weekly, and monthly directories per host
+      ansible.builtin.file:
+        path: "{{ export_settings_files_directory }}/{{ item }}/{{ inventory_hostname }}"
+        state: directory
+        mode: '0775'
+        owner: ansible
+        group: ansible
+      become: yes
+      delegate_to: localhost
+      loop:
+        - daily
+        - weekly
+        - monthly
+
+    - name: export_settings files rotation on "{{ inventory_hostname }}"
+      tags: export-settings-files-rotation, export-settings-files-rotation-remote, remove-remote
+      block:
+      - name: Get list of export_settings files
+        ansible.builtin.find:
+          paths: "/tmp/"
+          patterns: "{{ inventory_hostname }}*.cli"
+        register: export_settings_files_remote
+    
+      - name: Show export_settings files to be removed
+        ansible.builtin.debug:
+          msg: "{{ item.path }}"
+        loop: "{{ export_settings_files_remote.files | sort(attribute='ctime', reverse=True) | batch(export_settings_files_rotation_number_target_device | int) | list | last }}"
+        when: export_settings_files_remote.matched > export_settings_files_rotation_number_target_device
+
+      - name: Remove old export_settings (keep only "{{ export_settings_files_rotation_number_target_device }}" newest)
+        ansible.builtin.file:
+          path: "{{ item.path }}"
+          state: absent
+        loop: "{{ export_settings_files_remote.files | sort(attribute='ctime', reverse=True) | batch(export_settings_files_rotation_number_target_device | int) | list | last }}"
+        when: export_settings_files_remote.matched > export_settings_files_rotation_number_target_device
+        become: yes
+    - name: export_settings Process on "{{ inventory_hostname }}"
+      tags: export-settings-file
+      block:
+      - name: Create export_settings file
+        zpe.nodegrid.nodegrid_export_settings:
+          timeout: "{{export_settings_timeout}}"
+          export_settings_filename: "{{ inventory_hostname }}.cli"
+          include_empty: no
+          no_default: no
+          not_enabled: no
+          plain_password: yes
+          with_options: no 
+        become: true
+        register: nodegrid_export_settings
+  
+      - name: Show export_settings filename
+        ansible.builtin.debug:
+          msg: "{{ nodegrid_export_settings.export_settings_filename }}"
+
+      - name: Fetch export_settings file to Control Node
+        ansible.builtin.fetch:
+          # Source path on the remote host
+          src: "/tmp/{{ nodegrid_export_settings.export_settings_filename }}" 
+          # Destination directory on the local (control) machine
+          dest: "{{export_settings_files_directory}}/daily/{{ inventory_hostname }}/{{ nodegrid_export_settings.export_settings_filename }}"
+          # Optional parameter to save the file directly to the dest path without creating a hostname/path structure
+          flat: yes
+      
+      - name: Set export_settings file permissions
+        ansible.builtin.file:
+          path: "{{export_settings_files_directory}}/daily/{{ inventory_hostname }}/{{ nodegrid_export_settings.export_settings_filename }}"
+          mode: '0775'
+          owner: ansible
+          group: ansible
+        delegate_to: localhost
+        become: true
+    
+    - name: export_settings files rotation on Control Node
+      delegate_to: localhost
+      tags: export_settings-files-rotation
+      zpe.nodegrid.backup_rotate:
+        backup_file_type: ".cli"
+        backup_path: "{{ export_settings_files_directory }}"

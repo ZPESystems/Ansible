@@ -1,7 +1,16 @@
-- name: Update System SNMP Settings
+- name: Update System SNMP System
   tags: always
   zpe.nodegrid.snmp:
-    rules: "{{ snmp_rules }}"
+    debug: "{{ debug | default(false)}}"
     system:
       syscontact: "{{ syscontact | default('admin@nodegrid') }}"
       syslocation: "{{ syslocation | default('') }}"
+
+- name: Update System SNMP Rules
+  tags: always
+  zpe.nodegrid.snmp:
+    debug: "{{ debug | default(false)}}"
+    rule: "{{ snmp_rule }}"
+  loop: "{{ snmp_rules }}"
+  loop_control:
+    loop_var: snmp_rule

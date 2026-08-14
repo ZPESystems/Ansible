@@ -1,0 +1,125 @@
+- hosts: all
+  gather_facts: false
+  collections:
+    - zpe.nodegrid
+
+  vars:
+    # Local directory path to store the backup files. The backup files' names will follow 
+    # this pattern: '{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.tar.gz'
+    backup_files_directory: "{{nodegrid_backup_files_directory | default('/var/local/file_manager/admin_group/backup') }}"
+    # Timeout for the backup process in seconds
+    backup_timeout: "{{ nodegrid_backup_timeout | default(600) }}"
+    # Number of backup files to keep/rotate on the target devices
+    backup_files_rotation_number_target_device: 0
+  tasks:
+    - name: Backup Directory verification
+      tags: backup-directory-check
+      delegate_to: localhost
+      run_once: true
+      block:
+        - name: Retrieve backup directory status
+          ansible.builtin.stat:
+            path: "{{ backup_files_directory }}"
+          register: dir_status
+        - name: Fail if the backup directory is not a directory
+          ansible.builtin.fail:
+            msg: "The path {{ backup_files_directory }} is not a directory!"
+          when: dir_status.stat.exists and not dir_status.stat.isdir
+        - name: Fail if the user lacks write permission
+          ansible.builtin.fail:
+            msg: "The current user does not have write permissions to {{ backup_files_directory }}!"
+          when: dir_status.stat.exists and dir_status.stat.isdir and not dir_status.stat.writeable
+        - name: Create the directory if it does not exist
+          ansible.builtin.file:
+            path: "{{ backup_files_directory }}"
+            state: directory
+            mode: '0775'
+            owner: ansible
+            group: ansible
+          when: not dir_status.stat.exists
+        - name: Create the daily, weekly, and monthly directories
+          ansible.builtin.file:
+            path: "{{ backup_files_directory }}/{{ item }}"
+            state: directory
+            mode: '0775'
+            owner: ansible
+            group: ansible
+          become: yes
+          loop:
+            - daily
+            - weekly
+            - monthly
+    - name: Create the daily, weekly, and monthly directories per host
+      ansible.builtin.file:
+        path: "{{ backup_files_directory }}/{{ item }}/{{ inventory_hostname }}"
+        state: directory
+        mode: '0775'
+        owner: ansible
+        group: ansible
+      become: yes
+      delegate_to: localhost
+      loop:
+        - daily
+        - weekly
+        - monthly
+
+    - name: Backup files rotation on "{{ inventory_hostname }}"
+      tags: backup-files-rotation, backup-files-rotation-remote, remove-remote
+      block:
+      - name: Get list of backup files
+        ansible.builtin.find:
+          paths: "/backup/"
+          patterns: "{{ inventory_hostname }}*.tar.gz"
+        register: backup_files_remote
+    
+      - name: Show backup files to be removed
+        ansible.builtin.debug:
+          msg: "{{ item.path }}"
+        loop: "{{ backup_files_remote.files | sort(attribute='ctime', reverse=True) | batch(backup_files_rotation_number_target_device | int) | list | last }}"
+        when: backup_files_remote.matched > backup_files_rotation_number_target_device
+
+      - name: Remove old backups (keep only "{{ backup_files_rotation_number_target_device }}" newest)
+        ansible.builtin.file:
+          path: "{{ item.path }}"
+          state: absent
+        loop: "{{ backup_files_remote.files | sort(attribute='ctime', reverse=True) | batch(backup_files_rotation_number_target_device | int) | list | last }}"
+        when: backup_files_remote.matched > backup_files_rotation_number_target_device
+        become: yes
+    - name: Backup Process on "{{ inventory_hostname }}"
+      tags: backup-file
+      block:
+      - name: Create backup file
+        zpe.nodegrid.nodegrid_backup:
+          timeout: 300
+          backup_filename: "{{ inventory_hostname }}.tar.gz"
+        become: true
+        register: nodegrid_backup
+  
+      - name: Show backup filename
+        ansible.builtin.debug:
+          msg: "{{ nodegrid_backup.backup_filename }}"
+
+      - name: Fetch Backup file to Control Node
+        ansible.builtin.fetch:
+          # Source path on the remote host
+          src: "/backup/{{ nodegrid_backup.backup_filename }}" 
+          # Destination directory on the local (control) machine
+          dest: "{{backup_files_directory}}/daily/{{ inventory_hostname }}/{{ nodegrid_backup.backup_filename }}"
+          # Optional parameter to save the file directly to the dest path without creating a hostname/path structure
+          flat: yes
+      
+      - name: Set Backup file permissions
+        ansible.builtin.file:
+          path: "{{backup_files_directory}}/daily/{{ inventory_hostname }}/{{ nodegrid_backup.backup_filename }}"
+          mode: '0775'
+          owner: ansible
+          group: ansible
+        delegate_to: localhost
+        become: true
+    
+    - name: Backup files rotation on Control Node
+      delegate_to: localhost
+      tags: backup-files-rotation
+      zpe.nodegrid.backup_rotate:
+        backup_file_type: ".tar.gz"
+        backup_path: "{{ backup_files_directory }}"

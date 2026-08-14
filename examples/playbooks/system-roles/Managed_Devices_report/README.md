@@ -1,6 +1,6 @@
 # Managed Devices Report: `nodegrid_elasticsearch_inventory`
 
-This use case collects managed-devices inventory information from local Nodegrid OpenSearch indices, validates and flattens the source rows, and loads the result into a central report index on the designated Nodegrid device with `reports` role.
+This use case collects managed-devices inventory information from local Nodegrid OpenSearch indices, validates and flattens the source rows, and loads the result into a central report index on the designated Nodegrid device with `reports` role. Furthermore, it allows the user to export Managed Devices data into a CSV file.
 
 ## Requirements
 
@@ -47,7 +47,7 @@ graph TB
 
 subgraph Control_Node["Ansible Control Node"]
  direction LR
-   ng-manager["ng-manager1"]
+   ng-manager["ngmanager1"]
    subgraph mdmanager["ngmanager1 managed devices"]
     direction TB
      mdmanager1["router-1-1"]
@@ -135,35 +135,16 @@ gatesr | SUCCESS => {
 ```
 
 ## Managed Devices Report Playbook
-Create the file `/etc/ansible/playbooks/md_report.yaml` with the following content:
-
-```yaml
-- name: Build the central Nodegrid device report
-  hosts: all
-  gather_facts: false
-  collections:
-    - zpe.nodegrid
-  tasks:
-  - name: Create the Opensearch Inventory
-    import_role: 
-      name: nodegrid_elasticsearch_inventory
-    vars:
-      nodegrid_report_target_index: spconfig_system_report
-      nodegrid_report_policy_id: system_report_keep_forever
-      nodegrid_report_add_row_timestamps: true
-      nodegrid_report_synced_timestamp_field: report_synced_at
-```
-
-To execute the playbook:
+The playbook [md_report.yaml](md_report.yaml) configures the OpenSearch index on the Nodegrid device with the `reports` role, and also imports the managed devices from the targed Nodegrid devices. To execute the playbook:
 
 ```bash
-ansible-playbook md_report.yaml --limit md_report
+ansible-playbook md_report.yaml --tags all,never --limit md_report
 ```
 <details>
     <summary> Playbook execution output example </summary>
 
 ```
-ansible@ngmanager1:/etc/ansible/playbooks$ ansible-playbook md_report.yaml --limit md_report
+ansible@ngmanager1:/etc/ansible/playbooks$ ansible-playbook md_report.yaml --tags all,never --limit md_report
 
 PLAY [Build the central Nodegrid device report] *******************************************************************************
 
@@ -311,12 +292,35 @@ Access the Web UI of the `ngmanager1` device and execute the following:
 
 # Update/refresh the Managed Devices data
 
-The following playbook execution will import the managed devices information, and not import the dashboard.
+The following playbook execution will import the managed devices information.
 
 ```bash
-ansible-playbook md_report.yaml --limit md_report --skip-tags import_dashboard
+ansible-playbook md_report.yaml --limit md_report
 ```
 
+# Export the Managed Devices data into a CSV file.
+
+The playbook [md_export_report_to_csv.yaml](md_export_report_to_csv.yaml) will export the Managed Devices data into a CSV file. The following variables are required to be defined:
+
+|Variable|Value|Comment|
+|:---:|:---:|:---:|
+| es_index | "spconfig_system_report" | OpenSearch index to be exported|
+| es_fields |  ["report_synced_at", "searchable_nodegrid host_value", "searchable_type_value", "searchable_local serial port_value", "searchable_name_value", "searchable_status_value", "searchable_mode_value", "searchable_baud rate_value", "searchable_groups_value"]| Fields to be selected |
+| es_scroll_size | 5000 | OpenSearch records scroll size |
+| csv_file_path | "/var/local/file_manager/admin_group/managed_devices_report.csv" | CSV file path |
+
+
+To execute the playbook:
+
+```bash
+ansible-playbook md_export_report_to_csv.yaml --limit ngmanager1
+```
+
+To download the CSV file, access the Web UI of the `ngmanager1` device:
+
+- System -> Toolkit -> File Manager -> admin_group -> managed_devices_report.csv
+
+![](images/managed_devices_report_csv.png)
 
 ---
 # `nodegrid_elasticsearch_inventory` Role Variables

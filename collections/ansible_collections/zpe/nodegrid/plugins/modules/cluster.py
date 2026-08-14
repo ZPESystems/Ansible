@@ -22,7 +22,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import nodegrid_cli, run_option, check_os_version_support, run_option_adding_field_in_the_path, execute_cmd, NodegridError
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import run_option, check_os_version_support, run_option_adding_field_in_the_path, nodegrid_cli_validate_inputs, cli_settings_reorder, NodegridError, run_cli_commands, run_cli_command
 
 import os
 from collections import OrderedDict
@@ -41,6 +41,7 @@ def run_option_cluster_settings(option, run_opt):
     # Settings dependencies
     dependencies = OrderedDict()
     dependencies = {
+        'auto_enroll': ['auto_psk', 'auto_interval'],
         'enable_cluster': ['cluster_name', 'type', 'enable_clustering_access'],
         'type': 
         {
@@ -57,42 +58,34 @@ def run_option_cluster_settings(option, run_opt):
                 'psk'
             ],
         },
+        'enable_peer_management': [], 
+        'enable_license_pool': ['lps_type'],
+        'lps_type':
+        {
+            'server': ['renew_time', 'lease_time'],
+            'client': []
+        },
     }
 
     try:
-        settings_tobe_deleted = set()
-        for dependency in dependencies:
-            if isinstance(dependencies[dependency], dict):
-                for dep_rem in {key:value for key, value in dependencies[dependency].items() if dependency in suboptions and key not in [suboptions[dependency]]}:
-                    for setting in dependencies[dependency][dep_rem]:
-                        if (suboptions[dependency] not in dependencies[dependency]) or (setting not in dependencies[dependency][suboptions[dependency]]):
-                            settings_tobe_deleted.add(setting)
-
-            elif isinstance(dependencies[dependency], list) and dependency in suboptions and suboptions[dependency].lower() == "no":
-                for setting in dependencies[dependency]:
-                    settings_tobe_deleted.add(setting)
-
-        # Delete settings not required
-        for setting in settings_tobe_deleted:
-            suboptions.pop(setting, None)
-
-    except Exception as e:
-        return {'failed': True, 'changed': False, 'msg': f"{e}"}
+        option['suboptions'] = nodegrid_cli_validate_inputs(option['suboptions'], dependencies)
+        option['suboptions'] = cli_settings_reorder(option['suboptions'], dependencies, initial_order=OrderedDict(auto_enroll={}, enable_cluster={},enable_peer_management={},enable_license_pool={}))
+    except (NodegridError, Exception) as e:
+        return {'failed': True, 'changed': False, 'msg': f"Error validating/ordering input values. Error: {e}"}
 
     if suboptions['type'] == 'peer':
         result = dict(
             changed=False,
             failed=False,
             message='',
+            retries = 0,
             msg=''
         )
         cmd = dict(cmd="show /settings/cluster/cluster_peers/", ignore_error=False)
-        try:
-            with nodegrid_cli(timeout) as cmd_cli:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-        except (NodegridError, Exception) as e:
+        cmd_result = run_cli_command(cmd, timeout=timeout)
+        if cmd_result['error']:
             result['failed'] = True
-            result['msg'] = f"{e}"
+            result['msg'] = f"{cmd_result['msg']}"
             return result
 
         cluster_peers = cmd_result['json'][0]['data']
@@ -103,22 +96,16 @@ def run_option_cluster_settings(option, run_opt):
                     # Build out commands to disable cluster and reconfigure
                     cmds = [dict(cmd="cd /settings/cluster/settings"), dict(cmd="edit"), dict(cmd="set enable_cluster=no"), dict(cmd="commit")]
                     if not run_opt['check_mode']:
-                        try:
-                            cmd_results = []
-                            with nodegrid_cli(timeout) as cmd_cli:
-                                for cmd in cmds:
-                                    cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                                    cmd_result['command'] = cmd.get('cmd')
-                                    cmd_results.append(cmd_result)
-                                result['changed'] = True
-                            result = run_option(option, run_opt)
-                            if run_opt['debug']:
-                                result['cmds_output'] = cmd_results
-                            return result
-                        except (NodegridError, Exception) as e:
+                        run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+                        result['retries'] = run_cmds['retries']
+                        if run_cmds['error']:
                             result['failed'] = True
-                            result['msg'] = f"{e}"
+                            result['msg'] = f"{run_cmds['msg']}"
                             return result
+                        result['changed'] = True
+                        result = run_option(option, run_opt)
+                        if run_opt['debug']:
+                            result['cmds_output'] = run_cmds['cmds_results']
                     else:
                         result['cmds'] = cmds
                     return result
@@ -149,6 +136,7 @@ def run_option_cluster_clusters(option, run_opt):
         changed=False,
         failed=False,
         message='',
+        retries=0,
         msg=''
     )
     
@@ -156,12 +144,10 @@ def run_option_cluster_clusters(option, run_opt):
     options = option['suboptions']
     
     cmd = dict(cmd="show /settings/cluster/settings/ enable_cluster", ignore_error=False)
-    try:
-        with nodegrid_cli(timeout) as cmd_cli:
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['failed'] = True
-        result['msg'] = f"{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
 
     cluster_enabled = cmd_result['json'][0]['data']['enable_cluster']
@@ -172,13 +158,11 @@ def run_option_cluster_clusters(option, run_opt):
         result['msg'] = f"Cluster is not enabled. Current Cluster settings are: {cmd_result['json'][0]['data']}"
         return result 
 
-    try:
-        with nodegrid_cli(timeout) as cmd_cli:
-            cmd = dict(cmd="show /settings/cluster/cluster_clusters/", ignore_error=True)
-            cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-    except (NodegridError, Exception) as e:
+    cmd = dict(cmd="show /settings/cluster/cluster_clusters/", ignore_error=True)
+    cmd_result = run_cli_command(cmd, timeout=timeout)
+    if cmd_result['error']:
         result['failed'] = True
-        result['msg'] = f"{e}"
+        result['msg'] = f"{cmd_result['msg']}"
         return result
     
     clusters = cmd_result['json'][0]['data']
@@ -221,27 +205,17 @@ def run_option_cluster_clusters(option, run_opt):
         #cmds.insert(0, {'cmd': f"config_start"})
         cmds.append({'cmd': f"commit"})
         #cmds.append({'cmd': f"config_confirm"})
-    try:
-        cmd_results = []
-        with nodegrid_cli(timeout) as cmd_cli:
-            for cmd in cmds:
-                cmd_result = execute_cmd(cmd_cli, cmd, timeout=timeout)
-                if 'template' in cmd.keys():
-                    cmd_result['template'] = cmd['template']
-                if 'set_fact' in cmd.keys():
-                    cmd_result['set_fact'] = cmd['set_fact']
-                if 'ignore_error' in cmd.keys():
-                    cmd_result['ignore_error'] = cmd['ignore_error']
-                if 'json' in cmd.keys():
-                    cmd_result['json'] = cmd['json']
-                cmd_result['command'] = cmd.get('cmd')
-                cmd_results.append(cmd_result)
-                result['changed'] = True
-        if run_opt['debug']:
-            result['cmds_output'] = cmd_results
-    except (NodegridError, Exception) as e:
+
+    run_cmds =  run_cli_commands(cmds, timeout=timeout, max_retries=run_opt.get('max_retries'), base_delay=run_opt.get('base_delay'), max_delay=run_opt.get('max_delay'))
+    result['retries'] = run_cmds['retries']
+    if run_cmds['error']:
         result['failed'] = True
-        result['msg'] = f"{e}"
+        result['msg'] = f"{run_cmds['msg']}"
+        return result
+
+    result['changed'] = True
+    if run_opt['debug']:
+        result['cmds_output'] = run_cmds['cmds_results']
     return result
     #return run_option_adding_field_in_the_path(option, run_opt, 'name')
 
@@ -255,7 +229,10 @@ def run_module():
         management=dict(type='dict', required=False),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
         timeout=dict(type='int', default=60, required=False),
-        debug=dict(type='bool', default=False, required=False)
+        debug=dict(type='bool', default=False, required=False),
+        max_retries=dict(type='int', default=3, required=False),
+        base_delay=dict(type='float', default=2.0, required=False),
+        max_delay=dict(type='float', default=10.0, required=False),
     )
 
     # seed the result dict in the object
@@ -342,8 +319,11 @@ def run_module():
         'skip_invalid_keys': module.params['skip_invalid_keys'],
         'use_config_start_global' : use_config_start_global,
         'check_mode': module.check_mode,
+        'timeout': module.params.get('timeout', 60),
         'debug': module.params.get('debug', False),
-        'timeout': module.params.get('timeout', 60)
+        'max_retries': module.params.get('max_retries', 2),
+        'base_delay': module.params.get('base_delay', 2.0), 
+        'max_delay': module.params.get('max_delay',10.0),
     }
 
     for option in option_list:

@@ -210,11 +210,11 @@ def run_option_device(option, run_opt):
             suboptions['access'].pop('name')
             device_options_cli = read_path_options(f"/settings/devices/{port_name}/access")
             if device_options_cli['error']:
-                return result_failed(f"Failed to read options: 'show /settings/devices/{port_name}/access'. Error: {device_options_cli}")
+                return result_failed(f"Failed to read options: 'show /settings/devices/{port_name}/access'. Error: {device_options_cli.get('msg')}")
 
             device_options = device_options_cli.get('options', None)
             if device_options is None or not device_options:
-                return result_failed(f"Device port '{port_name}' could not be detected by 'show /settings/devices/{port_name}/access'. msg: {device_options_cli}")
+                return result_failed(f"Device port '{port_name}' could not be detected by 'show /settings/devices/{port_name}/access'. msg: {device_options_cli.get('msg')}")
 
             current_name = device_options.get('name',None)
             if current_name is None:

@@ -100,6 +100,7 @@ def nodegrid_cli_validate_inputs(settings, ng_dependencies, settings_tobe_delete
 CERT_BEGIN = '-----BEGIN '
 CERT_END = '-----END '
 
+
 def _get_import_process_timeout(import_text):
     ret_timeout = 1500 # arbitrary default timeout
     count = 0
@@ -117,10 +118,54 @@ def _get_import_process_timeout(import_text):
 
     return ret_timeout
 
-# ############
-# Run a list of commands. Retry the whole commands list if CLI returns either: a) Another transaction underway, 
-#  or b) System Revert, or Another Transaction Started.
+
+@contextmanager
+def nodegrid_cli(timeout=60):
+    """CLI to execute commands."""
+    cmd_cli = None
+    try:
+        cmd_cli = get_cli(timeout=timeout)
+        yield cmd_cli
+    except (pexpect.TIMEOUT, pexpect.EOF) as e:
+        # Wrap the low-level pexpect error into Nodegrid CLI exception
+        raise CLICommunicationError(
+            message=f"Getting CLI spawn failed (timeout={timeout}).",
+            original_exception=e
+        ) from e
+    except Exception:
+        raise
+    finally:
+        if cmd_cli and isinstance(cmd_cli, pexpect.spawn):
+            close_cli(cmd_cli)
+
+
+def get_cli(timeout=60):
+    cmd_cli = pexpect.spawn('cli', encoding='UTF-8', timeout=timeout)
+    cmd_cli.setwinsize(500, 250)
+    cmd_cli.expect_exact('/]# ')
+    cmd_cli.sendline('.sessionpageout undefined=no')
+    cmd_cli.expect_exact('/]# ', timeout=timeout)
+    return cmd_cli
+
+
+def close_cli(cmd_cli):
+    cmd_cli.sendline('exit')
+    cmd_cli.close()
+
+
 def run_cli_commands(cmds, timeout=60, max_retries=3, base_delay=2.0, max_delay=10.0):
+    """Runs Nodegrid CLI Commands.
+
+    Args:
+        cmds (list of dict): List of CLI commands to be executed
+        timeout (int, optional): Pexpect timeout in seconds. Default 60 seconds.
+        max_retries (int, optional): Number of retries if the Nodegrid CLI commands execution due to concurrent sessions (either: a) Another transaction underway, or b) System Revert, or Another Transaction Started. Default 3 retries.
+        base_delay (float, optional): Minimum time to sleep after a retry. Default 2 seconds.
+        max_delay (float, optional): Maximum time to sleep after a retry. Default 10 seconds.
+
+    Returns:
+        dict: cmds output results.
+    """
     delay = base_delay
     results = dict(error=False, msg='', cmds_results=[], retries=0)
     cmds_results= [] 
@@ -162,7 +207,17 @@ def run_cli_commands(cmds, timeout=60, max_retries=3, base_delay=2.0, max_delay=
             break
     return results
 
+
 def run_cli_command(cmd, timeout=60):
+    """Run a single Nodegrid CLI Command.
+
+    Args:
+        cmd (dict): A CLI commands to be executed
+        timeout (int, optional): Pexpect timeout in seconds. Default 60 seconds.
+
+    Returns:
+        dict: cmd output result.
+    """
     if not isinstance(cmd, dict) or not 'cmd' in cmd.keys():
         return dict(error=True, msg=f"cmd parameter must be a dict type and contain key:value as follows 'cmd':'CLI command'. Invalid value: {cmd}", output=None, output_lines=None, json=None) 
     result = dict(error=False, msg='', output=None, output_lines=None, json=None)
@@ -180,34 +235,6 @@ def run_cli_command(cmd, timeout=60):
         result['msg'] = f"CLI execution error. Error: {e}"
     return result
 
-
-def get_cli(timeout=60):
-    cmd_cli = pexpect.spawn('cli', encoding='UTF-8', timeout=timeout)
-    cmd_cli.setwinsize(500, 250)
-    cmd_cli.expect_exact('/]# ')
-    cmd_cli.sendline('.sessionpageout undefined=no')
-    cmd_cli.expect_exact('/]# ', timeout=timeout)
-    return cmd_cli
-
-
-def get_shell(become=False, timeout=60):
-    cmd_shell = pexpect.spawn('bash', encoding='UTF-8', timeout=timeout)
-    cmd_shell.setwinsize(500, 250)
-    cmd_shell.expect_exact(['$'], timeout=timeout)
-    return cmd_shell
-
-def close_cli(cmd_cli):
-    cmd_cli.sendline('exit')
-    cmd_cli.close()
-
-# Try to abort current CLI configuration session
-def abort_config_session(cmd_cli, timeout=60):
-    abort_cmds = [dict(cmd='cancel', ignore_error=True), dict(cmd='revert', ignore_error=True), dict(cmd='config_revert', ignore_error=True)]
-    for abort_cmd in abort_cmds:
-        try:
-            execute_cmd(cmd_cli, abort_cmd, timeout)
-        except Exception:
-            continue
 
 def execute_cmd(cmd_cli, cmd, timeout=60):
     # cmd = dict(cmd='CLI command to execute', ignore_error=True|False, confirm=True|False, restore=True|False)
@@ -234,21 +261,18 @@ def execute_cmd(cmd_cli, cmd, timeout=60):
 
         if "Error: The system configuration has been changed. Please revert" in output:
             buffer = cmd_cli.before
-            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLISystemRevertError(
                 message=f"Error: The system configuration has been changed. Please revert.",
                 buffer=buffer,
             )
         elif "Error: Another configuration transaction is underway" in output:
             buffer = cmd_cli.before
-            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLITransactionUnderwayError(
                 message=f"Error: Another configuration transaction is underway.",
                 buffer=buffer,
             )
         elif "Error: Another session has started a configuration transaction" in output:
             buffer = cmd_cli.before
-            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLIAnotherTransactionStartedError(
                 message=f"Error: Another session has started a configuration transaction.",
                 buffer=buffer,
@@ -260,7 +284,6 @@ def execute_cmd(cmd_cli, cmd, timeout=60):
             )
         elif not ignore_error and ("Error" in output or "error" in output):
             buffer = cmd_cli.before
-            #abort_config_session(cmd_cli, timeout=timeout)
             raise CLIOutputError(
                 cmd = cmd['cmd'],
                 message=f"The CLI command '{cmd['cmd']}' returned an error.",
@@ -281,24 +304,24 @@ def execute_cmd(cmd_cli, cmd, timeout=60):
         ) from e
     return output_dict
 
-@contextmanager
-def nodegrid_cli(timeout=60):
-    """CLI to execute commands."""
-    cmd_cli = None
-    try:
-        cmd_cli = get_cli(timeout=timeout)
-        yield cmd_cli
-    except (pexpect.TIMEOUT, pexpect.EOF) as e:
-        # Wrap the low-level pexpect error into Nodegrid CLI exception
-        raise CLICommunicationError(
-            message=f"Getting CLI spawn failed (timeout={timeout}).",
-            original_exception=e
-        ) from e
-    except Exception:
-        raise
-    finally:
-        if cmd_cli and isinstance(cmd_cli, pexpect.spawn):
-            close_cli(cmd_cli)
+
+def read_path_options(cli_path, timeout=60):
+    """Recieves a cli_path that CLI is able to show info
+
+    Args:
+        cli_path (str): String with a CLI full path
+
+    Returns:
+        dict: Result of executing 'show cli_path'
+    """
+    cmd = dict(cmd=f"show {cli_path}")
+    cli_output = run_cli_command(cmd, timeout=timeout)
+    if cli_output['error'] is True:
+        return dict(error=True, msg=f"{cli_output.get('msg')}")
+
+    if not cli_output['json']:
+        return dict(error=True, msg=f"CLI cmd '{cmd.get('cmd')}' output wast not properly parsed into a json object. CLI Output: {cli_output.get('output','NO OUTPUT')}. CLI msg: {cli_output.get('msg','')}")
+    return dict(path=cli_output['json'][0]['path'], options=cli_output['json'][0]['data'], error=False)
 
 
 def get_nodegrid_os_details(timeout=60):
@@ -365,6 +388,7 @@ def export_settings(cli_path, timeout=60):
                     settings.append(line[1:])   # add empty value
                 all_settings.append(line[1:])
     return "successful", settings, all_settings
+
 
 def import_settings(settings, use_config_start=True, timeout=60, debug=False, max_retries=3, base_delay=2.0, max_delay=10.0, sleep=None):
     """Runs the import settings.
@@ -477,10 +501,12 @@ def import_settings(settings, use_config_start=True, timeout=60, debug=False, ma
     output_dict["error_list"] = error_list
     return output_dict
 
+
 def uncomment(line):
     if len(line) > 0:
         return line if line[0] != '#' else line[1:]
     return None
+
 
 def settings_diff(exported_settings, new_settings, skip_keys):
     """Compares two sets of settings, returns what values were changed or were added
@@ -505,6 +531,7 @@ def settings_diff(exported_settings, new_settings, skip_keys):
                diff.append(line.strip())
 
     return diff
+
 
 def dict_diff(dict1, dict2):
     """Compares two dictionaries, returns what values were changed or were added
@@ -544,6 +571,7 @@ def compare_versions(version1, version2):
     else:
         return 0
 
+
 def check_os_version_support(timeout=60):
     """Checks if the Nodegrid Os version supports this library
 
@@ -562,8 +590,10 @@ def check_os_version_support(timeout=60):
         return "warning", f"Not recommended and untested Nodegrid OS version, some features might not work. recommended 5.6.1 or higher. Current version: {nodegrid_os['software']}", nodegrid_os
     return "supported","", nodegrid_os
 
+
 def to_list(value):
     return value if type(value) is list else [value]
+
 
 def split_in_two(line, separator):
     result = [val.strip() for val in line.split(separator, 1)]
@@ -571,6 +601,7 @@ def split_in_two(line, separator):
         return result[0], ''
     else:
         return result
+
 
 def convert_to_json(cli_output):
     # Detect if output is a table or not
@@ -623,6 +654,7 @@ def convert_to_json(cli_output):
         details = {}
         reading_cert = False
         cert_lines = []
+        path = ''
         for line in lines:
             # Read certificate lines and store them in the details dictionary
             if CERT_BEGIN in cli_output and CERT_END in cli_output:
@@ -634,7 +666,7 @@ def convert_to_json(cli_output):
             if '=' in line:
                 key, value = split_in_two(line, '=')
                 details[key] = value
-            if ':' in line:
+            elif ':' in line:
                 key, value = split_in_two(line, ':')
                 details[key] = value
             elif "show" in line:
@@ -693,6 +725,7 @@ def convert_to_json(cli_output):
 
     return data
 
+
 def process_certificate_line(line, reading_cert, cert_lines, details, cert_key):
     if line == cert_key.group(1):
         reading_cert = True
@@ -712,13 +745,16 @@ def process_certificate_line(line, reading_cert, cert_lines, details, cert_key):
 
     return reading_cert, cert_lines, details
 
+
 def field_not_exist(suboptions, field_name):
     return not field_exist(suboptions, field_name)
+
 
 def field_exist(suboptions, field_name):
     if field_name in suboptions and len(suboptions[field_name]) > 0:
         return True
     return False
+
 
 def run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_name, append_path, delete_field_name=False):
     """Calls the function run_option adding the field name in the CLI path
@@ -741,6 +777,7 @@ def run_option_adding_field_in_the_path_and_append_path(option, run_opt, field_n
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
 
+
 def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_field_name=False):
     """Calls the function run_option adding the field name in the CLI path
 
@@ -761,6 +798,7 @@ def run_option_adding_field_in_the_path(option, run_opt, field_name, delete_fiel
         return run_option(option, run_opt)
     else:
         return {'failed': True, 'changed': False, 'msg': f"Field '{field_name}' is required"}
+
 
 def run_option(option, run_opt):
     """Applies the option on the Nodegrid
@@ -880,6 +918,7 @@ def run_option(option, run_opt):
         result['message'] = 'No change required'
     return result
 
+
 def run_option_no_diff(option, run_opt):
     """Applies the option on the Nodegrid
 
@@ -896,6 +935,7 @@ def run_option_no_diff(option, run_opt):
     """
     run_opt['no_diff'] = True
     return run_option(option, run_opt)
+
 
 def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_func, remove_invalid_setting=False):
     """Applies the option on the Nodegrid
@@ -962,6 +1002,7 @@ def run_option_all_settings(option, run_opt, compare_path_func, get_next_path_fu
         return run_option_no_diff(option, run_opt)
     return result_nochanged()
 
+
 def format_settings(path, in_dict, include_key_if_value_empty=[]):
     out_list = []
     if type(in_dict) in [dict, OrderedDict]:
@@ -977,6 +1018,7 @@ def format_settings(path, in_dict, include_key_if_value_empty=[]):
                     out_list.append(f"{path} {key}={value}")
     return out_list
 
+
 def get_skip_keys(new_settings, exported_all_settings):
     skip_keys = []
     for line in new_settings:
@@ -984,51 +1026,6 @@ def get_skip_keys(new_settings, exported_all_settings):
         if not any(keypath in s for s in exported_all_settings):
             skip_keys.append(line)
     return skip_keys
-
-def read_table(cli_path):
-    cmd = f"show {cli_path}"
-    cmd_cli = pexpect.spawn('cli', encoding='UTF-8')
-    cmd_cli.setwinsize(500, 10000)
-    cmd_cli.expect_exact('/]# ')
-    cmd_cli.sendline('.sessionpageout undefined=no')
-    cmd_cli.expect_exact('/]# ')
-    cmd_cli.sendline(cmd)
-    cmd_cli.expect_exact('/]# ')
-    output = cmd_cli.before
-    cmd_cli.close()
-    if "Error" in output or "error" in output:
-        return "error", output
-    else:
-        table = {
-            "header": [],
-            "rows": []
-        }
-        cnt = 0
-        for line in output.splitlines()[1:-1]:
-            if len(line) > 0:
-                row = line.split()
-                if cnt == 0:
-                    table["header"].append(row)
-                elif cnt > 1:
-                    table["rows"].append(row)
-                cnt += 1
-
-    return "successful", table
-
-def read_table_row(table, col_index, col_value):
-    for row in table['rows']:
-        if row[col_index] == col_value:
-            return row
-    return None
-
-def read_path_options(cli_path, timeout=60):
-    cli_output = run_cli_command(dict(cmd=f"show {cli_path}"), timeout=timeout)
-    if cli_output['error'] is True:
-        return dict(error=True, msg=f"{cli_output.get('msg')}")
-
-    if not cli_output['json']:
-        return dict(error=True, msg=f"cmd '{_cmd}' output did not produce a json object.")
-    return dict(path=cli_output['json'][0]['path'], options=cli_output['json'][0]['data'], error=False)
 
 
 def settings_to_dict(settings_string_list):
@@ -1045,6 +1042,7 @@ def settings_to_dict(settings_string_list):
         groups[path][key] = value
     return groups
 
+
 def dict_to_settings(settings_dict):
     settings = []
     for path, options in settings_dict.items():
@@ -1052,8 +1050,10 @@ def dict_to_settings(settings_dict):
             settings.append(f"{path} {key}={value}")
     return settings
 
+
 def result_failed(msg):
     return {'failed': True, 'changed': False, 'msg': msg}
+
 
 def result_nochanged(msg = 'No change required'):
     return {'failed': False, 'changed': False, 'msg': msg}

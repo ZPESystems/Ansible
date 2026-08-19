@@ -32,7 +32,7 @@ options:
     description: Seconds to wait for the device shell prompt after connecting and after command.
     required: false
     type: int
-    default: 60
+    default: 10
   force:
     description:
       - Skip the Read-Write Multisession safety check and connect even when
@@ -43,6 +43,14 @@ options:
     required: false
     type: bool
     default: false
+  pager_prompt:
+    description:
+      - Pagination prompt string to detect when command output is paged.
+      - When matched, the module automatically sends a space to advance to the next page
+        and continues accumulating output until the command prompt appears.
+    required: false
+    type: str
+    default: '<--- More --->'
 '''
 
 EXAMPLES = r'''
@@ -90,6 +98,7 @@ import re
 import subprocess
 import traceback
 import pexpect
+import time
 
 from dataclasses import dataclass, asdict
 from typing import List, Optional
@@ -122,6 +131,7 @@ class ManagedDeviceConnection:
     NG_CLI_PROMPT = ']# '
     NG_ESCAPE_KEY = '\x05c.'
     MANAGED_DEVICE_DEFAULT_PROMPT = r'\r\n\S+[#>]'
+    MANAGED_DEVICE_DEFAULT_PAGER_PROMPT = '<--- More --->'
 
     # Message emitted by Nodegrid when multisession=no and the device is already
     # connected by another user.
@@ -144,7 +154,7 @@ class ManagedDeviceConnection:
         r'\bSyntax error\b',                   # Generic syntax error
     ]
 
-    def __init__(self, name: str, timeout: int = 90, command_prompt: str = '', force: bool = False):
+    def __init__(self, name: str, timeout: int = 10, command_prompt: str = '', pager_prompt: str = '', force: bool = False):
         # TODO - validate inputs and raise errors
 
         self.cmd_cli = get_cli(timeout=timeout)
@@ -154,6 +164,7 @@ class ManagedDeviceConnection:
 
         self.multisession = False
         self.multisession_rw = False
+        self.pager_prompt = pager_prompt if pager_prompt else self.MANAGED_DEVICE_DEFAULT_PAGER_PROMPT
 
         self._load_configuration()
 
@@ -184,6 +195,11 @@ class ManagedDeviceConnection:
             ['llconf', 'ini', '-s', '-f', '/etc/spm_server.ini', 'json', self.name],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10
         )
+        if not proc.stdout.strip():
+            raise RuntimeError(
+                f'Managed device "{self.name}" not found. '
+                f'Verify the device name matches exactly as configured in Nodegrid.'
+            )
         managed_device_config = json.loads(proc.stdout)[self.name]
         managed_device_device_type = managed_device_config.get('type', 'local_serial')
 
@@ -195,12 +211,20 @@ class ManagedDeviceConnection:
             ['llconf', 'ini', '-s', '-f', '/etc/spm_types.ini', 'json', managed_device_device_type],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10
         )
+        if not proc.stdout.strip():
+            raise RuntimeError(
+                f'Device type "{managed_device_device_type}" not found.'
+            )
         template_name = json.loads(proc.stdout)[managed_device_device_type]['template']
 
         proc = subprocess.run(
             ['llconf', 'ini', '-s', '-f', '/etc/spm_templates.ini', 'json', template_name],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10
         )
+        if not proc.stdout.strip():
+            raise RuntimeError(
+                f'Template "{template_name}" not found.'
+            )
         templ = json.loads(proc.stdout)[template_name]
 
         self.command_prompt = templ.get('shell_prompt', self.MANAGED_DEVICE_DEFAULT_PROMPT)
@@ -226,42 +250,55 @@ class ManagedDeviceConnection:
 
         # TODO - This approach assumes managed device has autologin enabled
         self.cmd_cli.sendline('connect')
-        idx = self.cmd_cli.expect(
-            [self.command_prompt, self.MANAGED_DEVICE_IN_USE_PATTERN, self.MANAGED_DEVICE_READ_ONLY_PATTERN, pexpect.TIMEOUT, pexpect.EOF],
-            timeout=self.timeout
-        )
 
-        # multisession=no — device locked by another user
-        if idx == 1:
-            try:
-                self.cmd_cli.expect_exact(self.NG_CLI_PROMPT, timeout=self.timeout)
-            except Exception:
-                pass
-            raise RuntimeError(
-                f'Device "{self.name}" is in use by another user. '
-                f'Wait for the session to end or enable multisession in Nodegrid.'
+        # The terminal may not appear immediately after connect; send Enter on each
+        # timeout and retry up to 10 times with a 1-second window per attempt.
+        for _ in range(10):
+            idx = self.cmd_cli.expect(
+                [self.command_prompt, self.MANAGED_DEVICE_IN_USE_PATTERN, self.MANAGED_DEVICE_READ_ONLY_PATTERN, pexpect.TIMEOUT, pexpect.EOF],
+                timeout=1
             )
 
-        # multisession=yes, multisessRW=no — read-only session, autologin failed
-        elif idx == 2:
-            try:
-                self.cmd_cli.expect_exact(self.NG_CLI_PROMPT, timeout=self.timeout)
-            except Exception:
-                pass
-            raise RuntimeError(
-                f'Device "{self.name}" session is read-only. '
-                f'Another user holds the primary session. '
-                f'Wait for the session to end or enable Read-Write Multisession in Nodegrid.'
-            )
-        elif idx == 3:
-            raise pexpect.TIMEOUT(f'Timeout connecting to device "{self.name}".')
-        elif idx == 4:
-            raise EOFError(f'EOF while connecting to device "{self.name}".')
+            if idx == 0:
+                break
 
-        # idx == 0 — device prompt matched, connection successful.
+            # multisession=no — device locked by another user
+            elif idx == 1:
+                try:
+                    self.cmd_cli.expect_exact(self.NG_CLI_PROMPT, timeout=self.timeout)
+                except Exception:
+                    pass
+                raise RuntimeError(
+                    f'Device "{self.name}" is in use by another user. '
+                    f'Wait for the session to end or enable multisession in Nodegrid.'
+                )
+
+            # multisession=yes, multisessRW=no — read-only session, autologin failed
+            elif idx == 2:
+                try:
+                    self.cmd_cli.expect_exact(self.NG_CLI_PROMPT, timeout=self.timeout)
+                except Exception:
+                    pass
+                raise RuntimeError(
+                    f'Device "{self.name}" session is read-only. '
+                    f'Another user holds the primary session. '
+                    f'Wait for the session to end or enable Read-Write Multisession in Nodegrid.'
+                )
+
+            elif idx == 4:
+                raise EOFError(f'EOF while connecting to device "{self.name}".')
+
+            # idx == 3 — timeout, nudge the terminal with Enter and retry
+            self.cmd_cli.sendline('')
+            time.sleep(1)
+
+        else:
+            raise pexpect.TIMEOUT(f'Timeout connecting to device "{self.name}" after 10 attempts.')
+
         # Send an empty Enter to flush any residual banner/AAA messages that may
         # appear on the same line as the first prompt.
         self.cmd_cli.sendline('')
+        time.sleep(1)
         self.cmd_cli.expect(self.command_prompt, timeout=self.timeout)
 
     def _disconnect(self) -> None:
@@ -270,27 +307,63 @@ class ManagedDeviceConnection:
 
         try:
             self.cmd_cli.send(self.NG_ESCAPE_KEY)
+            time.sleep(1)
             self.cmd_cli.expect_exact(self.NG_CLI_PROMPT, timeout=self.timeout)
             close_cli(self.cmd_cli)
         except Exception:
             pass
 
+    @staticmethod
+    def _clean_output(raw: str) -> str:
+        # strip ANSI escape sequences then normalize CRLF to LF
+        cleaned = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', raw)
+        cleaned = cleaned.replace('\r\n', '\n').replace('\r', '\n')
+        return cleaned.strip()
+
     def send_command(self, command: str) -> CommandResult:
+
+        # Clean buffer
+        if self.cmd_cli.before:
+            self.cmd_cli.expect(r'.+')
+
         self.cmd_cli.sendline(command)
-        idx = self.cmd_cli.expect(
-            [self.command_prompt, pexpect.TIMEOUT, pexpect.EOF],
-            timeout=self.timeout
-        )
-        output = (self.cmd_cli.before or '').strip()
+        time.sleep(1)
+        output_chunks = []
+        timed_out = False
+        got_eof = False
+
+        while True:
+            idx = self.cmd_cli.expect(
+                [self.command_prompt, re.escape(self.pager_prompt), pexpect.TIMEOUT, pexpect.EOF],
+                timeout=self.timeout
+            )
+            output_chunks.append(self.cmd_cli.before or '')
+
+            if idx == 0:
+                break
+            elif idx == 1:
+                # advance pager to next page
+                self.cmd_cli.send(' ')
+                time.sleep(1)
+            elif idx == 2:
+                timed_out = True
+                break
+            else:
+                got_eof = True
+                break
+
+        output = self._clean_output(''.join(output_chunks))
         error_match = self._match_error(output)
+
+        # isso nao deu certo - script ficou stuck no enviou do primeiro exist
 
         return CommandResult(
             command=command,
             output=output,
             error=bool(error_match),
             error_message=error_match or '',
-            timeout=idx == 1,
-            eof=idx == 2,
+            timeout=timed_out,
+            eof=got_eof,
         )
 
 def _provision(managed_device_connection: ManagedDeviceConnection, commands: List[str]) -> List[dict]:
@@ -313,8 +386,9 @@ def run_module():
     module_args = dict(
         managed_device_name=dict(type='str', required=True),
         commands=dict(type='list', elements='str', required=True),
-        timeout=dict(type='int', default=60),
+        timeout=dict(type='int', default=10),
         command_prompt=dict(type='str', default=''),
+        pager_prompt=dict(type='str', default=''),
         force=dict(type='bool', default=False)
     )
 
@@ -341,6 +415,7 @@ def run_module():
     commands = module.params['commands']
     timeout = module.params['timeout']
     command_prompt = module.params['command_prompt']
+    pager_prompt = module.params['pager_prompt']
     session_force = module.params['force']
 
     result['managed_device_name'] = managed_device_name
@@ -351,6 +426,7 @@ def run_module():
             name=managed_device_name,
             timeout=timeout,
             command_prompt=command_prompt,
+            pager_prompt=pager_prompt,
             force=session_force,
         )
     except RuntimeError as e:

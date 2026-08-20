@@ -98,7 +98,6 @@ import re
 import subprocess
 import traceback
 import pexpect
-import time
 
 from dataclasses import dataclass, asdict
 from typing import List, Optional
@@ -237,8 +236,6 @@ class ManagedDeviceConnection:
         return None
 
     def _connect(self) -> None:
-        # TODO - may check if device is connected before trying to connect
-
         # Navigate to the device path
         self.cmd_cli.sendline(f'cd /access/{self.name}/')
         self.cmd_cli.expect_exact(self.NG_CLI_PROMPT)
@@ -290,7 +287,6 @@ class ManagedDeviceConnection:
 
             # idx == 3 — timeout, nudge the terminal with Enter and retry
             self.cmd_cli.sendline('')
-            time.sleep(1)
 
         else:
             raise pexpect.TIMEOUT(f'Timeout connecting to device "{self.name}" after 10 attempts.')
@@ -298,8 +294,8 @@ class ManagedDeviceConnection:
         # Send an empty Enter to flush any residual banner/AAA messages that may
         # appear on the same line as the first prompt.
         self.cmd_cli.sendline('')
-        time.sleep(1)
         self.cmd_cli.expect(self.command_prompt, timeout=self.timeout)
+        self.cmd_cli.buffer = ''
 
     def _disconnect(self) -> None:
         if self.cmd_cli is None:
@@ -307,7 +303,6 @@ class ManagedDeviceConnection:
 
         try:
             self.cmd_cli.send(self.NG_ESCAPE_KEY)
-            time.sleep(1)
             self.cmd_cli.expect_exact(self.NG_CLI_PROMPT, timeout=self.timeout)
             close_cli(self.cmd_cli)
         except Exception:
@@ -321,30 +316,32 @@ class ManagedDeviceConnection:
         return cleaned.strip()
 
     def send_command(self, command: str) -> CommandResult:
-
-        # Clean buffer
-        if self.cmd_cli.before:
-            self.cmd_cli.expect(r'.+')
+        # Discard any residual data (e.g. extra prompts) left in pexpect's
+        # buffer from the previous command or the connect phase.
+        self.cmd_cli.buffer = ''
 
         self.cmd_cli.sendline(command)
-        time.sleep(1)
+
+        # Sync past any stale pre-command prompts still in the OS buffer by
+        # waiting for the command echo before collecting output.
+        try:
+            self.cmd_cli.expect_exact(command, timeout=self.timeout)
+        except (pexpect.TIMEOUT, pexpect.EOF):
+            pass
+
         output_chunks = []
         timed_out = False
         got_eof = False
 
         while True:
-            idx = self.cmd_cli.expect(
-                [self.command_prompt, re.escape(self.pager_prompt), pexpect.TIMEOUT, pexpect.EOF],
-                timeout=self.timeout
-            )
+            patterns = [self.command_prompt, re.escape(self.pager_prompt), pexpect.TIMEOUT, pexpect.EOF]
+            idx = self.cmd_cli.expect(patterns, timeout=self.timeout)
             output_chunks.append(self.cmd_cli.before or '')
 
             if idx == 0:
                 break
             elif idx == 1:
-                # advance pager to next page
                 self.cmd_cli.send(' ')
-                time.sleep(1)
             elif idx == 2:
                 timed_out = True
                 break

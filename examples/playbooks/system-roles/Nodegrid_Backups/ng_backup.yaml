@@ -64,7 +64,7 @@
         - monthly
 
     - name: Backup files rotation on "{{ inventory_hostname }}"
-      tags: backup-files-rotation, backup-files-rotation-remote, remove-remote
+      tags: backup-files-rotation-remote, remove-remote
       block:
       - name: Get list of backup files
         ansible.builtin.find:
@@ -121,5 +121,5 @@
       delegate_to: localhost
       tags: backup-files-rotation
       zpe.nodegrid.backup_rotate:
-        backup_file_type: ".tar.gz"
+        backup_file_extension: ".tar.gz"
         backup_path: "{{ backup_files_directory }}"

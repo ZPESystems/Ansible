@@ -64,7 +64,7 @@
         - monthly
 
     - name: export_settings files rotation on "{{ inventory_hostname }}"
-      tags: export-settings-files-rotation, export-settings-files-rotation-remote, remove-remote
+      tags: export-settings-files-rotation-remote, remove-remote
       block:
       - name: Get list of export_settings files
         ansible.builtin.find:
@@ -124,7 +124,7 @@
     
     - name: export_settings files rotation on Control Node
       delegate_to: localhost
-      tags: export_settings-files-rotation
+      tags: export-settings-files-rotation
       zpe.nodegrid.backup_rotate:
-        backup_file_type: ".cli"
+        backup_file_extension: ".cli"
         backup_path: "{{ export_settings_files_directory }}"

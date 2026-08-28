@@ -36,12 +36,11 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def nodegrid_export_settings(option, run_opt):
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
+    export_settings_file_extension = option.get('export_settings_file_extension', '.cli')
     # Generate the timestamp
     now_utc = datetime.now(timezone.utc)
     iso_basic_short = now_utc.strftime("%Y%m%dT%H%M%SZ")
-    filename_split = option['export_settings_filename'].split('.')
-    filename_extension = ".".join(filename_split[1:]) 
-    export_settings_filename = f"{filename_split[0]}-{iso_basic_short}.{filename_extension}" if len(filename_split) > 1 else f"{filename_split[0]}-{iso_basic_short}"
+    export_settings_filename = f"{option['export_settings_filename'].removesuffix(export_settings_file_extension)}-{iso_basic_short}{export_settings_file_extension}" 
     export_settings_file_permissions = option['export_settings_file_permissions']
     result = dict(
         changed=False,

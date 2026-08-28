@@ -36,12 +36,11 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def nodegrid_backup(option, run_opt):
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
+    backup_file_extension = option.get('backup_file_extension', '.tar.gz')
     # Generate the timestamp
     now_utc = datetime.now(timezone.utc)
     iso_basic_short = now_utc.strftime("%Y%m%dT%H%M%SZ")
-    filename_split = option['backup_filename'].split('.')
-    filename_extension = ".".join(filename_split[1:]) 
-    backup_filename = f"{filename_split[0]}-{iso_basic_short}.{filename_extension}" if len(filename_split) > 1 else f"{filename_split[0]}-{iso_basic_short}"
+    backup_filename = f"{option['backup_filename'].removesuffix(backup_file_extension)}-{iso_basic_short}{backup_file_extension}" 
     backup_file_permissions = option['backup_file_permissions']
     result = dict(
         changed=False,

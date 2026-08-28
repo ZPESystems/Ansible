@@ -120,6 +120,18 @@ ansible@ngmanager1:~$ ansible-inventory --graph nodegrid_backup
 
 ```
 
+### Establish the Ansible connection
+
+- To set the ansible communication run the following command for a specific host, during the execution provide the current Nodegrid's admin password
+```shell
+ansible-playbook 001_setup_nodegrid_ansible.yaml --limit <hostname>
+```
+
+- The same script can be used to configure all or multiple hosts by providing no --limit value or with a group name
+```shell
+ansible-playbook 001_setup_nodegrid_ansible.yaml --limit company
+```
+
 To validate that Ansible is able to reach all the target devices, execute the following:
 ```bash
 ansible@ngmanager1:~$ ansible -m ping nodegrid_backup

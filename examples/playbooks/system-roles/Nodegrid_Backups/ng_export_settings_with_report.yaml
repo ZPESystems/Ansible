@@ -13,6 +13,9 @@
     export_settings_files_rotation_number_target_device: 0
     # Backup's report file path on the Ansible Control Node 
     report_path: "{{ export_settings_files_directory }}/ng_export_settings_status_report.csv"
+    # Backup's error logs file path on the Ansible Control Node 
+    error_log_path: "{{ export_settings_files_directory }}/ng_export_settings_error_report.csv"
+
   tasks:
     - name: export_settings Directory verification
       tags: export-settings-directory-check
@@ -106,6 +109,17 @@
       - name: Mark as failed if host is not reachable
         ansible.builtin.set_fact:
           reachable_status: "Failed"
+      - name: Append error details to "{{ error_log_path }}" log file
+        ansible.builtin.lineinfile:
+          path: "{{ error_log_path }}"
+          line: "{{ now(fmt='%Y-%m-%d %H:%M:%S') }},Host: {{ inventory_hostname }},Task: '{{ ansible_failed_task.name }}',Error: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr) }}"
+          create: yes
+          insertafter: EOF
+          mode: '0644'
+          owner: ansible
+          group: ansible
+        become: yes
+        delegate_to: localhost
 
     - name: export_settings Process on "{{ inventory_hostname }}"
       tags: export-settings-file
@@ -155,6 +169,17 @@
       - name: Mark as failed if backup task triggers rescue
         ansible.builtin.set_fact:
           backup_status: "Failed"
+      - name: Append error details to "{{ error_log_path }}" log file
+        ansible.builtin.lineinfile:
+          path: "{{ error_log_path }}"
+          line: "{{ now(fmt='%Y-%m-%d %H:%M:%S') }},Host: {{ inventory_hostname }},Task: '{{ ansible_failed_task.name }}',Error: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr) }}"
+          create: yes
+          insertafter: EOF
+          mode: '0644'
+          owner: ansible
+          group: ansible
+        become: yes
+        delegate_to: localhost
 
     # Create the report
     - name: Ensure Backup Report CSV file exists without overwriting content
@@ -162,8 +187,11 @@
         path: "{{ report_path }}"
         state: touch
         mode: '0644'
+        owner: ansible
+        group: ansible
       run_once: true
       delegate_to: localhost
+      become: yes
 
     - name: Add CSV header only if the file is empty
       ansible.builtin.lineinfile:

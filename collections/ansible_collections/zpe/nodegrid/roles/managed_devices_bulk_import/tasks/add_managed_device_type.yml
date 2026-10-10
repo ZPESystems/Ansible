@@ -1,0 +1,6 @@
+- name: Add Managed Device Type "{{ device_type['device_type_name'] | default('') }}"
+  tags: always
+  zpe.nodegrid.managed_devices:
+    timeout: "{{ nodegrid_timeout | default(60) }}"
+    max_retries: "{{ add_device_retries | default(3) }}"
+    type: "{{ device_type }}"

@@ -14,6 +14,30 @@ from collections import defaultdict
 
 display = Display()
 
+class QuoteDumper(yaml.SafeDumper):
+    def represent_data(self, data):
+        # Force single quotes strictly on string data types
+        if isinstance(data, str):
+            return self.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+        return super().represent_data(data)
+class QuoteValueDumper(yaml.SafeDumper):
+    def represent_mapping(self, tag, mapping, flow_style=None):
+        value = []
+        # Separate the logic for keys and values
+        for item_key, item_value in mapping.items():
+            # Represent the key normally (leaves it unquoted)
+            node_key = self.represent_data(item_key)
+            
+            # If the value is a string, explicitly force double quotes
+            if isinstance(item_value, str):
+                node_value = self.represent_scalar('tag:yaml.org,2002:str', item_value, style='"')
+            else:
+                node_value = self.represent_data(item_value)
+                
+            value.append((node_key, node_value))
+            
+        return yaml.nodes.MappingNode(tag, value, flow_style=flow_style)
+
 # ------------------------------------------
 # Supported Fields by device type 
 fields_ip_based = set(['end_point', 'port_number', 'skip_authentication_in_web_sessions', 'enable_hostname_detection', 'coordinates', 'ssh_port', 'read-write_multisession', 'credential', 'sec_ip_alias_binary_port', 'ip_alias_telnet', 'enable_send_break', 'method', 'enable_device_state_detection_based_on_network_traffic', 'mode', 'description', 'expiration_date', 'icon', 'username', 'duration', 'allow_telnet_protocol', 'allow_binary_socket', 'show_text_information', 'ip_address', 'allow_pre-shared_ssh_key', 'sec_ip_alias', 'enable_ip_alias', 'ip_alias_binary_port', 'sec_ip_alias_telnet', 'ip_alias_browser_action', 'sec_ip_alias_telnet_port', 'allow_ssh_protocol', 'type', 'address_location', 'ip_alias', 'port', 'telnet_port', 'password', 'skip_authentication_in_raw_sessions', 'multisession', 'sec_interface', 'sec_ip_alias_browser_action', 'expiration', 'skip_authentication_in_ssh_sessions', 'skip_authentication_in_telnet_sessions', 'sec_ip_alias_binary', 'tcp_socket_port', 'escape_sequence', 'interface', 'skip_authentication_to_access_device', 'name', 'power_control_key', 'web_url', 'ip_alias_telnet_port', 'enable_second_ip_alias', 'break_sequence', 'ip_alias_binary', 'launch_url_via_html5', 'ssh_private_key', 'ssh_public_key', 'ssh_key_type', 'rebounce'])
@@ -28,6 +52,9 @@ fields_device_permission = set(['Group_Name', 'Device_Name', 'name', 'devices', 
 
 fields_device_management = set(['ssh_and_telnet', 'credential', 'password', 'monitoring_nominal', 'discover_ports', 'discover_interval', 'discovered_name', 'purge_disabled_end_point_ports'])
 
+fields_device_type = set(['clone_type', 'device_type_name', 'protocol', 'ssh_options', 'login_prompt', 'password_prompt', 'command_prompt', 'console_escape_sequence', 'oem_support'])
+
+fields_custom_commands = set(['enabled', 'custom_command_script1', 'custom_command_enabled1', 'custom_command_label1', 'custom_command_script2', 'custom_command_enabled2', 'custom_command_label2', 'custom_command_script3', 'custom_command_enabled3', 'custom_command_label3', 'custom_command_script4', 'custom_command_enabled4', 'custom_command_label4', 'custom_command_script5', 'custom_command_enabled5', 'custom_command_label5', 'custom_command_script6', 'custom_command_enabled6', 'custom_command_label6', 'custom_command_script7', 'custom_command_enabled7', 'custom_command_label7', 'custom_command_script8', 'custom_command_enabled8', 'custom_command_label8', 'custom_command_script9', 'custom_command_enabled9', 'custom_command_label9', 'custom_command_script10', 'custom_command_enabled10', 'custom_command_label10'])
 # ------------------------------------------
 
 # Add representer for 'None' type in Yaml
@@ -73,6 +100,10 @@ class ActionModule(ActionBase):
             if not self.validate_file(action_module_args['csv_device_permissions']):
                 display.vvv(f"Error accessing device permissions file {action_module_args['csv_device_permissions']}")
                 action_module_args.pop('csv_device_permissions', None)
+        if 'csv_device_types' in action_module_args:
+            if not self.validate_file(action_module_args['csv_device_types']):
+                display.vvv(f"Error accessing device types file {action_module_args['csv_device_types']}")
+                action_module_args.pop('csv_device_types', None)
         
         if len(set(['csv_ip_based','csv_serial','csv_usb']).intersection(set(action_module_args.keys()))) == 0:
             return self._result_failed(msg=f"Neither IP-based, Serial, nor USB CSV files were accesible.")
@@ -95,15 +126,17 @@ class ActionModule(ActionBase):
         if target_devices:
             custom_fields_prefix = action_module_args.get('custom_fields_prefix', 'cf_')
             management_fields_prefix = action_module_args.get('management_fields_prefix', 'mgmt_')
+            custom_commands_fields_prefix = action_module_args.get('custom_commands_fields_prefix', 'ccmd_')
             ip_based_devices = {}
             serial_devices = {}
             usb_devices = {}
             if 'csv_ip_based' in action_module_args:
-                ip_based_devices = self.process_ip_based_devices(file_name=action_module_args['csv_ip_based'], custom_fields_prefix=custom_fields_prefix, management_fields_prefix=management_fields_prefix)
+                ip_based_devices = self.process_ip_based_devices(file_name=action_module_args['csv_ip_based'], custom_fields_prefix=custom_fields_prefix, management_fields_prefix=management_fields_prefix, custom_commands_fields_prefix=custom_commands_fields_prefix)
             if 'csv_serial' in action_module_args:
                 serial_devices = self.process_serial_devices(file_name=action_module_args['csv_serial'], custom_fields_prefix=custom_fields_prefix)
             if 'csv_usb' in action_module_args:
                 usb_devices = self.process_usb_devices(file_name=action_module_args['csv_usb'], custom_fields_prefix=custom_fields_prefix)
+
             discovery_rules = {}
             if 'csv_discovery_rules' in action_module_args:
                 discovery_rules = self.process_discovery_rules(file_name=action_module_args['csv_discovery_rules'])
@@ -114,9 +147,15 @@ class ActionModule(ActionBase):
             device_permissions = {}
             if 'csv_device_permissions' in action_module_args:
                 device_permissions = self.process_device_permissions(file_name=action_module_args['csv_device_permissions'], devices=devices)
+            
+            device_types = {}
+            if 'csv_device_types' in action_module_args:
+                device_types = self.process_device_types(file_name=action_module_args['csv_device_types'])
+
             ansible_inventory_path = action_module_args.get('ansible_inventory_path', '/etc/ansible/inventories')
-            self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules, device_permissions=device_permissions, rebounce_list=rebounce_list)
+            self.save_managed_devices(devices=devices, target_devices=target_devices, ansible_inventory_path=ansible_inventory_path, discovery_rules=discovery_rules, device_permissions=device_permissions, rebounce_list=rebounce_list, device_types=device_types)
             return self._result_changed(msg=f"Managed devices inventory successfully created at {action_module_args['ansible_inventory_path']}. The list of ansible target devices is = {list(target_devices)}. The hosts/group file is {action_module_args['ansible_inventory_path']}/{action_module_args['ansible_inventory_hosts_filename']}. The group name is: {action_module_args['ansible_group_name']}")
+
         return self._result_not_changed(msg="No Ansible Target devices were enabled. Nothing configured!")
 
     # #########################################
@@ -125,15 +164,16 @@ class ActionModule(ActionBase):
     #   its 'ansible_inventory_name', and each containing a list of managed devices.
     # - if 'device_type' is dict: return a dict of devices, each device referenced by 
     #   its 'ansible_inventory_name', and each containing a dict with the target device info.
-    def read_csv_devices(self, file_name, device_key_id='ansible_inventory_name', device_type=list, custom_fields_prefix="", management_fields_prefix="", fields_validate=set()):
+    def read_csv_devices(self, file_name, device_key_id='ansible_inventory_name', device_type=list, custom_fields_prefix="", management_fields_prefix="", custom_commands_fields_prefix="", fields_validate=set()):
         devices = {}
         custom_fields = set()
         management_fields = set()
+        custom_commands_fields = set()
         undefined_fields = set()
         rebounce_list = []
         try:
             with open(file_name, mode='r', newline='') as file_obj:
-                reader_obj = csv.DictReader(file_obj, quotechar="'", delimiter=',')
+                reader_obj = csv.DictReader(file_obj, quotechar="'", delimiter=',', escapechar='\\')
                 if not reader_obj:
                     display.vvv(f"File {file_name} does not contain devices information!")
                     return None
@@ -148,22 +188,24 @@ class ActionModule(ActionBase):
                 if management_fields_prefix.strip():
                     management_fields=set([k for k in fieldnames if re.match(f"^{management_fields_prefix}.*", k)])
                     display.vvv(f"management fields: {management_fields}")
+                if custom_commands_fields_prefix.strip():
+                    custom_commands_fields=set([k for k in fieldnames if re.match(f"^{custom_commands_fields_prefix}.*", k)])
+                    display.vvv(f"custom_commands fields: {custom_commands_fields}")
                 if fields_validate:
-                    undefined_fields = set(fieldnames) - fields_validate - custom_fields - management_fields - {device_key_id}
+                    undefined_fields = set(fieldnames) - fields_validate - custom_fields - management_fields - custom_commands_fields - {device_key_id}
                     if undefined_fields:
                         display.vvv(f"[{file_name}] Undefined columns to be ignored: {undefined_fields}")
                 # Parse the devices information
                 for device in reader_obj:
                     settings_to_be_deleted = set()
                     for key,value in device.items():
-                        if key in custom_fields:
-                            continue
-                        if key in management_fields:
+                        if key in custom_fields | management_fields | custom_commands_fields:
                             continue
                         if value.strip() == "":
                             settings_to_be_deleted.add(key)
 
                     settings_to_be_deleted = settings_to_be_deleted | undefined_fields
+                    display.vvv(f"settings_to_be_deleted: {settings_to_be_deleted}")
                     for setting in settings_to_be_deleted:
                         device.pop(setting, None)
                     ansible_device = device.pop(device_key_id, None)
@@ -180,7 +222,7 @@ class ActionModule(ActionBase):
                             new_device["custom_fields"].append({"field_name":cf_key.removeprefix(custom_fields_prefix) ,"field_value": str(cf_value).replace("'", "")})
                             new_device.pop(cf_key, None)
                         device = new_device
-                        #display.vvv(f"Device with custom fields: {device}")
+
                     if management_fields:
                         new_device = dict(device)
                         new_device["management"] = {}
@@ -193,7 +235,23 @@ class ActionModule(ActionBase):
                         device = new_device
                         if not device["management"]:
                             device.pop("management", None)
-                        #display.vvv(f"Device with custom fields: {device}")
+                    
+                    if custom_commands_fields:
+                        new_device = dict(device)
+                        new_device["commands"] = []
+                        command = {}
+                        for cmd_key in custom_commands_fields:
+                            cmd_value = new_device[cmd_key]
+                            new_device.pop(cmd_key, None)
+                            if cmd_value.strip() == "":
+                                continue
+                            command[cmd_key.removeprefix(custom_commands_fields_prefix)] = cmd_value.strip()
+                        if command:
+                            command["command"] = "custom_commands"
+                            new_device["commands"].append(command)
+                        device = new_device
+                        if not device["commands"]:
+                            device.pop("commands", None)
                     
                     rebounce = device.pop("rebounce", None)
                     if rebounce and str(rebounce).lower() == "yes":
@@ -330,6 +388,55 @@ class ActionModule(ActionBase):
             # Catch any other unexpected exceptions
             display.vvv(f"An unexpected error occurred: {e}")
         return None
+    
+    # #########################################
+    # Read a CSV file and return a list with the device types to be applied to each Nodegrid device. 
+    def read_csv_device_types(self, file_name, device_key_id='ansible_inventory_name', fields_validate=set()):
+        undefined_fields = {}
+        devices = {}
+        try:
+            with open(file_name, mode='r', newline='') as file_obj:
+                reader_obj = csv.DictReader(file_obj)
+                if not reader_obj:
+                    display.vvv(f"File {file_name} does not contain Device Types information!")
+                    return None
+                # Filter custom field names, if exists.
+                fieldnames = reader_obj.fieldnames
+                if fields_validate:
+                    undefined_fields = set(fieldnames) - fields_validate - {device_key_id}
+                    if undefined_fields:
+                        display.vvv(f"Columns to be ignored: {undefined_fields}")
+                # Parse the devices information
+                for device_type in reader_obj:
+                    ansible_device = device_type.pop(device_key_id, None)
+                    if not ansible_device:
+                        display.vvv(f"Following device permission rule does not have a device key ID, defined in the '{device_key_id}' setting. It will not be configured. Device permission info: {device_type}")
+                        continue
+                    settings_to_be_deleted = set()
+                    for key,value in device_type.items():
+                        if value.strip() == "":
+                            settings_to_be_deleted.add(key)
+                    settings_to_be_deleted = settings_to_be_deleted | undefined_fields
+                    for setting in settings_to_be_deleted:
+                        device_type.pop(setting, None)
+                    
+                    if not ansible_device in devices:
+                        devices[ansible_device] = []
+                    display.vvv(f"device_type: {device_type}")
+                    devices[ansible_device].append(device_type)
+
+            return devices
+        except FileNotFoundError:
+            display.vvv(f"The file '{file_name}' was not found. Interrumping the execution.")
+        except IOError as e:
+            display.vvv(f"Error: An I/O error occurred while accessing '{file_name}'. Error: {e}")
+        except csv.Error as e:
+            # Handle general CSV-related errors (e.g., malformed CSV)
+            display.vvv(f"Error reading CSV file: {file_name}. Error: {e}")
+        except Exception as e:
+            # Catch any other unexpected exceptions
+            display.vvv(f"An unexpected error occurred: {e}")
+        return None
 
     # ###################################
     # Process the Ansible target devices
@@ -346,7 +453,8 @@ class ActionModule(ActionBase):
             file_name = os.path.join(ansible_inventory_path,'host_vars',f"{device_name}.yaml")
             display.vvv(f"Writting Ansible device config into: {file_name}")
             with open(file_name, 'w') as device_file:
-                yaml.safe_dump(ansible_device, device_file, sort_keys=False, default_flow_style=False)
+                #yaml.safe_dump(ansible_device, device_file, sort_keys=False, default_flow_style=False)
+                yaml.dump(ansible_device, device_file, Dumper=QuoteValueDumper, sort_keys=False, default_flow_style=False)
         file_name = os.path.join(ansible_inventory_path,ansible_inventory_hosts_filename)
         display.vvv(f"Writting hosts file into: {file_name}")
         with open(file_name, 'w') as device_file:
@@ -354,7 +462,15 @@ class ActionModule(ActionBase):
         return devices.keys()
     
     # ###################################
-    # Process Device Permissions o be applied to Nodegrid Devices
+    # Process Device Types to be applied to Nodegrid Devices
+    def process_device_types(self, file_name):
+        device_types = self.read_csv_device_types(file_name, fields_validate=fields_device_type)
+        #display.vvv(f"Device Types: {device_types}")
+        if device_types:
+            display.vvv(f"Number of Ansible devices to which Device Types are going to be configured: {len(device_types.keys())}")
+        return device_types
+    # ###################################
+    # Process Device Permissions to be applied to Nodegrid Devices
     def process_device_permissions(self, file_name, devices):
         device_permissions = self.read_csv_device_permissions(file_name, devices, fields_validate=fields_device_permission)
         #display.vvv(f"Device Permissions: {device_permissions}")
@@ -373,8 +489,8 @@ class ActionModule(ActionBase):
 
     # ###################################
     # Process the IP-based managed devices
-    def process_ip_based_devices(self, file_name, custom_fields_prefix="", management_fields_prefix=""):
-        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_ip_based, management_fields_prefix=management_fields_prefix)
+    def process_ip_based_devices(self, file_name, custom_fields_prefix="", management_fields_prefix="", custom_commands_fields_prefix=""):
+        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_ip_based | fields_custom_commands, management_fields_prefix=management_fields_prefix, custom_commands_fields_prefix=custom_commands_fields_prefix)
         #display.vvv(f"IP-based managed devices: {devices}")
         if devices:
             display.vvv(f"Number of IP-based devices to be processed: {len(devices.keys())}")
@@ -383,7 +499,7 @@ class ActionModule(ActionBase):
     # ###################################
     # Process the Serial managed devices
     def process_serial_devices(self, file_name, custom_fields_prefix=""):
-        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_serial)
+        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_serial | fields_custom_commands)
         #display.vvv(f"Serial managed devices: {devices}")
         if devices:
             display.vvv(f"Number of Serial devices to be processed: {len(devices.keys())}")
@@ -392,7 +508,7 @@ class ActionModule(ActionBase):
     # ###################################
     # Process the USB managed devices
     def process_usb_devices(self, file_name, custom_fields_prefix=""):
-        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_usb)
+        devices = self.read_csv_devices(file_name, device_type=list, custom_fields_prefix=custom_fields_prefix, fields_validate=fields_usb | fields_custom_commands)
         #display.vvv(f"Usb managed devices: {devices}")
         if devices:
             display.vvv(f"Number of Usb devices to be processed: {len(devices.keys())}")
@@ -400,7 +516,7 @@ class ActionModule(ActionBase):
     
     # ###################################
     # Save Managed devices
-    def save_managed_devices(self, devices, target_devices, ansible_inventory_path, discovery_rules={}, device_permissions={}, rebounce_list=[]):
+    def save_managed_devices(self, devices, target_devices, ansible_inventory_path, discovery_rules={}, device_permissions={}, rebounce_list=[], device_types={}):
         for device_name, managed_devices in devices.items():
             if not device_name in target_devices:
                 display.vvv(f"Target device {device_name} is not defined on the list of ansible target devices. Ignoring managed devices: {managed_devices}")
@@ -412,7 +528,8 @@ class ActionModule(ActionBase):
             device_info = {"managed_devices": managed_devices, "rebounce": rebounce_list}
             display.vvv(f"Writting Managed devices info into: {file_name}")
             with open(file_name, 'a') as device_file:
-                yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
+                #yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
+                yaml.dump(device_info, device_file, Dumper=QuoteValueDumper, sort_keys=False, default_flow_style=False)
 
         # Save discovery rules and device permissions
         for device_name in target_devices:
@@ -420,15 +537,18 @@ class ActionModule(ActionBase):
             device_info = dict()
             if device_name in discovery_rules:
                 device_info["discovery_rules"] = discovery_rules[device_name]
+            if device_name in device_types:
+                device_info["device_types"] = device_types[device_name]
             if device_name in device_permissions:
                 dev_permissions=[]
                 for group_name, devices in device_permissions[device_name].items():
                     dev_permissions.append({'name': group_name, 'devices': devices['devices']})
                 device_info["authorization"] = dev_permissions
-            display.vvv(f"Writting Discovery Rules / Device Permissions into: {file_name}")
+            display.vvv(f"Writting Device Types | Discovery Rules | Device Permissions into: {file_name}")
             if device_info:
                 with open(file_name, 'a') as device_file:
-                    yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
+                    #yaml.safe_dump(device_info, device_file, sort_keys=False, default_flow_style=False)
+                    yaml.dump(device_info, device_file, Dumper=QuoteValueDumper, sort_keys=False, default_flow_style=False)
 
     # ###################################
     # Merde the managed devices dict into a single dict

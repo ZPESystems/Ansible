@@ -1,3 +1,11 @@
+- name: Add Managed Device Types Loop
+  tags: [add_managed_device_types]
+  when: device_types is defined
+  include_tasks: add_managed_device_type.yml
+  loop: "{{ device_types }}"
+  loop_control:
+    loop_var: device_type
+
 - name: Add Managed Devices loop
   tags: [add_managed_devices]
   when: managed_devices is defined

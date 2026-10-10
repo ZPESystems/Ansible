@@ -11,7 +11,7 @@ special_character = [ '<', '>', ':' ,'"', '/', '\\', '|', '?', '*' ]
 ng_invalid_character = [ '"', '/', '\\', '\'' ]
 
 # columns to ignore special_character check
-ng_ignore_columns = set(['ssh_private_key', 'ssh_public_key', 'web_url', 'coordinates', 'address_location', 'description', 'password', 'mgmt_pattern_name'])
+ng_ignore_columns = set(['ssh_private_key', 'ssh_public_key', 'web_url', 'coordinates', 'address_location', 'description', 'password', 'mgmt_pattern_name', 'ssh_options', 'login_prompt', 'password_prompt', 'command_prompt', 'console_escape_sequence'])
 ng_cols_replace = {'ssh_private_key':[r'[\n\r]+', '<br>']}
 
 colnames = set(['Export', 'ansible_inventory_name', 'ansible_host', 'ansible_port', 'ansible_user', 'ansible_ssh_private_key_file',
@@ -23,7 +23,9 @@ colnames = set(['Export', 'ansible_inventory_name', 'ansible_host', 'ansible_por
             'mgmt_ssh_and_telnet', 'mgmt_credential', 'mgmt_password', 'mgmt_monitoring_nominal',
             'mgmt_discover_ports', 'mgmt_discover_interval', 'mgmt_discovered_name', 'pattern_name', 'mgmt_purge_disabled_end_point_ports','mgmt_action',
             'mgmt_snmp', 'mgmt_snmp_version', 'mgmt_snmp_community', 'mgmt_snmpv3_username', 'mgmt_snmpv3_security_level', 'mgmt_snmpv3_authentication_algorithm', 'mgmt_snmpv3_authentication_password', 'mgmt_snmpv3_privacy_algorithm', 'mgmt_snmpv3_privacy_password',
+            'clone_type', 'device_type_name', 'protocol', 'ssh_options', 'login_prompt', 'password_prompt', 'command_prompt', 'console_escape_sequence', 'oem_support',
             'rebounce',
+            'ccmd_enabled', 'ccmd_custom_command_script1', 'ccmd_custom_command_enabled1', 'ccmd_custom_command_label1', 'ccmd_custom_command_script2', 'ccmd_custom_command_enabled2', 'ccmd_custom_command_label2', 'ccmd_custom_command_script3', 'ccmd_custom_command_enabled3', 'ccmd_custom_command_label3', 'ccmd_custom_command_script4', 'ccmd_custom_command_enabled4', 'ccmd_custom_command_label4', 'ccmd_custom_command_script5', 'ccmd_custom_command_enabled5', 'ccmd_custom_command_label5', 'ccmd_custom_command_script6', 'ccmd_custom_command_enabled6', 'ccmd_custom_command_label6', 'ccmd_custom_command_script7', 'ccmd_custom_command_enabled7', 'ccmd_custom_command_label7', 'ccmd_custom_command_script8', 'ccmd_custom_command_enabled8', 'ccmd_custom_command_label8', 'ccmd_custom_command_script9', 'ccmd_custom_command_enabled9', 'ccmd_custom_command_label9', 'ccmd_custom_command_script10', 'ccmd_custom_command_enabled10', 'ccmd_custom_command_label10',
         ])
 
 pattern = '[' + re.escape(''.join(ng_invalid_character)) + ']'
@@ -36,6 +38,7 @@ sheets = {
     'Discovery_Rules': 'zpe_ngm_discovery_rules.csv',
     'Groups': 'zpe_ngm_groups.csv',
     'Device_Permissions': 'zpe_ngm_device_permissions.csv',
+    'Types': 'zpe_ngm_device_types.csv',
 }
 
 def remove_special_characters(text):
@@ -65,11 +68,12 @@ def process_xlsx_to_csv_files(excel_filename):
             for colname, replacement in ng_cols_replace.items():
                 if colname in df.columns:
                     df[colname] = df[colname].str.replace(replacement[0], replacement[1], regex=True)
-            for colname in set(df.columns) - colnames | set(df.columns) & ng_ignore_columns:
-                df[colname] = df[colname].apply(lambda x: f"'{x}'" if pd.notnull(x) and str(x).strip() != '' else x)
+            #for colname in set(df.columns) - colnames | set(df.columns) & ng_ignore_columns:
+            #    df[colname] = df[colname].apply(lambda x: f"'{x}'" if pd.notnull(x) and str(x).strip() != '' else x)
                 #df[colname] = "'" + df[colname].astype(str) + "'"
             df = df.drop('Export', axis=1, errors='ignore')
             df.to_csv(filename, index=False, quoting=csv.QUOTE_NONE, quotechar="'", escapechar="\\")
+            #df.to_csv(filename, index=False, quoting=csv.QUOTE_MINIMAL, quotechar="'", escapechar="\\")
         return True, ''
 
     except Exception as e:

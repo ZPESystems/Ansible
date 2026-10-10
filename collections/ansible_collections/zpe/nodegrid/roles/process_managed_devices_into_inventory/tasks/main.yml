@@ -45,6 +45,7 @@
     csv_usb: "{{ csv_usb | default('./zpe_ngm_usb_devices.csv') }}"
     csv_discovery_rules: "{{ csv_discovery_rules | default('./zpe_ngm_discovery_rules.csv') }}"
     csv_device_permissions: "{{ csv_device_permissions | default('./zpe_ngm_device_permissions.csv') }}"
+    csv_device_types: "{{ csv_device_types | default('./zpe_ngm_device_types.csv') }}"
     ansible_inventory_path: "{{ ansible_inventory_path | default('/etc/ansible/inventories') }}"
     ansible_inventory_hosts_filename: "{{ ansible_inventory_hosts_filename | default('imported_managed_devices.yaml') }}"
     ansible_group_name: "{{ ansible_group_name | default('imported_managed_devices') }}"

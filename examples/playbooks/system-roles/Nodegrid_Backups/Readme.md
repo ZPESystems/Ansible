@@ -3,9 +3,9 @@
 This use case describes the Nodegrid backup process with the following files rotation logic per each Nodegrid device:
 - **Daily**: Keep a daily backup (latest) for the last 7 days.
 - **Weekly**: Keep one backup per week (latest) for the last 4 weeks.
-- **Montly**: Keep one backup per month (latest) for the last 12 months.
+- **Monthly**: Keep one backup per month (latest) for the last 12 months.
 
-The above cases consider the time window starting from the Nodegrid localtime relative to when the process is executed. 
+The above cases consider the time window starting from the Nodegrid local-time relative to when the process is executed. 
 
 Two different types of Nodegrid backups are considered:
 - Full Nodegrid backup: `nodegrid_device.tar.gz`
@@ -122,14 +122,14 @@ ansible@ngmanager1:~$ ansible-inventory --graph nodegrid_backup
 
 ### Establish the Ansible connection
 
-- To set the ansible communication run the following command for a specific host, during the execution provide the current Nodegrid's admin password
+- To set the Ansible communication run the following command for a specific host, during the execution provide the current Nodegrid's admin password
 ```shell
 ansible-playbook 001_setup_nodegrid_ansible.yaml --limit <hostname>
 ```
 
 - The same script can be used to configure all or multiple hosts by providing no --limit value or with a group name
 ```shell
-ansible-playbook 001_setup_nodegrid_ansible.yaml --limit company
+ansible-playbook 001_setup_nodegrid_ansible.yaml --limit ng_backup
 ```
 
 To validate that Ansible is able to reach all the target devices, execute the following:
@@ -154,7 +154,12 @@ gatesr | SUCCESS => {
 
 The playbook [ng_backup.yaml](ng_backup.yaml) creates a backup for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_backup_files_directory` which defines the main path for the backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
 
-To execute the playbook:
+| Variable Name | Description |
+|:---:|:---|
+|**nodegrid_backup_files_directory**| Ansible control node's directory path to store the ALL the backup files (includes the daily, weekly and monthly files). The backup files' names will follow this pattern: `'{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.tar.gz'`. Default value: `'/var/local/file_manager/admin_group/backup'`|
+|**nodegrid_backup_file_directory**| Backup file directory on the target device. This variable only works if the Nodegrid target device version is greater or equal to 'v6.2.8', otherwise the default path `/backup` is used. Default value: `'/var/local/file_manager/admin_group'`. |
+
+To execute the playbook with the default variables values:
 
 ```bash
 ansible-playbook ng_backup.yaml --limit nodegrid_backup
@@ -221,15 +226,66 @@ ngmanager1                 : ok=7    changed=4    unreachable=0    failed=0    s
 ```
 </details>
 
+To execute the playbook defining the variables:
+
+```
+ansible-playbook ng_backup_filepath_with_report.yaml --limit ng_backup -e nodegrid_backup_files_directory=/var/local/file_manager/admin_group/backup -e nodegrid_backup_file_directory=/var/local/file_manager/admin_group
+```
+
+### Execute the Backup Process with a CSV report
+
+The playbook [ng_backup_with_report.yaml](ng_backup_with_report.yaml) creates a backup for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_backup_files_directory` which defines the main path for the backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
+
+| Variable Name | Description |
+|:---:|:---|
+|**nodegrid_backup_files_directory**| Ansible control node's directory path to store the ALL the backup files (includes the daily, weekly and monthly files). The backup files' names will follow this pattern: `'{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.tar.gz'`. Default value: `'/var/local/file_manager/admin_group/backup'`|
+|**nodegrid_backup_file_directory**| Backup file directory on the target device. This variable only works if the Nodegrid target device version is greater or equal to 'v6.2.8', otherwise the default path `/backup` is used. Default value: `'/var/local/file_manager/admin_group'`. |
+
+Additionally, this playbook creates two CSV reports which detail:
+
+|Variable|Description|
+|----|----|
+|`report_path: "{{backup_files_directory}}/ng_backup_status_report.csv"` | Backup's report file path on the Ansible Control Node |
+|`error_log_path: "{{backup_files_directory}}/ng_backup_error_report.csv"`| Backup's error logs file path on the Ansible Control Node |
+
+To execute the playbook:
+
+```bash
+ansible-playbook ng_backup_with_report.yaml --limit nodegrid_backup
+```
+To execute the playbook defining the variables:
+
+```
+ansible-playbook ng_backup_filepath_with_report.yaml --limit nodegrid_backup -e nodegrid_backup_files_directory=/var/local/file_manager/admin_group/backup -e nodegrid_backup_file_directory=/var/local/file_manager/admin_group
+```
+
 ## Execute the Export Settings Process
 
-The playbook [ng_export_settings.yaml](ng_export_settings.yaml) creates a tex-based backup of the Nodegrid configuration for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_export_settings_files_directory` which defines the main path for the export settings backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
+The playbook [ng_export_settings.yaml](ng_export_settings.yaml) creates a text-based backup of the Nodegrid configuration for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_export_settings_files_directory` which defines the main path for the export settings backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
 
 To execute the playbook:
 
 ```bash
 ansible-playbook ng_export_settings.yaml --limit nodegrid_backup
 ```
+
+### Execute the Export Settings Process with a CSV report
+
+The playbook [ng_export_settings_with_report.yaml](ng_export_settings_with_report.yaml) creates a TWX-based backup of the Nodegrid configuration for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_export_settings_files_directory` which defines the main path for the export settings backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
+
+Additionally, this playbook creates two CSV reports which detail:
+
+|Variable|Description|
+|----|----|
+|`report_path: "{{backup_files_directory}}/ng_backup_status_report.csv"` | Backup's report file path on the Ansible Control Node |
+|`error_log_path: "{{backup_files_directory}}/ng_backup_error_report.csv"`| Backup's error logs file path on the Ansible Control Node |
+
+To execute the playbook:
+
+```bash
+ansible-playbook ng_export_settings_with_report.yaml --limit nodegrid_backup
+```
+
 
 # Access to the Backup Files.
 
@@ -241,7 +297,7 @@ Access the Web UI of the `ngmanager1` device:
 
 # Automate the Backup Process execution.
 
-This section describes how to automate the execution of the backup ansible playbook via the Nodegrid's Central Management feature.
+This section describes how to automate the execution of the backup Ansible playbook via the Nodegrid's Central Management feature.
 1. Copy the playbook playbook [ng_backup.yaml](ng_backup.yaml) into the directory `/etc/ansible/playbooks`.
 2. Access the Web UI of the `ngmanager1` device.
 3. Select **System -> Central Management -> Variables -> Add**. Define the variable `nodegrid_backup_files_directory` with value `/var/local/file_manager/admin_group/backup` and group scope `nodegrid_backup`.
@@ -249,7 +305,7 @@ This section describes how to automate the execution of the backup ansible playb
 4. Select **System -> Central Management -> Inventory**. Look for the `nodegrid_backup` group, select it and click Run. 
   - Select the playbook: `ng_backup.yaml`
   - Select Type -> Schedule
-  - Set a task name, e.g., *tast_nodegrid_backup*.
+  - Set a task name, e.g., *task_nodegrid_backup*.
   - Set the periodicity. For this example, daily at 23:00.
   - Click **Run**
 ![](images/ng_backup_task.png)
@@ -267,7 +323,7 @@ To access the backup files, follow the instructions detailed in the above sectio
 
 # Automate the Export Settings backup Process execution.
 
-This section describes how to automate the execution of the export settings ansible playbook via the Nodegrid's Central Management feature.
+This section describes how to automate the execution of the export settings Ansible playbook via the Nodegrid's Central Management feature.
 1. Copy the playbook playbook [ng_export_settings.yaml](ng_export_settings.yaml) into the directory `/etc/ansible/playbooks`.
 2. Access the Web UI of the `ngmanager1` device.
 3. Select **System -> Central Management -> Variables -> Add**. Define the variable `nodegrid_export_settings_files_directory` with value `/var/local/file_manager/admin_group/backup` and group scope `nodegrid_backup`.
@@ -275,7 +331,7 @@ This section describes how to automate the execution of the export settings ansi
 4. Select **System -> Central Management -> Inventory**. Look for the `nodegrid_backup` group, select it and click Run. 
   - Select the playbook: `ng_export_settings.yaml`
   - Select Type -> Schedule
-  - Set a task name, e.g., *tast_nodegrid_export_settings*.
+  - Set a task name, e.g., *task_nodegrid_export_settings*.
   - Set the periodicity. For this example, daily at 23:00.
   - Click **Run**
 ![](images/ng_export_settings_task.png)

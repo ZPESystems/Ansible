@@ -4,13 +4,16 @@
     - zpe.nodegrid
 
   vars:
-    # Local directory path to store the backup files. The backup files' names will follow 
-    # this pattern: '{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.tar.gz'
+    # Local directory path to store the ALL the backup files (includes the daily, weekly and monthly files).
+    # The backup files' names will follow this pattern: 
+    #   '{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.tar.gz'
     backup_files_directory: "{{nodegrid_backup_files_directory | default('/var/local/file_manager/admin_group/backup') }}"
     # Timeout for the backup process in seconds
     backup_timeout: "{{ nodegrid_backup_timeout | default(600) }}"
     # Number of backup files to keep/rotate on the target devices
     backup_files_rotation_number_target_device: 0
+    # Backup file directory on the target device. This variable only works if the Nodegrid target device version is greater or equal to 'v6.2.8', otherwise the default path '/backup' is used.
+    backup_file_directory: "{{nodegrid_backup_file_directory | default('/var/local/file_manager/admin_group') }}"
   tasks:
     - name: Backup Directory verification
       tags: backup-directory-check
@@ -68,7 +71,9 @@
       block:
       - name: Get list of backup files
         ansible.builtin.find:
-          paths: "/backup/"
+          paths:
+            - "{{ backup_file_directory }}"
+            - "/backup"
           patterns: "{{ inventory_hostname }}*.tar.gz"
         register: backup_files_remote
     
@@ -91,18 +96,19 @@
       - name: Create backup file
         zpe.nodegrid.nodegrid_backup:
           timeout: 300
+          backup_directory: "{{ backup_file_directory }}"
           backup_filename: "{{ inventory_hostname }}.tar.gz"
         become: true
         register: nodegrid_backup
   
       - name: Show backup filename
         ansible.builtin.debug:
-          msg: "{{ nodegrid_backup.backup_filename }}"
+          msg: "{{nodegrid_backup.backup_directory}}/{{ nodegrid_backup.backup_filename }}"
 
       - name: Fetch Backup file to Control Node
         ansible.builtin.fetch:
           # Source path on the remote host
-          src: "/backup/{{ nodegrid_backup.backup_filename }}" 
+          src: "{{nodegrid_backup.backup_directory}}/{{ nodegrid_backup.backup_filename }}" 
           # Destination directory on the local (control) machine
           dest: "{{backup_files_directory}}/daily/{{ inventory_hostname }}/{{ nodegrid_backup.backup_filename }}"
           # Optional parameter to save the file directly to the dest path without creating a hostname/path structure

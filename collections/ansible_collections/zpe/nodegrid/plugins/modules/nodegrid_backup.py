@@ -21,7 +21,7 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, result_failed, NodegridError, run_cli_commands
+from ansible_collections.zpe.nodegrid.plugins.module_utils.nodegrid_util import check_os_version_support, result_failed, NodegridError, run_cli_commands, compare_versions
 
 import os
 from datetime import datetime, timezone
@@ -36,6 +36,7 @@ if "DLITF_SID_ENCRYPT" in os.environ:
 def nodegrid_backup(option, run_opt):
     check_mode = run_opt['check_mode']
     timeout = run_opt.get('timeout', 60)
+    backup_directory = option.get('backup_directory', '/backup')
     backup_file_extension = option.get('backup_file_extension', '.tar.gz')
     # Generate the timestamp
     now_utc = datetime.now(timezone.utc)
@@ -49,12 +50,21 @@ def nodegrid_backup(option, run_opt):
         retries=0,
         )
     result['backup_filename'] = backup_filename
-    cmds = [ 
-        {'cmd': "save_settings"},
-        {'cmd': f"set filename={backup_filename}"},
-        {'cmd': "save"},
-        {'cmd': "finish"},
-    ]
+    if backup_directory.rstrip("/") == "/backup" or backup_directory.strip() == "":
+        cmds = [ 
+            {'cmd': "save_settings"},
+            {'cmd': f"set filename={backup_filename}"},
+            {'cmd': "save"},
+            {'cmd': "finish"},
+        ]
+    else:
+        cmds = [ 
+            {'cmd': "save_settings"},
+            {'cmd': f"set filename={os.path.join(backup_directory, backup_filename)}"},
+            {'cmd': "save"},
+            {'cmd': "finish"},
+        ]
+    result['backup_directory'] = backup_directory
 
     #    if run_opt['use_config_start_global']:
     #        cmds.insert(0, {'cmd': 'config_start'})
@@ -73,10 +83,13 @@ def nodegrid_backup(option, run_opt):
     cmds_results = run_cmds['cmds_results']
     try:
         mode_octal = int(backup_file_permissions, 8)
-        backup_filepath = os.path.join("/backup",backup_filename)
+        if backup_directory.rstrip("/") == "/backup" or backup_directory.strip() == "":
+            backup_filepath = os.path.join("/backup",backup_filename)
+        else:
+            backup_filepath = os.path.join(backup_directory, backup_filename)
         os.chmod(backup_filepath, mode_octal)
     except Exception as e:
-        return result_failed(f"Failed to change backup file '/backup/{backup_filename}' permissions '{backup_file_permissions}'. Error: {e}")
+        return result_failed(f"Failed to change backup file '{backup_filepath}' permissions '{backup_file_permissions}'. Error: {e}")
 
     if cmds_results:
         result['cmds_output'] = cmds_results
@@ -87,6 +100,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         backup_filename=dict(type='str', required=True),
+        backup_directory=dict(type='str', default='/backup', required=False),
         backup_file_permissions=dict(type='str', required=False, default='755'),
         backup_files_rotation=dict(type='int', required=False, default=5),
         skip_invalid_keys=dict(type='bool', default=False, required=False),
@@ -129,9 +143,14 @@ def run_module():
     else:
         use_config_start_global = True
     
-    backup_msg = f"Backing up configuration for device {nodegrid_os} into file '{module.params['backup_filename']}'"
+    # Check if the Nodegrid Version supports the definition of the full path backup filename. Nodegrid's version >= '6.2.8' supports it.
+    version = nodegrid_os['version']
+    if compare_versions(version, '6.2.8') < 0:
+        module.params['backup_directory'] = "/backup"
+        
+    backup_msg = f"Backing up configuration into '{os.path.join(module.params['backup_directory'], module.params['backup_filename'])}' + timestamp"
 
-    if module.check_mode:
+    if module.params['debug']:
         result['nodegrid_os'] = nodegrid_os
 
     run_opt = {

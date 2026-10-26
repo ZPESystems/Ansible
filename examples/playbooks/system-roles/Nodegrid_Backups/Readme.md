@@ -129,7 +129,7 @@ ansible-playbook 001_setup_nodegrid_ansible.yaml --limit <hostname>
 
 - The same script can be used to configure all or multiple hosts by providing no --limit value or with a group name
 ```shell
-ansible-playbook 001_setup_nodegrid_ansible.yaml --limit ng_backup
+ansible-playbook 001_setup_nodegrid_ansible.yaml --limit nodegrid_backup
 ```
 
 To validate that Ansible is able to reach all the target devices, execute the following:
@@ -229,7 +229,7 @@ ngmanager1                 : ok=7    changed=4    unreachable=0    failed=0    s
 To execute the playbook defining the variables:
 
 ```
-ansible-playbook ng_backup_filepath_with_report.yaml --limit ng_backup -e nodegrid_backup_files_directory=/var/local/file_manager/admin_group/backup -e nodegrid_backup_file_directory=/var/local/file_manager/admin_group
+ansible-playbook ng_backup_filepath_with_report.yaml --limit nodegrid_backup -e nodegrid_backup_files_directory=/var/local/file_manager/admin_group/backup -e nodegrid_backup_file_directory=/var/local/file_manager/admin_group
 ```
 
 ### Execute the Backup Process with a CSV report
@@ -241,7 +241,7 @@ The playbook [ng_backup_with_report.yaml](ng_backup_with_report.yaml) creates a 
 |**nodegrid_backup_files_directory**| Ansible control node's directory path to store the ALL the backup files (includes the daily, weekly and monthly files). The backup files' names will follow this pattern: `'{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.tar.gz'`. Default value: `'/var/local/file_manager/admin_group/backup'`|
 |**nodegrid_backup_file_directory**| Backup file directory on the target device. This variable only works if the Nodegrid target device version is greater or equal to 'v6.2.8', otherwise the default path `/backup` is used. Default value: `'/var/local/file_manager/admin_group'`. |
 
-Additionally, this playbook creates two CSV reports which detail:
+Additionally, this playbook creates two CSV reports:
 
 |Variable|Description|
 |----|----|
@@ -263,27 +263,48 @@ ansible-playbook ng_backup_filepath_with_report.yaml --limit nodegrid_backup -e 
 
 The playbook [ng_export_settings.yaml](ng_export_settings.yaml) creates a text-based backup of the Nodegrid configuration for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_export_settings_files_directory` which defines the main path for the export settings backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
 
-To execute the playbook:
+| Variable Name | Description |
+|:---:|:---|
+|**nodegrid_export_settings_files_directory**| Ansible control node's directory path to store the ALL the backup files (includes the daily, weekly and monthly files). The backup files' names will follow this pattern: `'{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.cli'`. Default value: `'/var/local/file_manager/admin_group/backup'`|
+|**nodegrid_export_settings_file_directory**| Export Settings file directory on the target device. Default value: `'/var/local/file_manager/admin_group'`. |
+
+To execute the playbook with the default values:
 
 ```bash
 ansible-playbook ng_export_settings.yaml --limit nodegrid_backup
+```
+
+To execute the playbook defining the variables:
+
+```
+ansible-playbook ng_export_settings.yaml --limit nodegrid_backup -e nodegrid_export_settings_files_directory=/var/local/file_manager/admin_group/backup -e nodegrid_export_settings_file_directory=/var/local/file_manager/admin_group
 ```
 
 ### Execute the Export Settings Process with a CSV report
 
 The playbook [ng_export_settings_with_report.yaml](ng_export_settings_with_report.yaml) creates a TWX-based backup of the Nodegrid configuration for each of the Nodegrid devices and stores them in the Control Node. This playbook has a variable named `nodegrid_export_settings_files_directory` which defines the main path for the export settings backup files (default value: `/var/local/file_manager/admin_group/backup`). Furthermore, the playbook executes the backup filtering logic on the Control Node according to the requirements defined at the beginning of this document. 
 
-Additionally, this playbook creates two CSV reports which detail:
+| Variable Name | Description |
+|:---:|:---|
+|**nodegrid_export_settings_files_directory**| Ansible control node's directory path to store the ALL the backup files (includes the daily, weekly and monthly files). The backup files' names will follow this pattern: `'{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.cli'`. Default value: `'/var/local/file_manager/admin_group/backup'`|
+|**nodegrid_export_settings_file_directory**| Export Settings file directory on the target device. Default value: `'/var/local/file_manager/admin_group'`. |
+
+Additionally, this playbook creates two CSV reports:
 
 |Variable|Description|
 |----|----|
-|`report_path: "{{backup_files_directory}}/ng_backup_status_report.csv"` | Backup's report file path on the Ansible Control Node |
-|`error_log_path: "{{backup_files_directory}}/ng_backup_error_report.csv"`| Backup's error logs file path on the Ansible Control Node |
+|`report_path: "{{ export_settings_files_directory }}/ng_export_settings_status_report.csv"` | Backup's report file path on the Ansible Control Node |
+|`error_log_path: "{{ export_settings_files_directory }}/ng_export_settings_error_report.csv"`| Backup's error logs file path on the Ansible Control Node |
 
 To execute the playbook:
 
 ```bash
 ansible-playbook ng_export_settings_with_report.yaml --limit nodegrid_backup
+```
+To execute the playbook defining the variables:
+
+```
+ansible-playbook ng_export_settings_with_report.yaml --limit nodegrid_backup -e nodegrid_export_settings_files_directory=/var/local/file_manager/admin_group/backup -e nodegrid_export_settings_file_directory=/var/local/file_manager/admin_group
 ```
 
 

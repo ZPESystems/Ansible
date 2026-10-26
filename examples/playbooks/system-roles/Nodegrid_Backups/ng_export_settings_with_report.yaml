@@ -4,13 +4,16 @@
     - zpe.nodegrid
 
   vars:
-    # Local directory path to store the export_settings files. The export_settings files' names will follow 
-    # this pattern: '{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.cli'
-    export_settings_files_directory: "{{nodegrid_export_settings_files_directory | default('/var/local/file_manager/admin_group/backup') }}"
+    # Local directory path to store ALL export_settings files (includes the daily, weekly and monthly files).
+    # The export_settings files' names will follow this pattern: 
+    #   '{{ inventory_hostname }}-{{ ISO 8601 basic short timestamp }}.cli'
+    export_settings_files_directory: "{{ nodegrid_export_settings_files_directory | default('/var/local/file_manager/admin_group/backup') }}"
     # Timeout for export settings in seconds
     export_settings_timeout: "{{ nodegrid_export_settings_timeout | default(600) }}"
     # Number of export_settings files to keep/rotate on the target devices
     export_settings_files_rotation_number_target_device: 0
+    # export_settings file's directory on the Target Device. 
+    export_settings_file_directory: "{{ nodegrid_export_settings_file_directory | default('/var/local/file_manager/admin_group') }}"
     # Backup's report file path on the Ansible Control Node 
     report_path: "{{ export_settings_files_directory }}/ng_export_settings_status_report.csv"
     # Backup's error logs file path on the Ansible Control Node 
@@ -88,7 +91,7 @@
 
       - name: Get list of export_settings files
         ansible.builtin.find:
-          paths: "/tmp/"
+          paths: "{{ export_settings_file_directory }}"
           patterns: "{{ inventory_hostname }}*.cli"
         register: export_settings_files_remote
     
@@ -127,7 +130,8 @@
       block:
       - name: Create export_settings file
         zpe.nodegrid.nodegrid_export_settings:
-          timeout: "{{export_settings_timeout}}"
+          timeout: "{{ export_settings_timeout }}"
+          export_settings_directory: "{{ export_settings_file_directory }}"
           export_settings_filename: "{{ inventory_hostname }}.cli"
           include_empty: no
           no_default: no
@@ -139,20 +143,20 @@
   
       - name: Show export_settings filename
         ansible.builtin.debug:
-          msg: "{{ nodegrid_export_settings.export_settings_filename }}"
+          msg: "{{ nodegrid_export_settings.export_settings_directory }}/{{ nodegrid_export_settings.export_settings_filename }}"
 
       - name: Fetch export_settings file to Control Node
         ansible.builtin.fetch:
           # Source path on the remote host
-          src: "/tmp/{{ nodegrid_export_settings.export_settings_filename }}" 
+          src: "{{ nodegrid_export_settings.export_settings_directory }}/{{ nodegrid_export_settings.export_settings_filename }}" 
           # Destination directory on the local (control) machine
-          dest: "{{export_settings_files_directory}}/daily/{{ inventory_hostname }}/{{ nodegrid_export_settings.export_settings_filename }}"
+          dest: "{{ export_settings_files_directory }}/daily/{{ inventory_hostname }}/{{ nodegrid_export_settings.export_settings_filename }}"
           # Optional parameter to save the file directly to the dest path without creating a hostname/path structure
           flat: yes
       
       - name: Set export_settings file permissions
         ansible.builtin.file:
-          path: "{{export_settings_files_directory}}/daily/{{ inventory_hostname }}/{{ nodegrid_export_settings.export_settings_filename }}"
+          path: "{{ export_settings_files_directory }}/daily/{{ inventory_hostname }}/{{ nodegrid_export_settings.export_settings_filename }}"
           mode: '0775'
           owner: ansible
           group: ansible

@@ -41,17 +41,19 @@ def nodegrid_export_settings(option, run_opt):
     now_utc = datetime.now(timezone.utc)
     iso_basic_short = now_utc.strftime("%Y%m%dT%H%M%SZ")
     export_settings_filename = f"{option['export_settings_filename'].removesuffix(export_settings_file_extension)}-{iso_basic_short}{export_settings_file_extension}" 
+    export_settings_directory = option.get('export_settings_directory', '/tmp')
+    if export_settings_directory.strip() == "":
+        export_settings_directory = "/tmp"
     export_settings_file_permissions = option['export_settings_file_permissions']
     result = dict(
         changed=False,
         failed=False,
         export_settings_filename='',
     )
-    result['export_settings_filename'] = export_settings_filename
 
     options = [ "--{0}".format(cmd_option.replace('_','-')) for cmd_option in ['include_empty', 'no_default', 'not_enabled', 'plain_password', 'with_options'] if option[cmd_option]]
 
-    cmd = {'cmd': f"export_settings /settings --file /tmp/{export_settings_filename} {' '.join(options)}"}
+    cmd = {'cmd': f"export_settings /settings --file {os.path.join(export_settings_directory, export_settings_filename)} {' '.join(options)}"}
 
     if check_mode:
         result['changed'] = False
@@ -61,10 +63,12 @@ def nodegrid_export_settings(option, run_opt):
     cmd_result = run_cli_command(cmd, timeout=timeout)
     if cmd_result['error']:
         return result_failed(msg=f"Failed to export settings. Results: {cmd_result['msg']}")
+    result['export_settings_filename'] = export_settings_filename
+    result['export_settings_directory'] = export_settings_directory
 
     try:
         mode_octal = int(export_settings_file_permissions, 8)
-        export_settings_filepath = os.path.join("/tmp",export_settings_filename)
+        export_settings_filepath = os.path.join(export_settings_directory, export_settings_filename)
         os.chmod(export_settings_filepath, mode_octal)
     except Exception as e:
         return result_failed(f"Failed to change export settings file '{export_settings_filename}' permissions to '{export_settings_file_permissions}'. Error: {e}")
@@ -78,6 +82,7 @@ def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
         export_settings_filename=dict(type='str', required=True),
+        export_settings_directory=dict(type='str', default='/tmp', required=False),
         export_settings_file_permissions=dict(type='str', required=False, default='755'),
         include_empty=dict(type='bool', default=False, required=False),
         no_default=dict(type='bool', default=False, required=False),
